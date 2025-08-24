@@ -4,8 +4,8 @@ version: 2
 secret:
   # Exclude files and paths by globbing
   ignored_paths:
-    - '**/docker-compose.yml'
-    - '**/.env.example'
+    - 'docker-compose.yml'
+    - 'env.example'
   # Detectors to ignore.
   ignored_detectors:
     - Generic Password
