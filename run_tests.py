@@ -673,6 +673,7 @@ def main():
         return
 
     runner = TestRunner()
+    success = False
 
     # Log test run start
     runner.logger.logger.info(
@@ -706,8 +707,6 @@ def main():
             if not runner.start_services():
                 runner.logger.logger.error("Failed to start services")
                 sys.exit(1)
-
-        success = False
 
         # Run tests based on type
         if args.test_type == "all":
