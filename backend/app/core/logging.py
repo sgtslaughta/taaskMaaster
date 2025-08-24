@@ -30,7 +30,7 @@ def configure_logging(level: str = "INFO") -> None:
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=LoggerFactory(),
@@ -58,8 +58,10 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 class RequestLogger:
     """Middleware for logging HTTP requests and responses."""
+
     def __init__(self, logger: structlog.stdlib.BoundLogger):
         self.logger = logger
+
     def log_request(self, request_data: Dict[str, Any]) -> None:
         """Log incoming request data."""
         self.logger.info(
@@ -69,6 +71,7 @@ class RequestLogger:
             client_ip=request_data.get("client_ip"),
             user_agent=request_data.get("user_agent"),
         )
+
     def log_response(self, response_data: Dict[str, Any]) -> None:
         """Log response data."""
         self.logger.info(
@@ -77,6 +80,7 @@ class RequestLogger:
             response_time=response_data.get("response_time"),
             content_length=response_data.get("content_length"),
         )
+
     def log_error(self, error_data: Dict[str, Any]) -> None:
         """Log error information."""
         self.logger.error(
@@ -84,5 +88,5 @@ class RequestLogger:
             error_type=error_data.get("error_type"),
             error_message=error_data.get("error_message"),
             status_code=error_data.get("status_code"),
-            **error_data.get("extra", {})
+            **error_data.get("extra", {}),
         )

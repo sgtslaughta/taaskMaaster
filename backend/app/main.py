@@ -6,7 +6,7 @@ monitoring, and basic API endpoints.
 """
 
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +14,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.logging import configure_logging, get_logger
-from app.core.monitoring import (
-    MetricsMiddleware,
-    get_metrics,
-    get_health_status
-)
+from app.core.monitoring import MetricsMiddleware, get_health_status, get_metrics
 
 # Configure logging
 configure_logging()
@@ -31,7 +27,7 @@ fastapi_app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Add FastAPI middleware
@@ -44,47 +40,48 @@ fastapi_app.add_middleware(
 )
 fastapi_app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"]
+    allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"],
 )
 
-# Request logging middleware
+
 @fastapi_app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Log all incoming requests."""
     start_time = time.time()
-    
+
     # Log request
     logger.info(
         "Incoming request",
         method=request.method,
         url=str(request.url),
         client_ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
+        user_agent=request.headers.get("user-agent"),
     )
-    
+
     # Process request
     response = await call_next(request)
-    
+
     # Calculate response time
     response_time = time.time() - start_time
-    
+
     # Log response
     logger.info(
         "Response sent",
         status_code=response.status_code,
         response_time=response_time,
-        content_length=response.headers.get("content-length")
+        content_length=response.headers.get("content-length"),
     )
-    
+
     # Add response time header
     response.headers["X-Response-Time"] = str(response_time)
-    
+
     # Add security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    
+
     return response
+
 
 # Create the final app with ASGI middleware
 app = MetricsMiddleware(fastapi_app)
@@ -94,7 +91,7 @@ app = MetricsMiddleware(fastapi_app)
 async def root() -> Dict[str, Any]:
     """
     Root endpoint providing basic API information.
-    
+
     Returns:
         Dictionary containing API information
     """
@@ -103,7 +100,7 @@ async def root() -> Dict[str, Any]:
         "version": "0.1.0",
         "status": "running",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
@@ -111,7 +108,7 @@ async def root() -> Dict[str, Any]:
 async def health_check() -> Dict[str, Any]:
     """
     Health check endpoint for monitoring.
-    
+
     Returns:
         Dictionary containing health status information
     """
@@ -122,21 +119,18 @@ async def health_check() -> Dict[str, Any]:
 async def metrics() -> Response:
     """
     Prometheus metrics endpoint.
-    
+
     Returns:
         Prometheus metrics in text format
     """
-    return Response(
-        content=get_metrics(),
-        media_type="text/plain"
-    )
+    return Response(content=get_metrics(), media_type="text/plain")
 
 
 @fastapi_app.get("/api/v1/status")
 async def api_status() -> Dict[str, Any]:
     """
     API status endpoint for versioned API.
-    
+
     Returns:
         Dictionary containing API status information
     """
@@ -148,40 +142,28 @@ async def api_status() -> Dict[str, Any]:
             "task_management",
             "user_management",
             "gamification",
-            "file_storage"
-        ]
+            "file_storage",
+        ],
     }
 
 
 @fastapi_app.exception_handler(404)
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
-    logger.warning(
-        "404 error",
-        path=request.url.path,
-        method=request.method
-    )
-    return JSONResponse(
-        status_code=404,
-        content={"detail": "Endpoint not found"}
-    )
+    logger.warning("404 error", path=request.url.path, method=request.method)
+    return JSONResponse(status_code=404, content={"detail": "Endpoint not found"})
 
 
 @fastapi_app.exception_handler(500)
-async def internal_error_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 500 errors."""
     logger.error(
         "Internal server error",
         path=request.url.path,
         method=request.method,
-        error=str(exc)
+        error=str(exc),
     )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 # Startup event
@@ -189,12 +171,12 @@ async def internal_error_handler(
 async def startup_event():
     """Application startup event."""
     logger.info("TaaskMaaster API starting up")
-    
+
     # Initialize services here
     # await initialize_database()
     # await initialize_redis()
     # await initialize_minio()
-    
+
     logger.info("TaaskMaaster API startup complete")
 
 
@@ -203,22 +185,18 @@ async def startup_event():
 async def shutdown_event():
     """Application shutdown event."""
     logger.info("TaaskMaaster API shutting down")
-    
+
     # Cleanup services here
     # await cleanup_database()
     # await cleanup_redis()
     # await cleanup_minio()
-    
+
     logger.info("TaaskMaaster API shutdown complete")
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        "app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
     )

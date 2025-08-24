@@ -13,11 +13,13 @@ from fastapi.testclient import TestClient
 def client():
     """Create a test client for the FastAPI application."""
     from app.main import app
+
     return TestClient(app)
 
 
 class TestHealthEndpoints:
     """Test health check endpoints."""
+
     def test_health_endpoint(self, client):
         """Test the basic health endpoint."""
         response = client.get("/health")
@@ -27,6 +29,7 @@ class TestHealthEndpoints:
         assert data["status"] == "healthy"
         assert "timestamp" in data
         assert "version" in data
+
     def test_health_services(self, client):
         """Test the health endpoint includes service status."""
         response = client.get("/health")
@@ -39,6 +42,7 @@ class TestHealthEndpoints:
         for service in expected_services:
             assert service in services
             assert services[service] in ["healthy", "unhealthy"]
+
     def test_metrics_endpoint(self, client):
         """Test the metrics endpoint."""
         response = client.get("/metrics")
@@ -47,6 +51,7 @@ class TestHealthEndpoints:
         content = response.text
         assert "http_requests_total" in content
         assert "http_request_duration_seconds" in content
+
     def test_root_endpoint(self, client):
         """Test the root endpoint."""
         response = client.get("/")
@@ -59,11 +64,13 @@ class TestHealthEndpoints:
 
 class TestAPIDocumentation:
     """Test API documentation endpoints."""
+
     def test_docs_endpoint(self, client):
         """Test that API documentation is accessible."""
         response = client.get("/docs")
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
+
     def test_openapi_spec(self, client):
         """Test that OpenAPI specification is accessible."""
         response = client.get("/openapi.json")
@@ -81,12 +88,14 @@ class TestAPIDocumentation:
 
 class TestErrorHandling:
     """Test error handling and responses."""
+
     def test_404_endpoint(self, client):
         """Test 404 handling for non-existent endpoints."""
         response = client.get("/non-existent-endpoint")
         assert response.status_code == 404
         data = response.json()
         assert "detail" in data
+
     def test_method_not_allowed(self, client):
         """Test method not allowed handling."""
         response = client.post("/health")
@@ -97,6 +106,7 @@ class TestErrorHandling:
 
 class TestCORS:
     """Test CORS configuration."""
+
     def test_cors_headers(self, client):
         """Test that CORS headers are present."""
         response = client.options("/health")
@@ -110,6 +120,7 @@ class TestCORS:
 
 class TestSecurity:
     """Test security headers and configurations."""
+
     def test_security_headers(self, client):
         """Test that security headers are present."""
         response = client.get("/health")
@@ -119,10 +130,11 @@ class TestSecurity:
         security_headers = [
             "x-content-type-options",
             "x-frame-options",
-            "x-xss-protection"
+            "x-xss-protection",
         ]
         for header in security_headers:
             assert header in headers, f"Missing security header: {header}"
+
     def test_rate_limiting_headers(self, client):
         """Test that rate limiting headers are present."""
         response = client.get("/health")
@@ -132,7 +144,7 @@ class TestSecurity:
         rate_limit_headers = [
             "x-ratelimit-limit",
             "x-ratelimit-remaining",
-            "x-ratelimit-reset"
+            "x-ratelimit-reset",
         ]
         for header in rate_limit_headers:
             assert header in headers, f"Missing rate limit header: {header}"
