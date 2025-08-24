@@ -14,7 +14,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.logging import configure_logging, get_logger
-from app.core.monitoring import MetricsMiddleware, get_health_status, get_metrics
+from app.core.monitoring import (
+    MetricsMiddleware,
+    get_health_status,
+    get_metrics,
+)
 
 # Configure logging
 configure_logging()
@@ -151,11 +155,15 @@ async def api_status() -> Dict[str, Any]:
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
     logger.warning("404 error", path=request.url.path, method=request.method)
-    return JSONResponse(status_code=404, content={"detail": "Endpoint not found"})
+    return JSONResponse(
+        status_code=404, content={"detail": "Endpoint not found"}
+    )
 
 
 @fastapi_app.exception_handler(500)
-async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+async def internal_error_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
     """Handle 500 errors."""
     logger.error(
         "Internal server error",
@@ -163,7 +171,9 @@ async def internal_error_handler(request: Request, exc: Exception) -> JSONRespon
         method=request.method,
         error=str(exc),
     )
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal server error"}
+    )
 
 
 # Startup event
@@ -198,5 +208,9 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info",
     )
