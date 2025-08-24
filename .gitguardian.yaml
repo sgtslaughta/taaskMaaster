@@ -1,0 +1,4 @@
+paths:
+  ignored:
+    - "docker-compose.yml"
+    - ".env.example"
