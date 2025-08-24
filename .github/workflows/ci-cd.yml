@@ -32,9 +32,9 @@ jobs:
         npm ci
     - name: Run linting
       run: |
+        isort --check-only backend/
         flake8 backend/
         black --check backend/
-        isort --check-only backend/
         cd frontend
         npm run lint
         npm run type-check
