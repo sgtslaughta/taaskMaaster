@@ -155,15 +155,11 @@ async def api_status() -> dict[str, Any]:
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 404 errors."""
     logger.warning("404 error", path=request.url.path, method=request.method)
-    return JSONResponse(
-        status_code=404, content={"detail": "Endpoint not found"}
-    )
+    return JSONResponse(status_code=404, content={"detail": "Endpoint not found"})
 
 
 @fastapi_app.exception_handler(500)
-async def internal_error_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle 500 errors."""
     logger.error(
         "Internal server error",
@@ -171,9 +167,7 @@ async def internal_error_handler(
         method=request.method,
         error=str(exc),
     )
-    return JSONResponse(
-        status_code=500, content={"detail": "Internal server error"}
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 # Startup event
