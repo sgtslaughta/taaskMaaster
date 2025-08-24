@@ -8,8 +8,9 @@ for monitoring application performance and health.
 import time
 from typing import Dict, Any
 
-from fastapi import Request, Response
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (
+    Counter, Histogram, Gauge, generate_latest
+)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
@@ -96,7 +97,7 @@ class MetricsMiddleware:
                 endpoint=path
             ).observe(duration)
             
-        except Exception as e:
+        except Exception:
             # Record error metrics
             method = scope.get("method", "UNKNOWN")
             path = scope.get("path", "/")

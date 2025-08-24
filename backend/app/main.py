@@ -15,11 +15,9 @@ from fastapi.responses import JSONResponse
 
 from app.core.logging import configure_logging, get_logger
 from app.core.monitoring import (
-    MetricsMiddleware, 
-    get_metrics, 
-    get_health_status,
-    REQUEST_COUNT,
-    REQUEST_DURATION
+    MetricsMiddleware,
+    get_metrics,
+    get_health_status
 )
 
 # Configure logging
@@ -170,7 +168,9 @@ async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
 
 
 @fastapi_app.exception_handler(500)
-async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+async def internal_error_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
     """Handle 500 errors."""
     logger.error(
         "Internal server error",

@@ -16,7 +16,6 @@ from structlog.stdlib import LoggerFactory
 def configure_logging(level: str = "INFO") -> None:
     """
     Configure structured logging for the application.
-    
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
@@ -38,7 +37,6 @@ def configure_logging(level: str = "INFO") -> None:
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
     # Configure standard library logging
     logging.basicConfig(
         format="%(message)s",
@@ -50,10 +48,8 @@ def configure_logging(level: str = "INFO") -> None:
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """
     Get a structured logger instance.
-    
     Args:
         name: Logger name (usually __name__)
-        
     Returns:
         Configured structured logger
     """
@@ -62,10 +58,8 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 class RequestLogger:
     """Middleware for logging HTTP requests and responses."""
-    
     def __init__(self, logger: structlog.stdlib.BoundLogger):
         self.logger = logger
-    
     def log_request(self, request_data: Dict[str, Any]) -> None:
         """Log incoming request data."""
         self.logger.info(
@@ -75,7 +69,6 @@ class RequestLogger:
             client_ip=request_data.get("client_ip"),
             user_agent=request_data.get("user_agent"),
         )
-    
     def log_response(self, response_data: Dict[str, Any]) -> None:
         """Log response data."""
         self.logger.info(
@@ -84,7 +77,6 @@ class RequestLogger:
             response_time=response_data.get("response_time"),
             content_length=response_data.get("content_length"),
         )
-    
     def log_error(self, error_data: Dict[str, Any]) -> None:
         """Log error information."""
         self.logger.error(
