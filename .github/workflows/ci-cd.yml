@@ -78,10 +78,13 @@ jobs:
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
-      artifacts:
-        upload-on-success: true
-        name: 'trivy-results.sarif'
-        path: 'trivy-results.sarif'
+
+    - name: Upload Trivy report as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: trivy-results
+        path: trivy-results.sarif
 
   build-and-push:
     runs-on: ubuntu-latest
