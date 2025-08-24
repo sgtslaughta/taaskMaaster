@@ -34,6 +34,7 @@ jobs:
       run: |
         flake8 backend/
         black --check backend/
+        isort --check-only backend/
         cd frontend
         npm run lint
         npm run type-check

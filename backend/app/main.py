@@ -8,14 +8,16 @@ monitoring, and basic API endpoints.
 import time
 from typing import Any
 
+from app.core.logging import configure_logging, get_logger
+from app.core.monitoring import (
+    MetricsMiddleware,
+    get_health_status,
+    get_metrics,
+)
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-
-from app.core.logging import configure_logging, get_logger
-from app.core.monitoring import MetricsMiddleware, get_health_status
-from app.core.monitoring import get_metrics
 
 # Configure logging
 configure_logging()
