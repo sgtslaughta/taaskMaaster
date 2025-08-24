@@ -45,19 +45,21 @@ class TestServiceStatus:
         running_containers = service_checker.get_running_containers()
 
         for service in expected_services:
-            assert service in running_containers, f"Service {service} is not running"
+            assert service in running_containers, (
+                f"Service {service} is not running"
+            )
 
     def test_backend_container_running(self, service_checker):
         """Test that backend container is running."""
-        assert service_checker.check_container_running("taaskmaaster-backend"), (
-            "Backend container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-backend"
+        ), "Backend container is not running"
 
     def test_frontend_container_running(self, service_checker):
         """Test that frontend container is running."""
-        assert service_checker.check_container_running("taaskmaaster-frontend"), (
-            "Frontend container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-frontend"
+        ), "Frontend container is not running"
 
     def test_redis_container_running(self, service_checker):
         """Test that Redis container is running."""
@@ -113,7 +115,9 @@ class TestServiceHealth:
         services = data["services"]
         expected_services = ["database", "redis", "minio"]
         for service in expected_services:
-            assert service in services, f"Health response missing {service} status"
+            assert service in services, (
+                f"Health response missing {service} status"
+            )
             assert services[service] in ["healthy", "unhealthy"], (
                 f"Invalid {service} status: {services[service]}"
             )
@@ -138,7 +142,7 @@ class TestPortAccessibility:
         """Test that Redis port is not exposed externally."""
         # Redis should only be accessible internally
         try:
-            response = requests.get("http://localhost:6379", timeout=5)
+            requests.get("http://localhost:6379", timeout=5)
             pytest.fail("Redis port should not be exposed externally")
         except requests.RequestException:
             # Expected - Redis should not be accessible
@@ -149,8 +153,10 @@ class TestPortAccessibility:
         # MinIO should only be accessible internally
         for port in [9000, 9001]:
             try:
-                response = requests.get(f"http://localhost:{port}", timeout=5)
-                pytest.fail(f"MinIO port {port} should not be exposed externally")
+                requests.get(f"http://localhost:{port}", timeout=5)
+                pytest.fail(
+                    f"MinIO port {port} should not be exposed externally"
+                )
             except requests.RequestException:
                 # Expected - MinIO should not be accessible
                 pass
@@ -294,7 +300,9 @@ class TestErrorHandling:
     def test_method_not_allowed(self, service_checker, config):
         """Test method not allowed handling."""
         try:
-            response = requests.post(f"{config.backend_url}/health", timeout=10)
+            response = requests.post(
+                f"{config.backend_url}/health", timeout=10
+            )
             assert response.status_code == 405, (
                 f"Expected 405, got {response.status_code}"
             )

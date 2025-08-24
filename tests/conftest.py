@@ -98,7 +98,11 @@ def run_command(command: str, timeout: int = 60) -> Dict[str, Any]:
     """
     try:
         result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, timeout=timeout
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         return {
             "success": result.returncode == 0,
@@ -114,7 +118,12 @@ def run_command(command: str, timeout: int = 60) -> Dict[str, Any]:
             "returncode": -1,
         }
     except Exception as e:
-        return {"success": False, "stdout": "", "stderr": str(e), "returncode": -1}
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": str(e),
+            "returncode": -1,
+        }
 
 
 class ServiceChecker:
@@ -147,7 +156,9 @@ class ServiceChecker:
         result = run_command("docker ps --format '{{.Names}}'")
         if result["success"]:
             return [
-                name.strip() for name in result["stdout"].split("\n") if name.strip()
+                name.strip()
+                for name in result["stdout"].split("\n")
+                if name.strip()
             ]
         return []
 
@@ -158,7 +169,9 @@ class ServiceChecker:
 
     def check_service_health(self, url: str) -> bool:
         """Check if a service is healthy."""
-        return wait_for_service(url, self.config.timeout, self.config.retry_attempts)
+        return wait_for_service(
+            url, self.config.timeout, self.config.retry_attempts
+        )
 
     def get_service_info(self, url: str) -> Optional[Dict[str, Any]]:
         """Get service information."""
@@ -189,9 +202,12 @@ def service_checker(config: TestConfig) -> ServiceChecker:
 def pytest_configure(config):
     """Configure pytest."""
     config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+        "markers",
+        "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     )
-    config.addinivalue_line("markers", "integration: marks tests as integration tests")
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
     config.addinivalue_line(
         "markers", "infrastructure: marks tests as infrastructure tests"
     )
@@ -209,5 +225,8 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.integration)
 
         # Mark slow tests
-        if any(keyword in item.nodeid for keyword in ["build", "startup", "health"]):
+        if any(
+            keyword in item.nodeid
+            for keyword in ["build", "startup", "health"]
+        ):
             item.add_marker(pytest.mark.slow)

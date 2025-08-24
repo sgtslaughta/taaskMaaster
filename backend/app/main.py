@@ -6,7 +6,7 @@ monitoring, and basic API endpoints.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,7 +92,7 @@ app = MetricsMiddleware(fastapi_app)
 
 
 @fastapi_app.get("/")
-async def root() -> Dict[str, Any]:
+async def root() -> dict[str, Any]:
     """
     Root endpoint providing basic API information.
 
@@ -109,7 +109,7 @@ async def root() -> Dict[str, Any]:
 
 
 @fastapi_app.get("/health")
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """
     Health check endpoint for monitoring.
 
@@ -131,7 +131,7 @@ async def metrics() -> Response:
 
 
 @fastapi_app.get("/api/v1/status")
-async def api_status() -> Dict[str, Any]:
+async def api_status() -> dict[str, Any]:
     """
     API status endpoint for versioned API.
 

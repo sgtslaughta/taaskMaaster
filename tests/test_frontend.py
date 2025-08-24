@@ -49,7 +49,9 @@ class TestFrontendAccessibility:
         assert info is not None, "Frontend not responding"
 
         html_content = info["data"]
-        assert "TaaskMaaster" in html_content, "Frontend missing application title"
+        assert "TaaskMaaster" in html_content, (
+            "Frontend missing application title"
+        )
 
 
 class TestFrontendSecurity:
@@ -161,7 +163,9 @@ class TestFrontendResponsiveness:
 class TestFrontendIntegration:
     """Test frontend integration with backend."""
 
-    def test_backend_api_connectivity_from_frontend(self, service_checker, config):
+    def test_backend_api_connectivity_from_frontend(
+        self, service_checker, config
+    ):
         """Test that frontend can reach backend API."""
         # This would require JavaScript execution to test
         # For now, we verify the backend is accessible from the frontend's perspective
@@ -196,7 +200,9 @@ class TestFrontendBuild:
 
         # Check for Next.js specific content
         html_content = info["data"]
-        assert "next" in html_content.lower(), "Frontend missing Next.js indicators"
+        assert "next" in html_content.lower(), (
+            "Frontend missing Next.js indicators"
+        )
 
 
 if __name__ == "__main__":

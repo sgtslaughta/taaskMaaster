@@ -6,7 +6,7 @@ for monitoring application performance and health.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
@@ -108,7 +108,7 @@ def get_metrics() -> str:
     return generate_latest()
 
 
-def get_health_status() -> Dict[str, Any]:
+def get_health_status() -> dict[str, Any]:
     """
     Get application health status.
 
@@ -137,7 +137,7 @@ class HealthChecker:
         """Add a health check function."""
         self.checks[name] = check_func
 
-    async def run_checks(self) -> Dict[str, Any]:
+    async def run_checks(self) -> dict[str, Any]:
         """Run all health checks."""
         results = {}
 

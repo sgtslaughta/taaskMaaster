@@ -35,7 +35,9 @@ class TestRunner:
             },
         )
 
-    def run_command(self, command: List[str], timeout: int = 300) -> Dict[str, Any]:
+    def run_command(
+        self, command: List[str], timeout: int = 300
+    ) -> Dict[str, Any]:
         """Run a command and return results."""
         self.logger.logger.debug(f"Executing command: {' '.join(command)}")
 
@@ -97,17 +99,26 @@ class TestRunner:
         checks = []
 
         # Check Python version
-        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        if sys.version_info >= (3, 9):
+        major = sys.version_info.major
+        minor = sys.version_info.minor
+        micro = sys.version_info.micro
+        python_version = f"{major}.{minor}.{micro}"
+        if major >= 3 and minor >= 9:
             checks.append(("✅", f"Python {python_version} (>= 3.9)"))
-            self.logger.logger.info(f"Python version check passed: {python_version}")
+            self.logger.logger.info(
+                f"Python version check passed: {python_version}"
+            )
         else:
             checks.append(("❌", f"Python {python_version} (requires >= 3.9)"))
-            self.logger.logger.error(f"Python version check failed: {python_version}")
+            self.logger.logger.error(
+                f"Python version check failed: {python_version}"
+            )
             return False
 
         # Check if pytest is available
-        result = self.run_command([sys.executable, "-m", "pytest", "--version"])
+        result = self.run_command(
+            [sys.executable, "-m", "pytest", "--version"]
+        )
         if result["success"]:
             version_line = result["stdout"].strip().split("\n")[0]
             checks.append(("✅", f"pytest {version_line}"))
@@ -122,7 +133,9 @@ class TestRunner:
             import requests
 
             checks.append(("✅", f"requests {requests.__version__}"))
-            self.logger.logger.info(f"requests check passed: {requests.__version__}")
+            self.logger.logger.info(
+                f"requests check passed: {requests.__version__}"
+            )
         except ImportError:
             checks.append(("❌", "requests not available"))
             self.logger.logger.error("requests check failed")
@@ -144,7 +157,9 @@ class TestRunner:
         if result["success"]:
             version_line = result["stdout"].strip().split("\n")[0]
             checks.append(("✅", f"Docker Compose {version_line}"))
-            self.logger.logger.info(f"Docker Compose check passed: {version_line}")
+            self.logger.logger.info(
+                f"Docker Compose check passed: {version_line}"
+            )
         else:
             checks.append(("❌", "Docker Compose not available"))
             self.logger.logger.error("Docker Compose check failed")
@@ -171,7 +186,9 @@ class TestRunner:
         compose_cmd = self._get_docker_compose_cmd()
 
         # Check if images already exist
-        result = self.run_command(["docker", "images", "-q", "taaskmaaster-backend"])
+        result = self.run_command(
+            ["docker", "images", "-q", "taaskmaaster-backend"]
+        )
         if result["success"] and result["stdout"].strip():
             print("✅ Backend image already exists")
             self.logger.logger.info("Backend image already exists")
@@ -185,13 +202,16 @@ class TestRunner:
                 print("❌ Backend build failed:")
                 print(build_result["stderr"])
                 self.logger.logger.error(
-                    "Backend build failed", extra={"stderr": build_result["stderr"]}
+                    "Backend build failed",
+                    extra={"stderr": build_result["stderr"]},
                 )
                 return False
             print("✅ Backend image built successfully")
             self.logger.logger.info("Backend image built successfully")
 
-        result = self.run_command(["docker", "images", "-q", "taaskmaaster-frontend"])
+        result = self.run_command(
+            ["docker", "images", "-q", "taaskmaaster-frontend"]
+        )
         if result["success"] and result["stdout"].strip():
             print("✅ Frontend image already exists")
             self.logger.logger.info("Frontend image already exists")
@@ -205,7 +225,8 @@ class TestRunner:
                 print("❌ Frontend build failed:")
                 print(build_result["stderr"])
                 self.logger.logger.error(
-                    "Frontend build failed", extra={"stderr": build_result["stderr"]}
+                    "Frontend build failed",
+                    extra={"stderr": build_result["stderr"]},
                 )
                 return False
             print("✅ Frontend image built successfully")
@@ -303,7 +324,9 @@ class TestRunner:
 
         # Ensure services are running for backend tests
         if not self._ensure_services_running():
-            self.logger.logger.error("Failed to start services for backend tests")
+            self.logger.logger.error(
+                "Failed to start services for backend tests"
+            )
             return False
 
         cmd = [
@@ -334,7 +357,9 @@ class TestRunner:
 
         # Ensure services are running for frontend tests
         if not self._ensure_services_running():
-            self.logger.logger.error("Failed to start services for frontend tests")
+            self.logger.logger.error(
+                "Failed to start services for frontend tests"
+            )
             return False
 
         cmd = [
@@ -397,7 +422,9 @@ class TestRunner:
 
         # Ensure services are running for tests that need them
         if not self._ensure_services_running():
-            self.logger.logger.error("Failed to start services for quick tests")
+            self.logger.logger.error(
+                "Failed to start services for quick tests"
+            )
             return False
 
         cmd = [
@@ -597,7 +624,8 @@ Options:
 Examples:
   python run_tests.py                    # Run all tests
   python run_tests.py quick              # Run quick tests
-  python run_tests.py -v infrastructure  # Run infrastructure tests with verbose output
+  python run_tests.py -v infrastructure  # Run infrastructure tests with 
+                                         # verbose output
   python run_tests.py -s all             # Start services and run all tests
   python run_tests.py coverage           # Generate coverage report
         """
@@ -622,9 +650,14 @@ def main():
         ],
         help="Type of tests to run",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument(
-        "-s", "--start", action="store_true", help="Start services before testing"
+        "-v", "--verbose", action="store_true", help="Verbose output"
+    )
+    parser.add_argument(
+        "-s",
+        "--start",
+        action="store_true",
+        help="Start services before testing",
     )
     parser.add_argument(
         "-S", "--stop", action="store_true", help="Stop services after testing"

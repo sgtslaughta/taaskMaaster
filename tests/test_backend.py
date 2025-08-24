@@ -51,7 +51,9 @@ class TestBackendAPI:
         services = data["services"]
         expected_services = ["database", "redis", "minio"]
         for service in expected_services:
-            assert service in services, f"Health response missing {service} status"
+            assert service in services, (
+                f"Health response missing {service} status"
+            )
             assert services[service] in ["healthy", "unhealthy"], (
                 f"Invalid {service} status: {services[service]}"
             )
@@ -68,7 +70,9 @@ class TestBackendAPI:
 
         # Check that it returns Prometheus metrics format
         content = info["data"]
-        assert "http_requests_total" in content, "Metrics missing http_requests_total"
+        assert "http_requests_total" in content, (
+            "Metrics missing http_requests_total"
+        )
         assert "http_request_duration_seconds" in content, (
             "Metrics missing http_request_duration_seconds"
         )
@@ -101,7 +105,9 @@ class TestBackendAPI:
             "file_storage",
         ]
         for feature in expected_features:
-            assert feature in features, f"API status missing feature: {feature}"
+            assert feature in features, (
+                f"API status missing feature: {feature}"
+            )
 
     def test_documentation_endpoints(self, service_checker, config):
         """Test API documentation endpoints."""
@@ -172,7 +178,9 @@ class TestBackendErrorHandling:
     def test_405_error_handling(self, service_checker, config):
         """Test 405 error handling."""
         try:
-            response = requests.post(f"{config.backend_url}/health", timeout=10)
+            response = requests.post(
+                f"{config.backend_url}/health", timeout=10
+            )
             assert response.status_code == 405, (
                 f"Expected 405, got {response.status_code}"
             )
@@ -230,7 +238,8 @@ class TestBackendSecurity:
             # Check that frontend origin is allowed
             allowed_origins = headers["access-control-allow-origin"]
             assert (
-                "http://localhost:3000" in allowed_origins or allowed_origins == "*"
+                "http://localhost:3000" in allowed_origins
+                or allowed_origins == "*"
             ), "Frontend origin not allowed"
 
         except requests.RequestException as e:
@@ -249,7 +258,9 @@ class TestBackendPerformance:
 
         for endpoint in endpoints:
             start_time = time.time()
-            info = service_checker.get_service_info(f"{config.backend_url}{endpoint}")
+            info = service_checker.get_service_info(
+                f"{config.backend_url}{endpoint}"
+            )
             response_time = time.time() - start_time
 
             assert info is not None, f"Endpoint {endpoint} not responding"
@@ -268,7 +279,9 @@ class TestBackendPerformance:
         def make_request():
             try:
                 start_time = time.time()
-                info = service_checker.get_service_info(f"{config.backend_url}/health")
+                info = service_checker.get_service_info(
+                    f"{config.backend_url}/health"
+                )
                 response_time = time.time() - start_time
 
                 if info is not None:
@@ -291,7 +304,9 @@ class TestBackendPerformance:
 
         # Check results
         assert len(errors) == 0, f"Concurrent requests failed: {errors}"
-        assert len(results) == 5, f"Expected 5 successful requests, got {len(results)}"
+        assert len(results) == 5, (
+            f"Expected 5 successful requests, got {len(results)}"
+        )
 
         # Check that all responses were reasonably fast
         for response_time in results:

@@ -16,7 +16,9 @@ from typing import Optional
 class TestLogger:
     """Test suite logger with file and console output."""
 
-    def __init__(self, name: str = "taaskmaaster_tests", log_dir: str = "logs"):
+    def __init__(
+        self, name: str = "taaskmaaster_tests", log_dir: str = "logs"
+    ):
         self.name = name
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(exist_ok=True)
@@ -48,7 +50,8 @@ class TestLogger:
 
         # Create formatter
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%H:%M:%S",
         )
         console_handler.setFormatter(formatter)
 
@@ -149,9 +152,15 @@ class TestLogger:
             extra={"docker_event": event, **details, "event": "docker_event"},
         )
 
-    def log_service_status(self, service: str, status: str, details: dict = None):
+    def log_service_status(
+        self, service: str, status: str, details: dict = None
+    ):
         """Log service status changes."""
-        extra = {"service": service, "status": status, "event": "service_status"}
+        extra = {
+            "service": service,
+            "status": status,
+            "event": "service_status",
+        }
         if details:
             extra.update(details)
 
@@ -224,7 +233,9 @@ def setup_logging(log_dir: str = "logs") -> TestLogger:
 def log_test_event(event: str, **kwargs):
     """Log a test event with the global logger."""
     logger = get_test_logger()
-    logger.logger.info(f"Test event: {event}", extra={"event": event, **kwargs})
+    logger.logger.info(
+        f"Test event: {event}", extra={"event": event, **kwargs}
+    )
 
 
 def log_command_result(command: list, result: dict):

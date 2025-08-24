@@ -7,7 +7,7 @@ for better observability and debugging capabilities.
 
 import logging
 import sys
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from structlog.stdlib import LoggerFactory
@@ -62,7 +62,7 @@ class RequestLogger:
     def __init__(self, logger: structlog.stdlib.BoundLogger):
         self.logger = logger
 
-    def log_request(self, request_data: Dict[str, Any]) -> None:
+    def log_request(self, request_data: dict[str, Any]) -> None:
         """Log incoming request data."""
         self.logger.info(
             "Incoming request",
@@ -72,7 +72,7 @@ class RequestLogger:
             user_agent=request_data.get("user_agent"),
         )
 
-    def log_response(self, response_data: Dict[str, Any]) -> None:
+    def log_response(self, response_data: dict[str, Any]) -> None:
         """Log response data."""
         self.logger.info(
             "Response sent",
@@ -81,7 +81,7 @@ class RequestLogger:
             content_length=response_data.get("content_length"),
         )
 
-    def log_error(self, error_data: Dict[str, Any]) -> None:
+    def log_error(self, error_data: dict[str, Any]) -> None:
         """Log error information."""
         self.logger.error(
             "Request error",
