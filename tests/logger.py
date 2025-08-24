@@ -35,11 +35,15 @@ class TestLogger:
         self._add_file_handler()
 
         # Log initialization
+        major = sys.version_info.major
+        minor = sys.version_info.minor
+        micro = sys.version_info.micro
+        python_version = f"{major}.{minor}.{micro}"
         self.logger.info(
             "Test logger initialized",
             extra={
                 "log_dir": str(self.log_dir.absolute()),
-                "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                "python_version": python_version,
             },
         )
 
@@ -67,8 +71,10 @@ class TestLogger:
         file_handler.setLevel(logging.DEBUG)
 
         # Create detailed formatter
+        time_str = "%(asctime)s - %(name)s - %(levelname)s"
+        message_str = "%(funcName)s:%(lineno)d - %(message)s"
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s",
+            f"{time_str} - {message_str}",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         file_handler.setFormatter(formatter)
@@ -98,7 +104,9 @@ class TestLogger:
     ):
         """Log the result of a test."""
         level = logging.INFO if success else logging.ERROR
-        message = f"Test completed: {test_name} - {'PASSED' if success else 'FAILED'}"
+        message = (
+            f"Test complete: {test_name} - {'PASSED' if success else 'FAILED'}"
+        )
 
         extra = {
             "test_name": test_name,
@@ -123,7 +131,10 @@ class TestLogger:
     ):
         """Log command execution details."""
         level = logging.INFO if success else logging.WARNING
-        message = f"Command executed: {' '.join(command)} - {'SUCCESS' if success else 'FAILED'}"
+        message = (
+            f"Command executed: {' '.join(command)} - "
+            f"{'SUCCESS' if success else 'FAILED'}"
+        )
 
         extra = {
             "command": command,

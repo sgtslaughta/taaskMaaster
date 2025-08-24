@@ -265,7 +265,8 @@ class TestBackendPerformance:
 
             assert info is not None, f"Endpoint {endpoint} not responding"
             assert response_time < 2.0, (
-                f"Response time for {endpoint}: {response_time:.2f}s (expected < 2.0s)"
+                f"Response time for {endpoint}: {response_time:.2f}s "
+                "(expected < 2.0s)"
             )
 
     def test_concurrent_requests(self, service_checker, config):
@@ -311,7 +312,8 @@ class TestBackendPerformance:
         # Check that all responses were reasonably fast
         for response_time in results:
             assert response_time < 3.0, (
-                f"Concurrent request response time: {response_time:.2f}s (expected < 3.0s)"
+                f"Concurrent request response time: {response_time:.2f}s "
+                "(expected < 3.0s)"
             )
 
 

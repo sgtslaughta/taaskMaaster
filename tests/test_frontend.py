@@ -87,7 +87,8 @@ class TestFrontendPerformance:
 
         assert info is not None, "Frontend not responding"
         assert response_time < 5.0, (
-            f"Frontend response time {response_time:.2f}s is too slow (expected < 5.0s)"
+            f"Frontend response time {response_time:.2f}s is too slow "
+            "(expected < 5.0s)"
         )
 
     def test_frontend_response_size(self, service_checker, config):
@@ -101,7 +102,8 @@ class TestFrontendPerformance:
         if content_length:
             size_in_kb = int(content_length) / 1024
             assert size_in_kb < 1000, (
-                f"Frontend response size {size_in_kb:.1f}KB is too large (expected < 1000KB)"
+                f"Frontend response size {size_in_kb:.1f}KB is too large "
+                "(expected < 1000KB)"
             )
 
 
@@ -168,7 +170,8 @@ class TestFrontendIntegration:
     ):
         """Test that frontend can reach backend API."""
         # This would require JavaScript execution to test
-        # For now, we verify the backend is accessible from the frontend's perspective
+        # For now, we verify the backend is accessible from the frontend's
+        # perspective
         backend_health_url = f"{config.backend_url}/health"
         assert service_checker.check_service_health(backend_health_url), (
             "Backend not accessible from frontend perspective"

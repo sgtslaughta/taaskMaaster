@@ -33,7 +33,9 @@ DATABASE_CONNECTIONS = Gauge(
 
 TASK_CREATED = Counter("tasks_created_total", "Total number of tasks created")
 
-TASK_COMPLETED = Counter("tasks_completed_total", "Total number of tasks completed")
+TASK_COMPLETED = Counter(
+    "tasks_completed_total", "Total number of tasks completed"
+)
 
 USER_REGISTRATIONS = Counter(
     "user_registrations_total", "Total number of user registrations"
@@ -79,13 +81,17 @@ class MetricsMiddleware:
                 method=method, endpoint=path, status=response_status[0]
             ).inc()
 
-            REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
+            REQUEST_DURATION.labels(method=method, endpoint=path).observe(
+                duration
+            )
 
         except Exception:
             # Record error metrics
             method = scope.get("method", "UNKNOWN")
             path = scope.get("path", "/")
-            REQUEST_COUNT.labels(method=method, endpoint=path, status=500).inc()
+            REQUEST_COUNT.labels(
+                method=method, endpoint=path, status=500
+            ).inc()
             raise
         finally:
             # Decrement active connections

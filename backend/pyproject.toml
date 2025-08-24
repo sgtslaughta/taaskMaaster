@@ -69,7 +69,7 @@ Documentation = "https://docs.taaskmaaster.com"
 Issues = "https://github.com/taaskmaaster/backend/issues"
 
 [tool.black]
-line-length = 88
+line-length = 79
 target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''

@@ -624,7 +624,7 @@ Options:
 Examples:
   python run_tests.py                    # Run all tests
   python run_tests.py quick              # Run quick tests
-  python run_tests.py -v infrastructure  # Run infrastructure tests with 
+  python run_tests.py -v infrastructure  # Run infrastructure tests with
                                          # verbose output
   python run_tests.py -s all             # Start services and run all tests
   python run_tests.py coverage           # Generate coverage report

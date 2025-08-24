@@ -261,7 +261,8 @@ class TestPerformance:
 
         assert info is not None, "Backend not responding"
         assert response_time < 2.0, (
-            f"Backend response time {response_time:.2f}s is too slow (expected < 2.0s)"
+            f"Backend response time {response_time:.2f}s is too slow "
+            "(expected < 2.0s)"
         )
 
     def test_frontend_response_time(self, service_checker, config):
@@ -274,7 +275,8 @@ class TestPerformance:
 
         assert info is not None, "Frontend not responding"
         assert response_time < 5.0, (
-            f"Frontend response time {response_time:.2f}s is too slow (expected < 5.0s)"
+            f"Frontend response time {response_time:.2f}s is too slow "
+            "(expected < 5.0s)"
         )
 
 
