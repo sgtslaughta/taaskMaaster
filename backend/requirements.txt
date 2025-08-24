@@ -8,7 +8,7 @@ sqlalchemy==2.0.23
 alembic==1.12.1
 
 # Authentication and Security
-python-jose[cryptography]==3.4.0
+PyJWT==2.8.0
 passlib[bcrypt]==1.7.4
 
 # Environment and Configuration
@@ -27,7 +27,7 @@ celery==5.3.4
 # HTTP Client
 httpx==0.25.2
 requests==2.32.4
-urllib3>=2.5.0
+urllib3==2.5.0
 
 # Logging and Monitoring
 structlog==23.2.0
