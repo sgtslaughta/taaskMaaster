@@ -8,7 +8,7 @@ pytest-html==4.1.1
 pytest-xdist==3.3.1
 
 # HTTP testing
-requests==2.31.0
+requests==2.32.4
 httpx==0.25.2
 
 # Docker testing (optional)
@@ -19,7 +19,7 @@ responses==0.23.3
 freezegun==1.2.2
 
 # Code quality and linting
-black==23.11.0
+black==24.3.0
 isort==5.12.0
 flake8==6.1.0
 mypy==1.7.1
