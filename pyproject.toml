@@ -17,6 +17,7 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -34,6 +35,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
     "minio>=7.2.0",
     "boto3>=1.34.0",
     "redis>=5.0.0",
@@ -90,8 +92,8 @@ Issues = "https://github.com/taaskmaaster/taaskmaaster/issues"
 packages = ["backend/app", "tests"]
 
 [tool.black]
-line-length = 88
-target-version = ['py38']
+line-length = 79
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -114,7 +116,7 @@ line_length = 79
 known_first_party = ["backend.app", "tests"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
