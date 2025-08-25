@@ -49,6 +49,22 @@ class TestServiceStatus:
                 f"Service {service} is not running"
             )
 
+    def test_minio_service_health(self, service_checker):
+        """Test MinIO service health and configuration."""
+        # Test that MinIO container is running
+        assert service_checker.check_container_running("taaskmaaster-minio"), (
+            "MinIO container is not running"
+        )
+
+        # Test that MinIO ports are not exposed externally (security)
+        exposed_ports = service_checker.get_exposed_ports("taaskmaaster-minio")
+        minio_ports = [9000, 9001]  # MinIO API and Console ports
+
+        for port in minio_ports:
+            assert port not in exposed_ports, (
+                f"MinIO port {port} should not be exposed externally"
+            )
+
     def test_backend_container_running(self, service_checker):
         """Test that backend container is running."""
         assert service_checker.check_container_running(
@@ -111,16 +127,17 @@ class TestServiceHealth:
         assert "version" in data, "Health response missing version field"
         assert "services" in data, "Health response missing services field"
 
-        # Check services status (Phase 1 returns hardcoded healthy status)
+        # Check services status (Phase 2 includes MinIO integration)
         services = data["services"]
         expected_services = ["database", "redis", "minio"]
         for service in expected_services:
             assert service in services, (
                 f"Health response missing {service} status"
             )
-            assert services[service] in ["healthy", "unhealthy"], (
-                f"Invalid {service} status: {services[service]}"
-            )
+            assert services[service] in [
+                "healthy",
+                "unhealthy",
+            ], f"Invalid {service} status: {services[service]}"
 
 
 class TestPortAccessibility:

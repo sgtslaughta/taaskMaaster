@@ -1,15 +1,19 @@
 import Head from 'next/head'
 import { useState, useEffect } from 'react'
+import Auth from '../src/components/Auth'
+import TaskList from '../src/components/TaskList'
 
 export default function Home() {
   const [apiStatus, setApiStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     // Check API health
     const checkApiHealth = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`)
         if (response.ok) {
           const data = await response.json()
           setApiStatus(data)
@@ -23,8 +27,25 @@ export default function Home() {
       }
     }
 
+    // Check for existing authentication
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      setIsAuthenticated(true)
+      // You could also verify the token here
+    }
+
     checkApiHealth()
   }, [])
+
+  const handleLogin = (userData) => {
+    setIsAuthenticated(true)
+    setUser(userData)
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    setUser(null)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,7 +57,7 @@ export default function Home() {
       </Head>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="text-center">
+        <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Welcome to TaaskMaaster
           </h1>
@@ -77,46 +98,27 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
 
-          <div className="mt-8 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Task Management
-                </h3>
-                <p className="text-gray-600">
-                  Create, assign, and track tasks with flexible options and deadlines.
-                </p>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Gamification
-                </h3>
-                <p className="text-gray-600">
-                  Points, achievements, and rewards to motivate task completion.
-                </p>
-              </div>
-              
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Family Focused
-                </h3>
-                <p className="text-gray-600">
-                  Designed specifically for families to work together.
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* Authentication and Task Management */}
+        {isAuthenticated ? (
+          <TaskList />
+        ) : (
+          <Auth 
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+            isAuthenticated={isAuthenticated}
+            user={user}
+          />
+        )}
 
-          <div className="mt-8 text-sm text-gray-500">
-            <p>
-              API Documentation: <a href={`${process.env.NEXT_PUBLIC_API_URL}/docs`} className="text-blue-600 hover:underline">View Docs</a>
-            </p>
-            <p>
-              Health Check: <a href={`${process.env.NEXT_PUBLIC_API_URL}/health`} className="text-blue-600 hover:underline">View Status</a>
-            </p>
-          </div>
+        <div className="mt-8 text-center text-sm text-gray-500">
+          <p>
+            API Documentation: <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/docs`} className="text-blue-600 hover:underline">View Docs</a>
+          </p>
+          <p>
+            Health Check: <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`} className="text-blue-600 hover:underline">View Status</a>
+          </p>
         </div>
       </main>
     </div>

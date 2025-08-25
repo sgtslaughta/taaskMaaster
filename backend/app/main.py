@@ -8,16 +8,27 @@ monitoring, and basic API endpoints.
 import time
 from typing import Any
 
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+
+# Import API routers
+from app.api import (
+    auth_router,
+    gamification_router,
+    goals_router,
+    media_router,
+    tasks_router,
+    users_router,
+)
 from app.core.logging import configure_logging, get_logger
 from app.core.monitoring import (
     MetricsMiddleware,
     get_health_status,
     get_metrics,
 )
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from app.services.storage_service import MinIOStorageService
 
 # Configure logging
 configure_logging()
@@ -85,6 +96,14 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+
+# Include API routers
+fastapi_app.include_router(auth_router)
+fastapi_app.include_router(users_router)
+fastapi_app.include_router(tasks_router)
+fastapi_app.include_router(goals_router)
+fastapi_app.include_router(gamification_router)
+fastapi_app.include_router(media_router)
 
 # Create the final app with ASGI middleware
 app = MetricsMiddleware(fastapi_app)
@@ -175,16 +194,36 @@ async def internal_error_handler(
     )
 
 
+async def initialize_minio() -> None:
+    """Initialize MinIO storage service."""
+    try:
+        MinIOStorageService()
+        logger.info("MinIO storage service initialized successfully")
+    except Exception as e:
+        logger.warning(f"MinIO storage service not available: {e}")
+        logger.info("Continuing without MinIO storage service")
+
+
+async def cleanup_minio() -> None:
+    """Cleanup MinIO storage service."""
+    logger.info("MinIO storage service cleanup completed")
+
+
 # Startup event
 @fastapi_app.on_event("startup")
 async def startup_event():
     """Application startup event."""
     logger.info("TaaskMaaster API starting up")
 
+    # Initialize database
+    from app.db.session import create_tables
+
+    create_tables()
+    logger.info("Database tables created")
+
     # Initialize services here
-    # await initialize_database()
     # await initialize_redis()
-    # await initialize_minio()
+    await initialize_minio()
 
     logger.info("TaaskMaaster API startup complete")
 
@@ -198,7 +237,7 @@ async def shutdown_event():
     # Cleanup services here
     # await cleanup_database()
     # await cleanup_redis()
-    # await cleanup_minio()
+    await cleanup_minio()
 
     logger.info("TaaskMaaster API shutdown complete")
 

@@ -54,9 +54,10 @@ class TestBackendAPI:
             assert service in services, (
                 f"Health response missing {service} status"
             )
-            assert services[service] in ["healthy", "unhealthy"], (
-                f"Invalid {service} status: {services[service]}"
-            )
+            assert services[service] in [
+                "healthy",
+                "unhealthy",
+            ], f"Invalid {service} status: {services[service]}"
 
     def test_metrics_endpoint(self, service_checker, config):
         """Test the metrics endpoint."""
@@ -96,7 +97,7 @@ class TestBackendAPI:
         assert "timestamp" in data, "API status missing timestamp field"
         assert "features" in data, "API status missing features field"
 
-        # Check features list (Phase 1 returns planned features)
+        # Check features list (Phase 2 features are now implemented)
         features = data["features"]
         expected_features = [
             "task_management",
@@ -106,7 +107,7 @@ class TestBackendAPI:
         ]
         for feature in expected_features:
             assert feature in features, (
-                f"API status missing feature: {feature}"
+                f"API status missing Phase 2 feature: {feature}"
             )
 
     def test_documentation_endpoints(self, service_checker, config):
