@@ -1,13 +1,13 @@
 import Head from 'next/head'
 import { useState, useEffect } from 'react'
-import Auth from '../src/components/Auth'
-import TaskList from '../src/components/TaskList'
+import { TasksPage, Dashboard, LoginPage } from '../src/components'
+import { useAuth } from '../src/contexts/AuthContext'
 
 export default function Home() {
   const [apiStatus, setApiStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [user, setUser] = useState(null)
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
+  const [currentView, setCurrentView] = useState('login')
 
   useEffect(() => {
     // Check API health
@@ -27,100 +27,168 @@ export default function Home() {
       }
     }
 
-    // Check for existing authentication
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      setIsAuthenticated(true)
-      // You could also verify the token here
-    }
-
     checkApiHealth()
   }, [])
 
-  const handleLogin = (userData) => {
-    setIsAuthenticated(true)
-    setUser(userData)
+  const { logout } = useAuth()
+
+  const handleLogin = (data) => {
+    console.log('Login data:', data)
+    setCurrentView('dashboard')
   }
 
-  const handleLogout = () => {
-    setIsAuthenticated(false)
-    setUser(null)
+  const handleLogout = async () => {
+    await logout()
+    setCurrentView('login')
   }
+
+  const handleNavigation = (item) => {
+    console.log('Navigation clicked:', item.name)
+    if (item.id === 'tasks') {
+      setCurrentView('tasks')
+    } else if (item.id === 'dashboard') {
+      setCurrentView('dashboard')
+    }
+  }
+
+  const navigationItems = [
+    {
+      id: 'dashboard',
+      name: 'Dashboard',
+      href: '/dashboard',
+      active: currentView === 'dashboard',
+    },
+    {
+      id: 'tasks',
+      name: 'Tasks',
+      href: '/tasks',
+      active: currentView === 'tasks',
+      badge: 3,
+    },
+    {
+      id: 'goals',
+      name: 'Goals',
+      href: '/goals',
+    },
+    {
+      id: 'family',
+      name: 'Family',
+      href: '/family',
+    },
+    {
+      id: 'achievements',
+      name: 'Achievements',
+      href: '/achievements',
+    },
+    {
+      id: 'leaderboard',
+      name: 'Leaderboard',
+      href: '/leaderboard',
+    },
+    {
+      id: 'calendar',
+      name: 'Calendar',
+      href: '/calendar',
+    },
+    {
+      id: 'streaks',
+      name: 'Streaks',
+      href: '/streaks',
+    },
+    {
+      id: 'learning',
+      name: 'Learning',
+      href: '/learning',
+    },
+    {
+      id: 'settings',
+      name: 'Settings',
+      href: '/settings',
+    },
+  ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <Head>
-        <title>{process.env.NEXT_PUBLIC_APP_NAME} - Task Management for Families</title>
+        <title>{process.env.NEXT_PUBLIC_APP_NAME || 'TaaskMaaster'} - Task Management for Families</title>
         <meta name="description" content="A comprehensive task management system designed to help parents encourage children to complete household tasks through gamification and rewards." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Welcome to TaaskMaaster
-          </h1>
-          
-          <p className="text-xl text-gray-600 mb-8">
-            A comprehensive task management system for families
-          </p>
-
-          <div className="bg-white rounded-lg shadow-md p-6 max-w-md mx-auto">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              System Status
-            </h2>
-            
-            {loading ? (
-              <div className="text-blue-600">Checking system status...</div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Frontend:</span>
-                  <span className="text-green-600 font-semibold">✅ Running</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Backend API:</span>
-                  <span className={`font-semibold ${
-                    apiStatus?.status === 'healthy' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {apiStatus?.status === 'healthy' ? '✅ Healthy' : '❌ Error'}
-                  </span>
-                </div>
-                
-                {apiStatus?.version && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">API Version:</span>
-                    <span className="text-gray-600">{apiStatus.version}</span>
-                  </div>
-                )}
+      {/* Show API status banner if there are issues */}
+      {!loading && apiStatus?.status !== 'healthy' && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
               </div>
-            )}
+              <div className="ml-3">
+                <p className="text-sm text-red-800">
+                  <span className="font-medium">API Connection Issue:</span>
+                  {apiStatus?.message || 'Unable to connect to backend API'}
+                </p>
+              </div>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-red-800 hover:text-red-600 font-medium"
+                >
+                  View Status
+                </a>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Authentication and Task Management */}
-        {isAuthenticated ? (
-          <TaskList />
-        ) : (
-          <Auth 
-            onLogin={handleLogin}
-            onLogout={handleLogout}
-            isAuthenticated={isAuthenticated}
-            user={user}
-          />
-        )}
-
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>
-            API Documentation: <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/docs`} className="text-blue-600 hover:underline">View Docs</a>
-          </p>
-          <p>
-            Health Check: <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`} className="text-blue-600 hover:underline">View Status</a>
-          </p>
+      {/* Main application */}
+      {authLoading ? (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
         </div>
-      </main>
-    </div>
+      ) : !isAuthenticated ? (
+        <LoginPage
+          onSubmit={handleLogin}
+          onRegisterClick={() => console.log('Register clicked')}
+          onForgotPasswordClick={() => console.log('Forgot password clicked')}
+          onSocialLogin={(provider) => console.log('Social login:', provider)}
+        />
+      ) : currentView === 'tasks' ? (
+        <TasksPage
+          user={user}
+          navigationItems={navigationItems}
+          onLogout={handleLogout}
+          onNavigation={handleNavigation}
+        />
+      ) : (
+        <Dashboard
+          user={user}
+          onQuickAction={(action) => {
+            console.log('Quick action:', action)
+            if (action === 'tasks') {
+              setCurrentView('tasks')
+            }
+          }}
+          onLogout={handleLogout}
+          onNavigation={(view) => {
+            console.log('Navigation:', view)
+            if (view === 'tasks') {
+              setCurrentView('tasks')
+            }
+          }}
+        />
+      )}
+    </>
   )
 }

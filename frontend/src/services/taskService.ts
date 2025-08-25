@@ -1,0 +1,431 @@
+/**
+ * @fileoverview Task Service for TaaskMaaster
+ * @description Service for handling task operations with the backend API
+ * @author TaaskMaaster Team
+ * @version 1.0.0
+ */
+
+import { apiGet, apiPost, apiPut, apiDelete } from './api';
+
+/**
+ * @description Task priority enum
+ */
+export enum TaskPriority {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  URGENT = 'urgent',
+}
+
+/**
+ * @description Task status enum
+ */
+export enum TaskStatus {
+  TODO = 'todo',
+  IN_PROGRESS = 'in_progress',
+  REVIEW = 'review',
+  DONE = 'done',
+  CANCELLED = 'cancelled',
+}
+
+/**
+ * @description Task interface
+ */
+export interface Task {
+  id: number;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date?: string;
+  completed_at?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  points: number;
+  is_recurring: boolean;
+  recurrence_pattern?: any;
+  template_id?: number;
+  category_id?: number;
+  created_by_id: number;
+  assigned_to_id?: number;
+  parent_task_id?: number;
+  created_at: string;
+  updated_at: string;
+  category?: TaskCategory;
+  tags?: TaskTag[];
+  subtasks?: Task[];
+  attachments?: string[];
+}
+
+/**
+ * @description Task category interface
+ */
+export interface TaskCategory {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * @description Task tag interface
+ */
+export interface TaskTag {
+  id: number;
+  name: string;
+  color?: string;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * @description Task template interface
+ */
+export interface TaskTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  estimated_hours?: number;
+  points: number;
+  category_id?: number;
+  tags?: string[];
+  is_public: boolean;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * @description Create task request interface
+ */
+export interface CreateTaskRequest {
+  title: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  due_date?: string;
+  estimated_hours?: number;
+  points?: number;
+  is_recurring?: boolean;
+  recurrence_pattern?: any;
+  template_id?: number;
+  category_id?: number;
+  assigned_to_id?: number;
+  parent_task_id?: number;
+  tags?: string[];
+}
+
+/**
+ * @description Update task request interface
+ */
+export interface UpdateTaskRequest {
+  title?: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  due_date?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  points?: number;
+  is_recurring?: boolean;
+  recurrence_pattern?: any;
+  template_id?: number;
+  category_id?: number;
+  assigned_to_id?: number;
+  parent_task_id?: number;
+  tags?: string[];
+}
+
+/**
+ * @description Task list response interface
+ */
+export interface TaskListResponse {
+  tasks: Task[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+/**
+ * @description Task filter options interface
+ */
+export interface TaskFilterOptions {
+  skip?: number;
+  limit?: number;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  category_id?: number;
+  assigned_to_id?: number;
+  search?: string;
+}
+
+/**
+ * @description Task service class
+ */
+export class TaskService {
+  private static instance: TaskService;
+
+  /**
+   * @description Get singleton instance
+   */
+  public static getInstance(): TaskService {
+    if (!TaskService.instance) {
+      TaskService.instance = new TaskService();
+    }
+    return TaskService.instance;
+  }
+
+  /**
+   * @description Get tasks with filtering and pagination
+   * @param options - Filter options
+   * @returns Promise with task list
+   */
+  async getTasks(options: TaskFilterOptions = {}): Promise<TaskListResponse> {
+    try {
+      const params = new URLSearchParams();
+      
+      if (options.skip !== undefined) params.append('skip', options.skip.toString());
+      if (options.limit !== undefined) params.append('limit', options.limit.toString());
+      if (options.status) params.append('status', options.status);
+      if (options.priority) params.append('priority', options.priority);
+      if (options.category_id) params.append('category_id', options.category_id.toString());
+      if (options.assigned_to_id) params.append('assigned_to_id', options.assigned_to_id.toString());
+      if (options.search) params.append('search', options.search);
+
+      const url = `/api/v1/tasks?${params.toString()}`;
+      const response = await apiGet<TaskListResponse>(url);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch tasks.');
+    }
+  }
+
+  /**
+   * @description Get a specific task by ID
+   * @param taskId - Task ID
+   * @returns Promise with task data
+   */
+  async getTask(taskId: number): Promise<Task> {
+    try {
+      const response = await apiGet<Task>(`/api/v1/tasks/${taskId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch task.');
+    }
+  }
+
+  /**
+   * @description Create a new task
+   * @param taskData - Task creation data
+   * @returns Promise with created task
+   */
+  async createTask(taskData: CreateTaskRequest): Promise<Task> {
+    try {
+      const response = await apiPost<Task>('/api/v1/tasks', taskData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create task.');
+    }
+  }
+
+  /**
+   * @description Update an existing task
+   * @param taskId - Task ID
+   * @param taskData - Task update data
+   * @returns Promise with updated task
+   */
+  async updateTask(taskId: number, taskData: UpdateTaskRequest): Promise<Task> {
+    try {
+      const response = await apiPut<Task>(`/api/v1/tasks/${taskId}`, taskData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to update task.');
+    }
+  }
+
+  /**
+   * @description Delete a task
+   * @param taskId - Task ID
+   * @returns Promise indicating success
+   */
+  async deleteTask(taskId: number): Promise<void> {
+    try {
+      await apiDelete(`/api/v1/tasks/${taskId}`);
+    } catch (error) {
+      throw new Error('Failed to delete task.');
+    }
+  }
+
+  /**
+   * @description Mark a task as completed
+   * @param taskId - Task ID
+   * @param actualHours - Actual hours spent (optional)
+   * @returns Promise with updated task
+   */
+  async completeTask(taskId: number, actualHours?: number): Promise<Task> {
+    try {
+      const params = actualHours ? `?actual_hours=${actualHours}` : '';
+      const response = await apiPost<Task>(`/api/v1/tasks/${taskId}/complete${params}`);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to complete task.');
+    }
+  }
+
+  /**
+   * @description Get task categories
+   * @returns Promise with task categories
+   */
+  async getCategories(): Promise<TaskCategory[]> {
+    try {
+      const response = await apiGet<TaskCategory[]>('/api/v1/tasks/categories');
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch task categories.');
+    }
+  }
+
+  /**
+   * @description Create a new task category
+   * @param categoryData - Category creation data
+   * @returns Promise with created category
+   */
+  async createCategory(categoryData: { name: string; description?: string; color?: string }): Promise<TaskCategory> {
+    try {
+      const response = await apiPost<TaskCategory>('/api/v1/tasks/categories', categoryData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create task category.');
+    }
+  }
+
+  /**
+   * @description Get task tags
+   * @returns Promise with task tags
+   */
+  async getTags(): Promise<TaskTag[]> {
+    try {
+      const response = await apiGet<TaskTag[]>('/api/v1/tasks/tags');
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch task tags.');
+    }
+  }
+
+  /**
+   * @description Create a new task tag
+   * @param tagData - Tag creation data
+   * @returns Promise with created tag
+   */
+  async createTag(tagData: { name: string; color?: string }): Promise<TaskTag> {
+    try {
+      const response = await apiPost<TaskTag>('/api/v1/tasks/tags', tagData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create task tag.');
+    }
+  }
+
+  /**
+   * @description Get task templates
+   * @param includePublic - Include public templates
+   * @returns Promise with task templates
+   */
+  async getTemplates(includePublic: boolean = true): Promise<TaskTemplate[]> {
+    try {
+      const response = await apiGet<TaskTemplate[]>(`/api/v1/tasks/templates?include_public=${includePublic}`);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch task templates.');
+    }
+  }
+
+  /**
+   * @description Create a new task template
+   * @param templateData - Template creation data
+   * @returns Promise with created template
+   */
+  async createTemplate(templateData: {
+    name: string;
+    description?: string;
+    estimated_hours?: number;
+    points: number;
+    category_id?: number;
+    tags?: string[];
+    is_public: boolean;
+  }): Promise<TaskTemplate> {
+    try {
+      const response = await apiPost<TaskTemplate>('/api/v1/tasks/templates', templateData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create task template.');
+    }
+  }
+
+  /**
+   * @description Create a task from a template
+   * @param templateId - Template ID
+   * @param title - Override title (optional)
+   * @param description - Override description (optional)
+   * @returns Promise with created task
+   */
+  async createTaskFromTemplate(
+    templateId: number,
+    title?: string,
+    description?: string
+  ): Promise<Task> {
+    try {
+      const params = new URLSearchParams();
+      if (title) params.append('title', title);
+      if (description) params.append('description', description);
+
+      const url = `/api/v1/tasks/templates/${templateId}/create?${params.toString()}`;
+      const response = await apiPost<Task>(url);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create task from template.');
+    }
+  }
+
+  /**
+   * @description Get recurring tasks
+   * @param options - Filter options
+   * @returns Promise with recurring tasks
+   */
+  async getRecurringTasks(options: { skip?: number; limit?: number } = {}): Promise<Task[]> {
+    try {
+      const params = new URLSearchParams();
+      if (options.skip !== undefined) params.append('skip', options.skip.toString());
+      if (options.limit !== undefined) params.append('limit', options.limit.toString());
+
+      const url = `/api/v1/tasks/recurring?${params.toString()}`;
+      const response = await apiGet<Task[]>(url);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to fetch recurring tasks.');
+    }
+  }
+
+  /**
+   * @description Create recurring task instances
+   * @returns Promise with creation result
+   */
+  async createRecurringTasks(): Promise<{ message: string; created_count: number }> {
+    try {
+      const response = await apiPost<{ message: string; created_count: number }>('/api/v1/tasks/recurring/create');
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to create recurring tasks.');
+    }
+  }
+}
+
+/**
+ * @description Export singleton instance
+ */
+export const taskService = TaskService.getInstance();
