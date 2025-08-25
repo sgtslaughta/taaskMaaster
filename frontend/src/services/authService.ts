@@ -248,6 +248,14 @@ export class AuthService {
   }
 
   /**
+   * @description Set access token from external source (e.g., cookies)
+   * @param token - Access token to set
+   */
+  setAccessToken(token: string): void {
+    localStorage.setItem('access_token', token);
+  }
+
+  /**
    * @description Clear authentication state
    */
   clearAuth(): void {

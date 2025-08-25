@@ -5,19 +5,40 @@
  * @version 1.0.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from '../navigation/Header';
-import { Sidebar, NavigationItem } from '../navigation/Sidebar';
-import { Breadcrumb, BreadcrumbItem } from '../navigation/Breadcrumb';
+import { Sidebar } from '../navigation/Sidebar';
 import { cn } from '../../design-system/utils/cn';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getSidebarState, saveSidebarState } from '../../utils/cookies';
+
+/**
+ * @description Navigation item interface
+ */
+export interface NavigationItem {
+  /** Unique identifier for the navigation item */
+  id: string;
+  /** Display name for the navigation item */
+  name: string;
+  /** Icon component for the navigation item */
+  icon?: React.ComponentType<{ className?: string }>;
+  /** URL or route for the navigation item */
+  href?: string;
+  /** Whether the item is currently active */
+  active?: boolean;
+  /** Whether the item is disabled */
+  disabled?: boolean;
+  /** Optional badge or notification count */
+  badge?: string | number;
+  /** Optional sub-items for dropdown menus */
+  children?: NavigationItem[];
+}
 
 /**
  * @description App layout component props interface
  */
 export interface AppLayoutProps {
-  /**
-   * @description User data object
-   */
+  /** User information */
   user?: {
     id: string;
     username: string;
@@ -27,165 +48,168 @@ export interface AppLayoutProps {
     points?: number;
     level?: number;
   } | null;
-  /**
-   * @description Page title
-   */
+  /** Page title */
   title?: string;
-  /**
-   * @description Page subtitle
-   */
-  subtitle?: string;
-  /**
-   * @description Breadcrumb items
-   */
-  breadcrumbs?: BreadcrumbItem[];
-  /**
-   * @description Navigation items for sidebar
-   */
+  /** Navigation items for the sidebar */
   navigationItems?: NavigationItem[];
-  /**
-   * @description Function to handle logout
-   */
-  onLogout?: () => void;
-  /**
-   * @description Function to handle search
-   */
-  onSearch?: (query: string) => void;
-  /**
-   * @description Function to handle navigation
-   */
+  /** Function called when a navigation item is clicked */
   onNavigation?: (item: NavigationItem) => void;
-  /**
-   * @description Function to handle breadcrumb navigation
-   */
-  onBreadcrumbNavigation?: (item: BreadcrumbItem) => void;
-  /**
-   * @description Whether dark mode is enabled
-   */
-  darkMode?: boolean;
-  /**
-   * @description Function to toggle dark mode
-   */
-  onDarkModeToggle?: () => void;
-  /**
-   * @description Additional CSS classes for the layout
-   */
+  /** Function called when logout is requested */
+  onLogout?: () => void;
+  /** Whether to show the search functionality */
+  showSearch?: boolean;
+  /** Function called when search is performed */
+  onSearch?: (query: string) => void;
+  /** Whether to show notifications */
+  showNotifications?: boolean;
+  /** Function called when notifications are toggled */
+  onNotificationsToggle?: () => void;
+  /** Additional CSS classes */
   className?: string;
-  /**
-   * @description Additional CSS classes for the content area
-   */
-  contentClassName?: string;
-  /**
-   * @description Children content
-   */
+  /** Child components */
   children: React.ReactNode;
 }
 
 /**
  * @description App layout component
- * @param props - App layout component props
- * @returns App layout component
+ * 
+ * A comprehensive layout component that provides:
+ * - Responsive header with navigation and user menu
+ * - Collapsible sidebar navigation
+ * - Main content area
+ * - Dark mode support
+ * - Mobile-responsive design
  */
 export const AppLayout: React.FC<AppLayoutProps> = ({
   user,
   title,
-  subtitle,
-  breadcrumbs,
-  navigationItems,
-  onLogout,
-  onSearch,
+  navigationItems = [],
   onNavigation,
-  onBreadcrumbNavigation,
-  darkMode = false,
-  onDarkModeToggle,
+  onLogout,
+  showSearch = true,
+  onSearch,
+  showNotifications = false,
+  onNotificationsToggle,
   className,
-  contentClassName,
   children,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { isDarkMode } = useTheme();
 
+  /**
+   * @description Initialize sidebar state from cookies
+   */
+  useEffect(() => {
+    try {
+      const savedSidebarState = getSidebarState();
+      setSidebarCollapsed(savedSidebarState);
+      console.log('Sidebar state initialized:', savedSidebarState ? 'collapsed' : 'expanded');
+    } catch (error) {
+      console.error('Failed to initialize sidebar state:', error);
+    } finally {
+      setIsInitialized(true);
+    }
+  }, []);
+
+  /**
+   * @description Handle sidebar toggle
+   */
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const handleSidebarClose = () => {
-    setSidebarOpen(false);
+  /**
+   * @description Handle sidebar collapse/expand
+   */
+  const handleSidebarCollapse = () => {
+    const newCollapsedState = !sidebarCollapsed;
+    setSidebarCollapsed(newCollapsedState);
+    
+    // Save to cookies
+    try {
+      saveSidebarState(newCollapsedState);
+      console.log('Sidebar state saved:', newCollapsedState ? 'collapsed' : 'expanded');
+    } catch (error) {
+      console.error('Failed to save sidebar state:', error);
+    }
   };
 
+  /**
+   * @description Handle navigation item click
+   */
   const handleNavigation = (item: NavigationItem) => {
+    // Close sidebar on mobile when navigation item is clicked
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+    
     if (onNavigation) {
       onNavigation(item);
     }
-    // Close sidebar on mobile
-    setSidebarOpen(false);
   };
 
   return (
-    <div className={cn('min-h-screen bg-gray-50', className)}>
-      {/* Header */}
-      <Header
-        user={user}
-        sidebarOpen={sidebarOpen}
-        onSidebarToggle={handleSidebarToggle}
-        onLogout={onLogout}
-        onSearch={onSearch}
-        darkMode={darkMode}
-        onDarkModeToggle={onDarkModeToggle}
-      />
+    <div className={cn(
+      'min-h-screen bg-gray-50 dark:bg-gray-900',
+      className
+    )}>
+      {/* Header - Fixed at top */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Header
+          user={user}
+          onLogout={onLogout}
+          showSearch={showSearch}
+          onSearch={onSearch}
+          showNotifications={showNotifications}
+          onNotificationsToggle={onNotificationsToggle}
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={handleSidebarToggle}
+        />
+      </div>
 
-      <div className="flex">
-        {/* Sidebar */}
+      {/* Main content area with header offset */}
+      <div className="flex pt-16"> {/* pt-16 accounts for fixed header height */}
+        {/* Sidebar - Collapsible on desktop, overlay on mobile */}
         <Sidebar
-          isOpen={sidebarOpen}
-          onClose={handleSidebarClose}
           user={user}
           navigationItems={navigationItems}
-          onNavigationClick={handleNavigation}
+          onNavigation={handleNavigation}
+          open={sidebarOpen}
+          collapsed={sidebarCollapsed}
+          onClose={() => setSidebarOpen(false)}
+          onToggleCollapse={handleSidebarCollapse}
         />
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-0">
-          <main className={cn('flex-1', contentClassName)}>
-            {/* Page header */}
-            {(title || breadcrumbs) && (
-              <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
-                <div className="max-w-7xl mx-auto">
-                  {/* Breadcrumbs */}
-                  {breadcrumbs && (
-                    <div className="mb-2">
-                      <Breadcrumb
-                        items={breadcrumbs}
-                        onItemClick={onBreadcrumbNavigation}
-                      />
-                    </div>
-                  )}
-
-                  {/* Page title */}
-                  {title && (
-                    <div className="mb-2">
-                      <h1 className="text-2xl font-bold text-gray-900">
-                        {title}
-                      </h1>
-                      {subtitle && (
-                        <p className="mt-1 text-sm text-gray-500">
-                          {subtitle}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Page content */}
-            <div className="px-4 sm:px-6 lg:px-8 py-6">
-              <div className="max-w-7xl mx-auto">
-                {children}
-              </div>
+        <main className={cn(
+          'flex-1 p-6 transition-all duration-200',
+          sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64' // Adjust margin based on sidebar state
+        )}>
+          {/* Page title */}
+          {title && (
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {title}
+              </h1>
             </div>
-          </main>
-        </div>
+          )}
+
+          {/* Page content */}
+          <div className="space-y-6">
+            {children}
+          </div>
+        </main>
       </div>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };
