@@ -2,6 +2,18 @@ import Head from 'next/head'
 import { useState, useEffect } from 'react'
 import { TasksPage, Dashboard, LoginPage } from '../src/components'
 import { useAuth } from '../src/contexts/AuthContext'
+import { 
+  HomeIcon,
+  CheckCircleIcon,
+  TrophyIcon,
+  UserGroupIcon,
+  ChartBarIcon,
+  CalendarIcon,
+  StarIcon,
+  FireIcon,
+  AcademicCapIcon,
+  Cog6ToothIcon
+} from '@heroicons/react/24/outline'
 
 export default function Home() {
   const [apiStatus, setApiStatus] = useState(null)
@@ -57,53 +69,63 @@ export default function Home() {
       name: 'Dashboard',
       href: '/dashboard',
       active: currentView === 'dashboard',
+      icon: HomeIcon,
     },
     {
       id: 'tasks',
       name: 'Tasks',
       href: '/tasks',
       active: currentView === 'tasks',
+      icon: CheckCircleIcon,
       badge: 3,
     },
     {
       id: 'goals',
       name: 'Goals',
       href: '/goals',
+      icon: TrophyIcon,
     },
     {
       id: 'family',
       name: 'Family',
       href: '/family',
+      icon: UserGroupIcon,
     },
     {
       id: 'achievements',
       name: 'Achievements',
       href: '/achievements',
+      icon: StarIcon,
     },
     {
       id: 'leaderboard',
       name: 'Leaderboard',
       href: '/leaderboard',
+      icon: ChartBarIcon,
     },
     {
       id: 'calendar',
       name: 'Calendar',
       href: '/calendar',
+      icon: CalendarIcon,
     },
     {
       id: 'streaks',
       name: 'Streaks',
       href: '/streaks',
+      icon: FireIcon,
     },
     {
       id: 'learning',
       name: 'Learning',
       href: '/learning',
+      icon: AcademicCapIcon,
     },
     {
       id: 'settings',
       name: 'Settings',
       href: '/settings',
+      icon: Cog6ToothIcon,
     },
   ]
 

@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HomeIcon,
   CheckCircleIcon,
@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AppLayout, NavigationItem } from '../layout/AppLayout';
 import { cn } from '../../design-system/utils/cn';
+import { gamificationService, goalService, taskService } from '../../services';
 
 /**
  * @description User interface
@@ -32,6 +33,32 @@ interface User {
   role?: string;
   points?: number;
   level?: number;
+}
+
+/**
+ * @description Dashboard statistics interface
+ */
+interface DashboardStats {
+  totalPoints: number;
+  currentLevel: number;
+  tasksCompleted: number;
+  tasksPending: number;
+  streakDays: number;
+  achievements: number;
+  activeGoals: number;
+  completedGoals: number;
+}
+
+/**
+ * @description Recent activity interface
+ */
+interface RecentActivity {
+  id: string;
+  type: 'task_completed' | 'points_earned' | 'achievement_unlocked' | 'goal_reached';
+  title: string;
+  description: string;
+  timestamp: string;
+  points?: number;
 }
 
 /**
@@ -126,6 +153,142 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigation,
   className,
 }) => {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalPoints: 0,
+    currentLevel: 1,
+    tasksCompleted: 0,
+    tasksPending: 0,
+    streakDays: 0,
+    achievements: 0,
+    activeGoals: 0,
+    completedGoals: 0,
+  });
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * @description Load dashboard data
+   */
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const userId = parseInt(user.id);
+      
+      // Load gamification stats
+      const gamificationStats = await gamificationService.getDashboardStats(userId);
+      
+      // Load goal stats
+      const goalStats = await goalService.getDashboardGoalStats();
+      
+      // Load task stats (using task service)
+      const taskResponse = await taskService.getTasks();
+      const tasks = taskResponse.tasks;
+      const tasksCompleted = tasks.filter(t => t.status === 'done').length;
+      const tasksPending = tasks.filter(t => t.status !== 'done').length;
+
+      // Combine all stats
+      setStats({
+        totalPoints: gamificationStats.totalPoints,
+        currentLevel: gamificationStats.currentLevel,
+        tasksCompleted,
+        tasksPending,
+        streakDays: gamificationStats.streakDays,
+        achievements: gamificationStats.achievements,
+        activeGoals: goalStats.activeGoals,
+        completedGoals: goalStats.completedGoals,
+      });
+
+      // Load recent activity
+      await loadRecentActivity(userId);
+
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * @description Load recent activity
+   */
+  const loadRecentActivity = async (userId: number) => {
+    try {
+      const activities: RecentActivity[] = [];
+
+      // Get recent points transactions
+      const pointsHistory = await gamificationService.getUserPointsHistory(userId, { limit: 5 });
+      pointsHistory.points.forEach(point => {
+        activities.push({
+          id: `points_${point.id}`,
+          type: 'points_earned',
+          title: `Earned ${point.amount} points`,
+          description: point.description || 'Points earned',
+          timestamp: point.created_at,
+          points: point.amount,
+        });
+      });
+
+      // Get recent achievements
+      const achievements = await gamificationService.getUserAchievements(userId);
+      achievements.slice(0, 3).forEach(achievement => {
+        activities.push({
+          id: `achievement_${achievement.id}`,
+          type: 'achievement_unlocked',
+          title: `Unlocked "${achievement.achievement.name}"`,
+          description: achievement.achievement.description,
+          timestamp: achievement.awarded_at,
+        });
+      });
+
+      // Sort by timestamp and take the most recent 5
+      const sortedActivities = activities
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+
+      setRecentActivity(sortedActivities);
+    } catch (err) {
+      console.error('Error loading recent activity:', err);
+      // Set some default activity if API fails
+      setRecentActivity([
+        {
+          id: '1',
+          type: 'task_completed',
+          title: 'Completed task "Clean the kitchen"',
+          description: 'Daily chore completed',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: '2',
+          type: 'points_earned',
+          title: 'Earned 50 points',
+          description: 'Points earned for completing daily goal',
+          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+          points: 50,
+        },
+        {
+          id: '3',
+          type: 'achievement_unlocked',
+          title: 'Unlocked "Task Master"',
+          description: 'Completed 10 tasks in a week',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ]);
+    }
+  };
+
+  /**
+   * @description Load data on component mount
+   */
+  useEffect(() => {
+    loadDashboardData();
+  }, [user?.id]);
+
   /**
    * @description Get appropriate greeting based on time of day
    */
@@ -137,15 +300,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   /**
-   * @description Mock statistics data
+   * @description Format timestamp for display
    */
-  const stats = {
-    totalPoints: user?.points || 1250,
-    currentLevel: user?.level || 8,
-    tasksCompleted: 24,
-    tasksPending: 3,
-    streakDays: 7,
-    achievements: 12,
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
   };
 
   /**
@@ -156,6 +323,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
       onNavigation(item.id);
     }
   };
+
+  if (loading) {
+    return (
+      <AppLayout
+        user={user}
+        title="Dashboard"
+        navigationItems={defaultNavigationItems}
+        onLogout={onLogout}
+        onNavigation={handleNavigation}
+        className={className}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading dashboard...</span>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout
+        user={user}
+        title="Dashboard"
+        navigationItems={defaultNavigationItems}
+        onLogout={onLogout}
+        onNavigation={handleNavigation}
+        className={className}
+      >
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+          <button
+            onClick={loadDashboardData}
+            className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
@@ -322,27 +530,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <p className="ml-3 text-sm text-gray-600 dark:text-gray-400">
-                  Completed task "Clean the kitchen"
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center">
+                    <div className={cn(
+                      'w-2 h-2 rounded-full',
+                      activity.type === 'task_completed' ? 'bg-green-500' :
+                      activity.type === 'points_earned' ? 'bg-blue-500' :
+                      activity.type === 'achievement_unlocked' ? 'bg-yellow-500' :
+                      'bg-purple-500'
+                    )}></div>
+                    <p className="ml-3 text-sm text-gray-600 dark:text-gray-400">
+                      {activity.title}
+                    </p>
+                    <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">
+                      {formatTimestamp(activity.timestamp)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No recent activity
                 </p>
-                <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">2 hours ago</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <p className="ml-3 text-sm text-gray-600 dark:text-gray-400">
-                  Earned 50 points for completing daily goal
-                </p>
-                <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">4 hours ago</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <p className="ml-3 text-sm text-gray-600 dark:text-gray-400">
-                  Unlocked achievement "Task Master"
-                </p>
-                <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">1 day ago</span>
-              </div>
+              )}
             </div>
           </div>
         </div>

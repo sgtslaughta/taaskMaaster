@@ -15,19 +15,19 @@ import { cn } from '../../utils/cn';
 const cardVariants = cva(
   // Base styles
   [
-    'bg-white border border-gray-200 rounded-lg',
+    'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg',
     'transition-all duration-200',
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
   ],
   {
     variants: {
       variant: {
-        default: 'bg-white shadow-sm hover:shadow-md',
-        elevated: 'bg-white shadow-md hover:shadow-lg',
-        outlined: 'bg-white border-2 border-gray-200',
+        default: 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md',
+        elevated: 'bg-white dark:bg-gray-800 shadow-md hover:shadow-lg',
+        outlined: 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600',
         ghost: 'bg-transparent border-transparent shadow-none',
-        glass: 'bg-white/80 backdrop-blur-sm border-white/20 shadow-lg',
-        interactive: 'bg-white shadow-sm hover:shadow-md cursor-pointer hover:scale-[1.02]',
+        glass: 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-white/20 dark:border-gray-700/50 shadow-lg',
+        interactive: 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md cursor-pointer hover:scale-[1.02]',
       },
       size: {
         sm: 'p-3',
@@ -229,12 +229,12 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
     <div className={cn('flex items-start justify-between', className)} {...props}>
       <div className="flex-1 min-w-0">
         {title && (
-          <h3 className={cn('text-lg font-semibold text-gray-900', titleClassName)}>
+          <h3 className={cn('text-lg font-semibold text-gray-900 dark:text-white', titleClassName)}>
             {title}
           </h3>
         )}
         {subtitle && (
-          <p className={cn('mt-1 text-sm text-gray-500', subtitleClassName)}>
+          <p className={cn('mt-1 text-sm text-gray-500 dark:text-gray-400', subtitleClassName)}>
             {subtitle}
           </p>
         )}
@@ -356,14 +356,14 @@ export const CardImage: React.FC<CardImageProps> = ({
   return (
     <div
       className={cn(
-        'relative overflow-hidden bg-gray-100',
+        'relative overflow-hidden bg-gray-100 dark:bg-gray-700',
         aspectRatioClasses[aspectRatio],
         className
       )}
       {...props}
     >
       {loading ? (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-600 animate-pulse" />
       ) : (
         <img
           src={src}
@@ -377,3 +377,9 @@ export const CardImage: React.FC<CardImageProps> = ({
 };
 
 CardImage.displayName = 'CardImage';
+
+// Attach sub-components to Card
+Card.Header = CardHeader;
+Card.Body = CardBody;
+Card.Footer = CardFooter;
+Card.Image = CardImage;

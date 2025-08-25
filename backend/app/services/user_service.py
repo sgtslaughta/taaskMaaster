@@ -112,7 +112,7 @@ class UserService:
 
         total = query.count()
         users = (
-            query.offset(skip).limit(limit).order_by(asc(User.username)).all()
+            query.order_by(asc(User.username)).offset(skip).limit(limit).all()
         )
 
         return users, total

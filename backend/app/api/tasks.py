@@ -44,7 +44,7 @@ async def create_task(
     """
     task_service = TaskService(db)
     task = task_service.create_task(task_data, current_user_id)
-    return task
+    return task_service.to_task_response(task)
 
 
 @router.get("/", response_model=TaskList)
@@ -90,11 +90,14 @@ async def get_tasks(
         search=search,
     )
 
+    # Convert Task model instances to TaskResponse dictionaries
+    task_responses = [task_service.to_task_response(task) for task in tasks]
+
     pages = (total + limit - 1) // limit
     page = (skip // limit) + 1
 
     return TaskList(
-        tasks=tasks, total=total, page=page, size=limit, pages=pages
+        tasks=task_responses, total=total, page=page, size=limit, pages=pages
     )
 
 
@@ -264,7 +267,7 @@ async def get_task(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    return task
+    return task_service.to_task_response(task)
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
@@ -284,7 +287,7 @@ async def update_task(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    return task
+    return task_service.to_task_response(task)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -323,4 +326,4 @@ async def complete_task(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    return task
+    return task_service.to_task_response(task)

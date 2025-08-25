@@ -580,3 +580,118 @@ class TaskService:
             return current_due_date + timedelta(days=365)
 
         return current_due_date
+
+    def to_task_response(self, task: Task) -> Dict[str, Any]:
+        """
+        Convert a Task model instance to a TaskResponse dictionary.
+        
+        Args:
+            task: Task model instance
+            
+        Returns:
+            Dictionary representation suitable for TaskResponse
+        """
+        # Convert assigned_to User object to dictionary
+        assigned_to_dict = None
+        if task.assigned_to:
+            assigned_to_dict = {
+                "id": task.assigned_to.id,
+                "username": task.assigned_to.username,
+                "email": task.assigned_to.email,
+                "first_name": getattr(task.assigned_to, 'first_name', None),
+                "last_name": getattr(task.assigned_to, 'last_name', None),
+            }
+        
+        # Convert category to dictionary
+        category_dict = None
+        if task.category:
+            category_dict = {
+                "id": task.category.id,
+                "name": task.category.name,
+                "description": task.category.description,
+                "color": task.category.color,
+                "icon": task.category.icon,
+            }
+        
+        # Convert template to dictionary
+        template_dict = None
+        if task.template:
+            template_dict = {
+                "id": task.template.id,
+                "name": task.template.name,
+                "description": task.template.description,
+                "title_pattern": task.template.title_pattern,
+                "description_template": task.template.description_template,
+                "estimated_hours": task.template.estimated_hours,
+                "points": task.template.points,
+                "priority": task.template.priority.value,
+                "is_public": task.template.is_public,
+            }
+        
+        # Convert tags to list of dictionaries
+        tags_list = []
+        if task.tags:
+            for tag in task.tags:
+                tags_list.append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                })
+        
+        # Convert subtasks to list of dictionaries
+        subtasks_list = []
+        if task.subtasks:
+            for subtask in task.subtasks:
+                subtasks_list.append(self.to_task_response(subtask))
+        
+        # Convert dependencies to list of dictionaries
+        dependencies_list = []
+        if task.dependencies:
+            for dep in task.dependencies:
+                dependencies_list.append({
+                    "id": dep.id,
+                    "dependent_task_id": dep.dependent_task_id,
+                    "dependency_type": dep.dependency_type.value if hasattr(dep.dependency_type, 'value') else dep.dependency_type,
+                })
+        
+        # Convert media attachments to list of dictionaries
+        media_list = []
+        if task.media_attachments:
+            for media in task.media_attachments:
+                media_list.append({
+                    "id": media.id,
+                    "filename": media.filename,
+                    "file_path": media.file_path,
+                    "file_size": media.file_size,
+                    "mime_type": media.mime_type,
+                    "uploaded_at": media.uploaded_at.isoformat() if media.uploaded_at else None,
+                })
+        
+        return {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "status": task.status.value,
+            "priority": task.priority.value,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            "estimated_hours": task.estimated_hours,
+            "actual_hours": task.actual_hours,
+            "points": task.points,
+            "is_recurring": task.is_recurring,
+            "recurrence_pattern": task.recurrence_pattern,
+            "created_by_id": task.created_by_id,
+            "assigned_to_id": task.assigned_to_id,
+            "category_id": task.category_id,
+            "template_id": task.template_id,
+            "parent_task_id": task.parent_task_id,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat(),
+            "assigned_to": assigned_to_dict,
+            "category": category_dict,
+            "template": template_dict,
+            "tags": tags_list,
+            "subtasks": subtasks_list,
+            "dependencies": dependencies_list,
+            "media_attachments": media_list,
+        }

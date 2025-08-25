@@ -80,9 +80,42 @@ async def get_users(
         return UserList(
             users=users, total=total, page=page, size=limit, pages=pages
         )
-    except Exception:
-        # Return empty list if there's an error
-        return UserList(users=[], total=0, page=1, size=limit, pages=0)
+    except Exception as e:
+        # Log the actual error instead of silently failing
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching users: {str(e)}"
+        )
+
+
+@router.get("/for-assignment", response_model=UserList)
+async def get_users_for_assignment(
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get users for task assignment (accessible to all active users)."""
+    try:
+        user_service = UserService(db)
+        # Get only active users for assignment
+        users, total = user_service.get_users(
+            skip=0, limit=100, is_active=True
+        )
+
+        return UserList(
+            users=users, total=total, page=1, size=100, pages=1
+        )
+    except Exception as e:
+        # Log the actual error instead of silently failing
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching users for assignment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching users for assignment: {str(e)}"
+        )
 
 
 # Password change endpoint (must come before /{user_id} routes)

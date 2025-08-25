@@ -6,12 +6,130 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { TaskList, TaskForm, Task, TaskFormData } from '../tasks';
+import { TaskList, TaskForm, TaskFormData, Task as FrontendTask } from '../tasks';
 import { AppLayout } from '../layout/AppLayout';
 import { Button } from '../../design-system/components/Button';
 import { Card } from '../../design-system/components/Card';
 import { getCommonBreadcrumbs } from '../navigation/Breadcrumb';
 import { NavigationItem } from '../navigation/Sidebar';
+import { cn } from '../../design-system/utils/cn';
+import { taskService, Task as BackendTask, TaskStatus, TaskPriority, TaskCategory, CreateTaskRequest, UpdateTaskRequest } from '../../services/taskService';
+import { userService, User } from '../../services/userService';
+
+/**
+ * @description Adapter functions to convert between backend and frontend interfaces
+ */
+
+/**
+ * @description Convert backend Task to frontend Task
+ */
+const adaptBackendToFrontendTask = (backendTask: BackendTask): FrontendTask => {
+  return {
+    id: backendTask.id.toString(),
+    title: backendTask.title,
+    description: backendTask.description || '',
+    status: mapBackendStatusToFrontend(backendTask.status),
+    priority: mapBackendPriorityToFrontend(backendTask.priority),
+    category: backendTask.category?.name || '',
+    tags: backendTask.tags?.map(tag => tag.name) || [],
+    assignedTo: backendTask.assigned_to_id?.toString() || '',
+    dueDate: backendTask.due_date || '',
+    points: backendTask.points,
+    createdAt: backendTask.created_at,
+    updatedAt: backendTask.updated_at,
+    attachments: backendTask.attachments,
+    parentTaskId: backendTask.parent_task_id?.toString(),
+    subtasks: backendTask.subtasks?.map(adaptBackendToFrontendTask) || [],
+  };
+};
+
+/**
+ * @description Convert frontend Task to backend Task (for updates)
+ */
+const adaptFrontendToBackendTask = (frontendTask: FrontendTask): Partial<BackendTask> => {
+  return {
+    title: frontendTask.title,
+    description: frontendTask.description,
+    status: mapFrontendStatusToBackend(frontendTask.status),
+    priority: mapFrontendPriorityToBackend(frontendTask.priority),
+    due_date: frontendTask.dueDate,
+    points: frontendTask.points,
+    assigned_to_id: frontendTask.assignedTo ? parseInt(frontendTask.assignedTo) : undefined,
+    parent_task_id: frontendTask.parentTaskId ? parseInt(frontendTask.parentTaskId) : undefined,
+  };
+};
+
+/**
+ * @description Map backend status to frontend status
+ */
+const mapBackendStatusToFrontend = (backendStatus: TaskStatus): FrontendTask['status'] => {
+  switch (backendStatus) {
+    case TaskStatus.TODO:
+      return 'pending';
+    case TaskStatus.IN_PROGRESS:
+      return 'in_progress';
+    case TaskStatus.DONE:
+      return 'completed';
+    case TaskStatus.CANCELLED:
+      return 'overdue';
+    default:
+      return 'pending';
+  }
+};
+
+/**
+ * @description Map frontend status to backend status
+ */
+const mapFrontendStatusToBackend = (frontendStatus: FrontendTask['status']): TaskStatus => {
+  switch (frontendStatus) {
+    case 'pending':
+      return TaskStatus.TODO;
+    case 'in_progress':
+      return TaskStatus.IN_PROGRESS;
+    case 'completed':
+      return TaskStatus.DONE;
+    case 'overdue':
+      return TaskStatus.CANCELLED;
+    default:
+      return TaskStatus.TODO;
+  }
+};
+
+/**
+ * @description Map backend priority to frontend priority
+ */
+const mapBackendPriorityToFrontend = (backendPriority: TaskPriority): FrontendTask['priority'] => {
+  switch (backendPriority) {
+    case TaskPriority.LOW:
+      return 'low';
+    case TaskPriority.MEDIUM:
+      return 'medium';
+    case TaskPriority.HIGH:
+      return 'high';
+    case TaskPriority.URGENT:
+      return 'urgent';
+    default:
+      return 'medium';
+  }
+};
+
+/**
+ * @description Map frontend priority to backend priority
+ */
+const mapFrontendPriorityToBackend = (frontendPriority: FrontendTask['priority']): TaskPriority => {
+  switch (frontendPriority) {
+    case 'low':
+      return TaskPriority.LOW;
+    case 'medium':
+      return TaskPriority.MEDIUM;
+    case 'high':
+      return TaskPriority.HIGH;
+    case 'urgent':
+      return TaskPriority.URGENT;
+    default:
+      return TaskPriority.MEDIUM;
+  }
+};
 
 /**
  * @description Tasks page component props
@@ -47,128 +165,6 @@ export interface TasksPageProps {
 }
 
 /**
- * @description Mock API functions for task management
- */
-const mockApi = {
-  /**
-   * @description Fetch tasks from API
-   */
-  fetchTasks: async (): Promise<Task[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return [
-      {
-        id: '1',
-        title: 'Complete homework assignment',
-        description: 'Finish the math homework due tomorrow. Complete all problems in chapters 5-7.',
-        status: 'pending',
-        priority: 'high',
-        category: 'Education',
-        tags: ['homework', 'math', 'urgent'],
-        assignedTo: 'Alex',
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        points: 50,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        title: 'Clean bedroom',
-        description: 'Organize toys, make bed, and vacuum the floor.',
-        status: 'in_progress',
-        priority: 'medium',
-        category: 'Chores',
-        tags: ['cleaning', 'bedroom'],
-        assignedTo: 'Alex',
-        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        points: 25,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        subtasks: [
-          { id: '2.1', title: 'Make bed', status: 'completed' as const },
-          { id: '2.2', title: 'Organize toys', status: 'in_progress' as const },
-          { id: '2.3', title: 'Vacuum floor', status: 'pending' as const },
-        ],
-      },
-      {
-        id: '3',
-        title: 'Read for 30 minutes',
-        description: 'Read the assigned book for today\'s reading goal.',
-        status: 'completed',
-        priority: 'low',
-        category: 'Education',
-        tags: ['reading', 'daily'],
-        assignedTo: 'Alex',
-        dueDate: new Date().toISOString(),
-        points: 15,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: '4',
-        title: 'Practice piano',
-        description: 'Practice the new song for 20 minutes.',
-        status: 'overdue',
-        priority: 'medium',
-        category: 'Activities',
-        tags: ['music', 'practice'],
-        assignedTo: 'Alex',
-        dueDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        points: 30,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-  },
-
-  /**
-   * @description Create new task
-   */
-  createTask: async (taskData: TaskFormData): Promise<Task> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: taskData.title,
-      description: taskData.description,
-      status: taskData.status,
-      priority: taskData.priority,
-      category: taskData.category,
-      tags: taskData.tags,
-      assignedTo: taskData.assignedTo,
-      dueDate: taskData.dueDate,
-      points: taskData.points,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      attachments: taskData.attachments?.map(f => f.name),
-      parentTaskId: taskData.parentTaskId,
-      subtasks: taskData.subtasks as Task[],
-    };
-    
-    return newTask;
-  },
-
-  /**
-   * @description Update existing task
-   */
-  updateTask: async (taskId: string, updates: Partial<Task>): Promise<Task> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In a real app, this would update the task in the database
-    return { ...updates, id: taskId } as Task;
-  },
-
-  /**
-   * @description Delete task
-   */
-  deleteTask: async (taskId: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // In a real app, this would delete the task from the database
-  },
-};
-
-/**
  * @description Tasks page component
  * @param props - Tasks page component props
  * @returns Tasks page component
@@ -180,24 +176,20 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   onNavigation,
   className,
 }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<FrontendTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | undefined>();
+  const [editingTask, setEditingTask] = useState<FrontendTask | undefined>();
   const [formLoading, setFormLoading] = useState(false);
+  const [categories, setCategories] = useState<TaskCategory[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
-  // Mock data for form options
-  const categories = ['Education', 'Chores', 'Activities', 'Health', 'Family'];
-  const users = [
-    { id: '1', name: 'Alex', role: 'child' },
-    { id: '2', name: 'Mom', role: 'parent' },
-    { id: '3', name: 'Dad', role: 'parent' },
-  ];
-
-  // Load tasks on component mount
+  // Load tasks and categories on component mount
   useEffect(() => {
     loadTasks();
+    loadCategories();
+    loadUsers();
   }, []);
 
   /**
@@ -207,13 +199,42 @@ export const TasksPage: React.FC<TasksPageProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const fetchedTasks = await mockApi.fetchTasks();
-      setTasks(fetchedTasks);
+      const response = await taskService.getTasks();
+      const frontendTasks = response.tasks.map(adaptBackendToFrontendTask);
+      setTasks(frontendTasks);
     } catch (err) {
       setError('Failed to load tasks. Please try again.');
       console.error('Error loading tasks:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * @description Load categories from API
+   */
+  const loadCategories = async () => {
+    try {
+      const categoriesData = await taskService.getCategories();
+      setCategories(categoriesData);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  /**
+   * @description Load users from API
+   */
+  const loadUsers = async () => {
+    try {
+      const usersData = await userService.getUsersForAssignment();
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      // Set error state to display to user
+      setError('Failed to load users. You may not have permission to view user list.');
+      // Set empty array as fallback
+      setUsers([]);
     }
   };
 
@@ -226,6 +247,40 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   };
 
   /**
+   * @description Convert TaskFormData to CreateTaskRequest
+   */
+  const convertToCreateRequest = (taskData: TaskFormData): CreateTaskRequest => {
+    return {
+      title: taskData.title,
+      description: taskData.description,
+      status: mapFrontendStatusToBackend(taskData.status as FrontendTask['status']),
+      priority: mapFrontendPriorityToBackend(taskData.priority as FrontendTask['priority']),
+      due_date: taskData.dueDate,
+      points: taskData.points,
+      assigned_to_id: parseInt(taskData.assignedTo) || undefined,
+      parent_task_id: taskData.parentTaskId ? parseInt(taskData.parentTaskId) : undefined,
+      tags: taskData.tags,
+    };
+  };
+
+  /**
+   * @description Convert TaskFormData to UpdateTaskRequest
+   */
+  const convertToUpdateRequest = (taskData: TaskFormData): UpdateTaskRequest => {
+    return {
+      title: taskData.title,
+      description: taskData.description,
+      status: mapFrontendStatusToBackend(taskData.status as FrontendTask['status']),
+      priority: mapFrontendPriorityToBackend(taskData.priority as FrontendTask['priority']),
+      due_date: taskData.dueDate,
+      points: taskData.points,
+      assigned_to_id: parseInt(taskData.assignedTo) || undefined,
+      parent_task_id: taskData.parentTaskId ? parseInt(taskData.parentTaskId) : undefined,
+      tags: taskData.tags,
+    };
+  };
+
+  /**
    * @description Handle task form submission
    */
   const handleTaskSubmit = async (taskData: TaskFormData) => {
@@ -234,14 +289,18 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       
       if (editingTask) {
         // Update existing task
-        const updatedTask = await mockApi.updateTask(editingTask.id, taskData);
+        const updateData = convertToUpdateRequest(taskData);
+        const updatedBackendTask = await taskService.updateTask(parseInt(editingTask.id), updateData);
+        const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
         setTasks(prev => prev.map(task => 
-          task.id === editingTask.id ? updatedTask : task
+          task.id === editingTask.id ? updatedFrontendTask : task
         ));
       } else {
         // Create new task
-        const newTask = await mockApi.createTask(taskData);
-        setTasks(prev => [newTask, ...prev]);
+        const createData = convertToCreateRequest(taskData);
+        const newBackendTask = await taskService.createTask(createData);
+        const newFrontendTask = adaptBackendToFrontendTask(newBackendTask);
+        setTasks(prev => [newFrontendTask, ...prev]);
       }
       
       setIsFormOpen(false);
@@ -257,10 +316,27 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task update
    */
-  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates, updatedAt: new Date().toISOString() } : task
-    ));
+  const handleTaskUpdate = async (taskId: string, updates: Partial<FrontendTask>) => {
+    try {
+      const backendUpdates: UpdateTaskRequest = {};
+      
+      if (updates.title !== undefined) backendUpdates.title = updates.title;
+      if (updates.description !== undefined) backendUpdates.description = updates.description;
+      if (updates.status !== undefined) backendUpdates.status = mapFrontendStatusToBackend(updates.status);
+      if (updates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(updates.priority);
+      if (updates.dueDate !== undefined) backendUpdates.due_date = updates.dueDate;
+      if (updates.points !== undefined) backendUpdates.points = updates.points;
+      if (updates.assignedTo !== undefined) backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
+      if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
+
+      const updatedBackendTask = await taskService.updateTask(parseInt(taskId), backendUpdates);
+      const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
+      setTasks(prev => prev.map(task => 
+        task.id === taskId ? updatedFrontendTask : task
+      ));
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
   };
 
   /**
@@ -268,7 +344,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
    */
   const handleTaskDelete = async (taskId: string) => {
     try {
-      await mockApi.deleteTask(taskId);
+      await taskService.deleteTask(parseInt(taskId));
       setTasks(prev => prev.filter(task => task.id !== taskId));
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -279,7 +355,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task status change
    */
-  const handleStatusChange = (taskId: string, status: Task['status']) => {
+  const handleStatusChange = (taskId: string, status: FrontendTask['status']) => {
     handleTaskUpdate(taskId, { status });
   };
 
@@ -287,26 +363,93 @@ export const TasksPage: React.FC<TasksPageProps> = ({
    * @description Handle task assignment
    */
   const handleTaskAssign = (taskId: string, userId: string) => {
-    const user = users.find(u => u.id === userId);
+    const user = users.find(u => u.id.toString() === userId);
     if (user) {
-      handleTaskUpdate(taskId, { assignedTo: user.name });
+      handleTaskUpdate(taskId, { assignedTo: userId });
     }
   };
 
   /**
    * @description Handle task edit
    */
-  const handleTaskEdit = (task: Task) => {
+  const handleTaskEdit = (task: FrontendTask) => {
     setEditingTask(task);
     setIsFormOpen(true);
   };
 
+  /**
+   * @description Handle task completion
+   */
+  const handleTaskComplete = async (taskId: string) => {
+    try {
+      const completedBackendTask = await taskService.completeTask(parseInt(taskId));
+      const completedFrontendTask = adaptBackendToFrontendTask(completedBackendTask);
+      setTasks(prev => prev.map(task => 
+        task.id === taskId ? completedFrontendTask : task
+      ));
+    } catch (err) {
+      console.error('Error completing task:', err);
+    }
+  };
+
+  /**
+   * @description Convert frontend Task to TaskFormData
+   */
+  const convertTaskToFormData = (task: FrontendTask): TaskFormData => {
+    return {
+      title: task.title,
+      description: task.description,
+      status: task.status as any,
+      priority: task.priority as any,
+      category: task.category,
+      tags: task.tags,
+      assignedTo: task.assignedTo,
+      dueDate: task.dueDate,
+      points: task.points,
+      parentTaskId: task.parentTaskId,
+      subtasks: task.subtasks?.map(subtask => ({
+        id: subtask.id,
+        title: subtask.title,
+        status: subtask.status as any,
+      })),
+    };
+  };
+
+  /**
+   * @description Get category names for form
+   */
+  const getCategoryNames = (): string[] => {
+    return categories.map(cat => cat.name);
+  };
+
+  /**
+   * @description Get parent tasks for form
+   */
+  const getParentTasks = (): FrontendTask[] => {
+    return tasks.filter(task => !task.parentTaskId);
+  };
+
+  /**
+   * @description Get task statistics
+   */
+  const getTaskStats = () => {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    const overdue = tasks.filter(t => {
+      if (t.status === 'completed') return false;
+      if (!t.dueDate) return false;
+      return new Date(t.dueDate) < new Date();
+    }).length;
+
+    return { total, completed, inProgress, overdue };
+  };
+
+  const stats = getTaskStats();
+
   return (
     <AppLayout
       user={user}
-      title="Tasks"
-      subtitle="Manage your family's tasks and responsibilities"
-      breadcrumbs={getCommonBreadcrumbs('tasks')}
       navigationItems={navigationItems}
       onLogout={onLogout}
       onNavigation={onNavigation}
@@ -316,24 +459,22 @@ export const TasksPage: React.FC<TasksPageProps> = ({
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Task Management</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Task Management</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Organize, track, and complete tasks as a family
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Button
-              variant="outline"
-              onClick={loadTasks}
+              onClick={() => loadTasks()}
               disabled={loading}
             >
               Refresh
             </Button>
             <Button
-              variant="primary"
               onClick={handleCreateTask}
             >
-              Create Task
+              Add Task
             </Button>
           </div>
         </div>
@@ -341,73 +482,67 @@ export const TasksPage: React.FC<TasksPageProps> = ({
         {/* Task Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <Card.CardBody className="p-4">
+            <div className="p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-sm font-medium">📝</span>
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">📝</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Total Tasks</p>
-                  <p className="text-2xl font-semibold text-gray-900">{tasks.length}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.total}</p>
                 </div>
               </div>
-            </Card.CardBody>
+            </div>
           </Card>
 
           <Card>
-            <Card.CardBody className="p-4">
+            <div className="p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-600 text-sm font-medium">✅</span>
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 dark:text-green-400 text-sm font-medium">✅</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Completed</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {tasks.filter(t => t.status === 'completed').length}
-                  </p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.completed}</p>
                 </div>
               </div>
-            </Card.CardBody>
+            </div>
           </Card>
 
           <Card>
-            <Card.CardBody className="p-4">
+            <div className="p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-orange-600 text-sm font-medium">🔄</span>
+                  <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 dark:text-orange-400 text-sm font-medium">🔄</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">In Progress</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {tasks.filter(t => t.status === 'in_progress').length}
-                  </p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.inProgress}</p>
                 </div>
               </div>
-            </Card.CardBody>
+            </div>
           </Card>
 
           <Card>
-            <Card.CardBody className="p-4">
+            <div className="p-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                    <span className="text-red-600 text-sm font-medium">⏰</span>
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 dark:text-red-400 text-sm font-medium">⏰</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Overdue</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {tasks.filter(t => t.status === 'overdue').length}
-                  </p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
                 </div>
               </div>
-            </Card.CardBody>
+            </div>
           </Card>
         </div>
 
@@ -421,21 +556,19 @@ export const TasksPage: React.FC<TasksPageProps> = ({
           onDeleteTask={handleTaskDelete}
           onStatusChange={handleStatusChange}
           onAssignTask={handleTaskAssign}
+          className={className}
         />
 
         {/* Task Form Modal */}
         <TaskForm
           isOpen={isFormOpen}
-          onClose={() => {
-            setIsFormOpen(false);
-            setEditingTask(undefined);
-          }}
+          onClose={() => setIsFormOpen(false)}
           onSubmit={handleTaskSubmit}
           task={editingTask}
           loading={formLoading}
-          categories={categories}
+          categories={getCategoryNames()}
           users={users}
-          parentTasks={tasks.filter(t => !t.parentTaskId)}
+          parentTasks={getParentTasks()}
         />
       </div>
     </AppLayout>
