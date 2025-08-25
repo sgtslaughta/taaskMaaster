@@ -53,6 +53,8 @@ module.exports = {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'bounce-in': 'bounceIn 0.6s ease-out',
+        'shimmer': 'shimmer 2s infinite',
+        'pulse-ring': 'pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
         fadeIn: {
@@ -68,6 +70,24 @@ module.exports = {
           '50%': { transform: 'scale(1.05)' },
           '70%': { transform: 'scale(0.9)' },
           '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        pulseRing: {
+          '0%': { 
+            transform: 'scale(0.95)',
+            opacity: '0.7'
+          },
+          '50%': { 
+            transform: 'scale(1.05)',
+            opacity: '0.3'
+          },
+          '100%': { 
+            transform: 'scale(0.95)',
+            opacity: '0.7'
+          },
         },
       },
     },

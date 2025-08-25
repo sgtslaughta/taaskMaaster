@@ -5,14 +5,18 @@
  * @version 1.0.0
  */
 
-import React, { useState } from 'react';
-import { 
-  BellIcon, 
-  MagnifyingGlassIcon, 
+import React, { useState, useEffect } from 'react';
+import {
+  MagnifyingGlassIcon,
+  BellIcon,
   UserCircleIcon,
   SunIcon,
   MoonIcon,
-  Bars3Icon
+  Bars3Icon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon,
+  ShieldCheckIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 import { cn } from '../../design-system/utils/cn';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -71,15 +75,34 @@ export const Header: React.FC<HeaderProps> = ({
   onSidebarToggle,
   className,
 }) => {
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(initialShowNotifications);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(initialShowNotifications);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // Force re-render of SVG when theme changes
+  useEffect(() => {
+    setAnimationKey(prev => prev + 1);
+  }, [isDarkMode]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   /**
-   * @description Handle search form submission
+   * @description Handle search submission
    */
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSearch && searchQuery.trim()) {
       onSearch(searchQuery.trim());
@@ -104,13 +127,122 @@ export const Header: React.FC<HeaderProps> = ({
     toggleDarkMode();
   };
 
+  /**
+   * @description Handle user menu toggle
+   */
+  const handleUserMenuToggle = () => {
+    console.log('User menu toggle clicked, current state:', showUserMenu);
+    setShowUserMenu(!showUserMenu);
+    console.log('New state will be:', !showUserMenu);
+  };
+
+  /**
+   * @description Handle logout
+   */
+  const handleLogout = () => {
+    setShowUserMenu(false);
+    onLogout?.();
+  };
+
+  // Define colors based on theme
+  const lightColors = {
+    start: '#1E40AF',  // Dark blue for light mode
+    middle: '#2563EB', // Medium dark blue
+    end: '#3730A3'     // Dark indigo
+  };
+
+  const darkColors = {
+    start: '#93C5FD',  // Light blue for dark mode
+    middle: '#60A5FA', // Medium light blue
+    end: '#A5B4FC'     // Light indigo
+  };
+
+  const colors = isDarkMode ? darkColors : lightColors;
+
   return (
     <header className={cn(
       'bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-40',
       'dark:bg-gray-900 dark:border-gray-700',
+      'relative overflow-hidden',
       className
     )}>
-      <div className="flex items-center justify-between">
+      {/* Rolling wave animation background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <svg
+          key={animationKey}
+          className={cn(
+            "w-full h-full",
+            isDarkMode ? "opacity-10" : "opacity-15"
+          )}
+          viewBox="0 0 1200 100"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id={`waveGradient-${animationKey}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={colors.start}>
+                <animate
+                  attributeName="stop-color"
+                  values={`${colors.start};${colors.middle};${colors.end};${colors.middle};${colors.start}`}
+                  dur="8s"
+                  repeatCount="indefinite"
+                />
+              </stop>
+              <stop offset="100%" stopColor={colors.end}>
+                <animate
+                  attributeName="stop-color"
+                  values={`${colors.end};${colors.middle};${colors.start};${colors.middle};${colors.end}`}
+                  dur="8s"
+                  repeatCount="indefinite"
+                />
+              </stop>
+            </linearGradient>
+          </defs>
+          
+          {/* First wave */}
+          <path
+            d="M0,50 Q300,20 600,50 T1200,50 L1200,100 L0,100 Z"
+            fill={`url(#waveGradient-${animationKey})`}
+            opacity="0.6"
+          >
+            <animate
+              attributeName="d"
+              values="M0,50 Q300,20 600,50 T1200,50 L1200,100 L0,100 Z;M0,50 Q300,80 600,50 T1200,50 L1200,100 L0,100 Z;M0,50 Q300,20 600,50 T1200,50 L1200,100 L0,100 Z"
+              dur="6s"
+              repeatCount="indefinite"
+            />
+          </path>
+          
+          {/* Second wave */}
+          <path
+            d="M0,60 Q400,30 800,60 T1200,60 L1200,100 L0,100 Z"
+            fill={`url(#waveGradient-${animationKey})`}
+            opacity="0.4"
+          >
+            <animate
+              attributeName="d"
+              values="M0,60 Q400,30 800,60 T1200,60 L1200,100 L0,100 Z;M0,60 Q400,90 800,60 T1200,60 L1200,100 L0,100 Z;M0,60 Q400,30 800,60 T1200,60 L1200,100 L0,100 Z"
+              dur="8s"
+              repeatCount="indefinite"
+            />
+          </path>
+          
+          {/* Third wave */}
+          <path
+            d="M0,70 Q500,40 1000,70 T1200,70 L1200,100 L0,100 Z"
+            fill={`url(#waveGradient-${animationKey})`}
+            opacity="0.2"
+          >
+            <animate
+              attributeName="d"
+              values="M0,70 Q500,40 1000,70 T1200,70 L1200,100 L0,100 Z;M0,70 Q500,100 1000,70 T1200,70 L1200,100 L0,100 Z;M0,70 Q500,40 1000,70 T1200,70 L1200,100 L0,100 Z"
+              dur="10s"
+              repeatCount="indefinite"
+            />
+          </path>
+        </svg>
+      </div>
+
+      <div className="flex items-center justify-between relative z-10">
         {/* Left side - Mobile menu and Logo */}
         <div className="flex items-center space-x-4">
           {/* Mobile menu button */}
@@ -119,7 +251,8 @@ export const Header: React.FC<HeaderProps> = ({
             className={cn(
               'lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
               'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
+              'focus:outline-none focus:ring-2 focus:ring-blue-500',
+              'transition-all duration-200'
             )}
             onClick={onSidebarToggle}
             aria-label="Toggle sidebar"
@@ -129,10 +262,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Logo */}
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg mr-3">
               <span className="text-white font-bold text-sm">T</span>
             </div>
-            <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">
+            <span className="text-xl font-bold text-gray-900 dark:text-white">
               TaaskMaaster
             </span>
           </div>
@@ -142,159 +275,161 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center space-x-4">
           {/* Search */}
           {showSearch && (
-            <form onSubmit={handleSearch} className="hidden md:block">
+            <form onSubmit={handleSearchSubmit} className="hidden md:block">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search tasks..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={cn(
-                    'pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-md',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                    'dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400'
+                    'w-64 pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg',
+                    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                    'dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400',
+                    'dark:focus:ring-blue-400 dark:focus:border-blue-400',
+                    'transition-all duration-200'
                   )}
                 />
+                <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500" />
               </div>
             </form>
           )}
 
-          {/* Dark mode toggle */}
+          {/* Dark Mode Toggle */}
           <button
             type="button"
+            onClick={handleDarkModeToggle}
             className={cn(
               'p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
               'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
+              'focus:outline-none focus:ring-2 focus:ring-blue-500',
+              'transition-all duration-200'
             )}
-            onClick={handleDarkModeToggle}
-            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Toggle dark mode"
           >
             {isDarkMode ? (
-              <SunIcon className="h-6 w-6" />
+              <SunIcon className="h-5 w-5" />
             ) : (
-              <MoonIcon className="h-6 w-6" />
+              <MoonIcon className="h-5 w-5" />
             )}
           </button>
 
           {/* Notifications */}
-          <div className="relative">
+          {showNotifications && (
             <button
               type="button"
+              onClick={handleNotificationsToggle}
               className={cn(
                 'p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
                 'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
                 'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'transition-all duration-200',
                 'relative'
               )}
-              onClick={handleNotificationsToggle}
-              aria-label="Notifications"
+              aria-label="Toggle notifications"
             >
-              <BellIcon className="h-6 w-6" />
+              <BellIcon className="h-5 w-5" />
               {/* Notification badge */}
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400"></span>
+              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
             </button>
+          )}
 
-            {/* Notifications dropdown */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-                <div className="py-1">
-                  <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
-                    <h3 className="font-medium">Notifications</h3>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                      No new notifications
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* User menu */}
-          {user ? (
-            <div className="relative">
+          {/* User Menu */}
+          {user && (
+            <div className="relative user-menu-container">
               <button
                 type="button"
+                onClick={handleUserMenuToggle}
                 className={cn(
-                  'flex items-center space-x-3 p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
-                  'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  'flex items-center space-x-2 p-2 rounded-md text-gray-700 hover:text-gray-900',
+                  'hover:bg-gray-100 dark:text-gray-300 dark:hover:text-gray-200',
+                  'dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500',
+                  'transition-all duration-200'
                 )}
-                onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-label="User menu"
+                aria-expanded={showUserMenu}
               >
                 {user.avatar ? (
                   <img
-                    className="h-8 w-8 rounded-full"
                     src={user.avatar}
                     alt={user.username}
+                    className="w-8 h-8 rounded-full"
                   />
                 ) : (
-                  <UserCircleIcon className="h-8 w-8" />
+                  <UserCircleIcon className="w-8 h-8" />
                 )}
-                <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="hidden sm:block text-sm font-medium">
                   {user.username}
                 </span>
               </button>
 
-              {/* User dropdown menu */}
+              {/* User dropdown menu - positioned outside header container */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                <div className="fixed top-16 right-4 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999]">
                   <div className="py-1">
-                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-700">
-                      <p className="font-medium">{user.username}</p>
-                      <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
+                    {/* User info */}
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
                       {user.role && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{user.role}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 capitalize mt-1">{user.role}</p>
                       )}
                     </div>
-                    
-                    <a
-                      href="/profile"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <UserCircleIcon className="mr-3 h-5 w-5" />
-                      Profile
-                    </a>
-                    
-                    <a
-                      href="/settings"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      <UserCircleIcon className="mr-3 h-5 w-5" />
-                      Settings
-                    </a>
-                    
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        onLogout?.();
-                      }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      <UserCircleIcon className="mr-3 h-5 w-5" />
-                      Logout
-                    </button>
+
+                    {/* Menu items */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => setShowUserMenu(false)}
+                        className={cn(
+                          'flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300',
+                          'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150'
+                        )}
+                      >
+                        <UserIcon className="mr-3 h-4 w-4" />
+                        Profile
+                      </button>
+
+                      <button
+                        onClick={() => setShowUserMenu(false)}
+                        className={cn(
+                          'flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300',
+                          'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150'
+                        )}
+                      >
+                        <Cog6ToothIcon className="mr-3 h-4 w-4" />
+                        Settings
+                      </button>
+
+                      {/* Admin area - only show if user is admin */}
+                      {user.role === 'admin' && (
+                        <button
+                          onClick={() => setShowUserMenu(false)}
+                          className={cn(
+                            'flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300',
+                            'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150'
+                          )}
+                        >
+                          <ShieldCheckIcon className="mr-3 h-4 w-4" />
+                          Admin Area
+                        </button>
+                      )}
+
+                      {/* Logout */}
+                      <button
+                        onClick={handleLogout}
+                        className={cn(
+                          'flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400',
+                          'hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150'
+                        )}
+                      >
+                        <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          ) : (
-            <button
-              type="button"
-              className={cn(
-                'px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300',
-                'hover:text-gray-900 dark:hover:text-white',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500'
-              )}
-            >
-              Sign In
-            </button>
           )}
         </div>
       </div>
