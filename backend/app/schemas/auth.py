@@ -16,7 +16,9 @@ class Token(BaseModel):
     access_token: str = Field(..., description="JWT access token")
     refresh_token: str = Field(..., description="JWT refresh token")
     token_type: str = Field(default="bearer", description="Token type")
-    expires_in: int = Field(..., description="Token expiration time in seconds")
+    expires_in: int = Field(
+        ..., description="Token expiration time in seconds"
+    )
 
 
 class TokenData(BaseModel):
@@ -40,8 +42,12 @@ class LoginResponse(BaseModel):
     access_token: str = Field(..., description="JWT access token")
     refresh_token: str = Field(..., description="JWT refresh token")
     token_type: str = Field(default="bearer", description="Token type")
-    expires_in: int = Field(..., description="Access token expiration time in seconds")
-    refresh_expires_in: int = Field(..., description="Refresh token expiration time in seconds")
+    expires_in: int = Field(
+        ..., description="Access token expiration time in seconds"
+    )
+    refresh_expires_in: int = Field(
+        ..., description="Refresh token expiration time in seconds"
+    )
     user_id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
     email: str = Field(..., description="Email")
@@ -61,11 +67,17 @@ class RefreshTokenResponse(BaseModel):
 
     access_token: str = Field(..., description="New JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
-    expires_in: int = Field(..., description="Token expiration time in seconds")
+    expires_in: int = Field(
+        ..., description="Token expiration time in seconds"
+    )
 
 
 class LogoutResponse(BaseModel):
     """Schema for logout response."""
 
-    message: str = Field(default="Successfully logged out", description="Logout message")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Logout timestamp")
+    message: str = Field(
+        default="Successfully logged out", description="Logout message"
+    )
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Logout timestamp"
+    )

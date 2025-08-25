@@ -87,15 +87,14 @@ async def validate_file_upload(
 ):
     """Validate a file upload request."""
     media_service = MediaService(db)
-    
+
     # Create a mock upload request for validation
     from app.schemas.media import FileUploadRequest
+
     upload_request = FileUploadRequest(
-        filename=filename,
-        file_size=file_size,
-        mime_type=mime_type
+        filename=filename, file_size=file_size, mime_type=mime_type
     )
-    
+
     validation_result = media_service.validate_file_upload(upload_request)
     return validation_result
 

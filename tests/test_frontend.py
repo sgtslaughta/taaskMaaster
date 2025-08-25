@@ -16,9 +16,9 @@ class TestFrontendAccessibility:
         info = service_checker.get_service_info(config.frontend_url)
 
         assert info is not None, "Frontend not responding"
-        assert info["status_code"] == 200, (
-            f"Frontend returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"Frontend returned status {info['status_code']}"
 
     def test_frontend_html_structure(self, service_checker, config):
         """Test that frontend has proper HTML structure."""
@@ -49,9 +49,9 @@ class TestFrontendAccessibility:
         assert info is not None, "Frontend not responding"
 
         html_content = info["data"]
-        assert "TaaskMaaster" in html_content, (
-            "Frontend missing application title"
-        )
+        assert (
+            "TaaskMaaster" in html_content
+        ), "Frontend missing application title"
 
 
 class TestFrontendSecurity:
@@ -127,9 +127,9 @@ class TestFrontendContent:
         ]
 
         for check in content_checks:
-            assert check.lower() in html_content.lower(), (
-                f"Frontend missing content: {check}"
-            )
+            assert (
+                check.lower() in html_content.lower()
+            ), f"Frontend missing content: {check}"
 
     def test_frontend_links(self, service_checker, config):
         """Test that frontend has proper links."""
@@ -157,9 +157,9 @@ class TestFrontendResponsiveness:
 
         html_content = info["data"]
         assert "viewport" in html_content, "Frontend missing viewport meta tag"
-        assert "width=device-width" in html_content, (
-            "Frontend missing responsive viewport"
-        )
+        assert (
+            "width=device-width" in html_content
+        ), "Frontend missing responsive viewport"
 
 
 class TestFrontendIntegration:
@@ -173,23 +173,23 @@ class TestFrontendIntegration:
         # For now, we verify the backend is accessible from the frontend's
         # perspective
         backend_health_url = f"{config.backend_url}/health"
-        assert service_checker.check_service_health(backend_health_url), (
-            "Backend not accessible from frontend perspective"
-        )
+        assert service_checker.check_service_health(
+            backend_health_url
+        ), "Backend not accessible from frontend perspective"
 
     def test_api_documentation_links(self, service_checker, config):
         """Test that frontend links to API documentation work."""
         docs_url = f"{config.backend_url}/docs"
-        assert service_checker.check_service_health(docs_url), (
-            "API documentation not accessible"
-        )
+        assert service_checker.check_service_health(
+            docs_url
+        ), "API documentation not accessible"
 
     def test_health_check_links(self, service_checker, config):
         """Test that frontend links to health checks work."""
         health_url = f"{config.backend_url}/health"
-        assert service_checker.check_service_health(health_url), (
-            "Health check not accessible"
-        )
+        assert service_checker.check_service_health(
+            health_url
+        ), "Health check not accessible"
 
 
 class TestFrontendBuild:
@@ -203,9 +203,9 @@ class TestFrontendBuild:
 
         # Check for Next.js specific content
         html_content = info["data"]
-        assert "next" in html_content.lower(), (
-            "Frontend missing Next.js indicators"
-        )
+        assert (
+            "next" in html_content.lower()
+        ), "Frontend missing Next.js indicators"
 
 
 if __name__ == "__main__":

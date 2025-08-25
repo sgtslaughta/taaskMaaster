@@ -266,6 +266,3 @@ class TaskDependencyResponse(TaskDependencyBase):
 
     class Config:
         from_attributes = True
-
-
-

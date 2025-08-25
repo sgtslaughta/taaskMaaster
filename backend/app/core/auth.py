@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -43,7 +43,9 @@ class AuthService:
         self.db = db
         self.user_service = UserService(db)
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(
+        self, plain_password: str, hashed_password: str
+    ) -> bool:
         """
         Verify a plain password against its hash.
 
@@ -68,7 +70,9 @@ class AuthService:
         """
         return pwd_context.hash(password)
 
-    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+    def authenticate_user(
+        self, username: str, password: str
+    ) -> Optional[User]:
         """
         Authenticate a user with username/email and password.
 
@@ -114,7 +118,9 @@ class AuthService:
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.utcnow() + timedelta(
+                minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+            )
 
         to_encode.update({"exp": expire, "type": "access"})
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -137,7 +143,9 @@ class AuthService:
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+            expire = datetime.utcnow() + timedelta(
+                days=REFRESH_TOKEN_EXPIRE_DAYS
+            )
 
         to_encode.update({"exp": expire, "type": "refresh"})
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -214,7 +222,9 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """
     Dependency to get current active user.
 
@@ -234,7 +244,9 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
-def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
+def get_current_superuser(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """
     Dependency to get current superuser.
 

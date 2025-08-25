@@ -39,7 +39,7 @@ async def get_all_points(
     db: Session = Depends(get_db_session),
 ):
     """Get all points transactions."""
-    gamification_service = GamificationService(db)
+    GamificationService(db)
     # For now, return empty list - in a real app, you might want to return
     # aggregated points or recent transactions
     return []
@@ -233,7 +233,7 @@ async def get_all_streaks(
     db: Session = Depends(get_db_session),
 ):
     """Get all streaks."""
-    gamification_service = GamificationService(db)
+    GamificationService(db)
     # For now, return empty list - in a real app, you might want to return
     # all user streaks or aggregated data
     return []

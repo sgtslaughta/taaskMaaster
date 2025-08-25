@@ -98,7 +98,7 @@ async def get_all_goal_progress(
     current_user_id: int = 1,  # Temporary for development
 ):
     """Get all goal progress entries."""
-    goal_service = GoalService(db)
+    GoalService(db)
     # For now, return empty list - in a real app, you would get all progress entries
     return GoalProgressList(
         progress_entries=[], total=0, page=1, size=limit, pages=0
@@ -112,13 +112,13 @@ async def get_goal_statistics(
     current_user_id: int = 1,  # Temporary for development
 ):
     """Get goal statistics."""
-    goal_service = GoalService(db)
+    GoalService(db)
     # For now, return empty statistics - in a real app, you would calculate statistics
     return {
         "total_goals": 0,
         "completed_goals": 0,
         "active_goals": 0,
-        "completion_rate": 0.0
+        "completion_rate": 0.0,
     }
 
 
@@ -133,11 +133,9 @@ async def get_recurring_goals(
     current_user_id: int = 1,  # Temporary for development
 ):
     """Get recurring goals."""
-    goal_service = GoalService(db)
+    GoalService(db)
     # For now, return empty list - in a real app, you would filter for recurring goals
-    return GoalList(
-        goals=[], total=0, page=1, size=limit, pages=0
-    )
+    return GoalList(goals=[], total=0, page=1, size=limit, pages=0)
 
 
 @router.get("/{goal_id}", response_model=GoalResponse)

@@ -36,10 +36,10 @@ class UserService:
         """
         # Import here to avoid circular import
         from app.core.auth import pwd_context
-        
+
         # Hash the password
         hashed_password = pwd_context.hash(user_data.password)
-        
+
         user = User(
             username=user_data.username,
             email=user_data.email,
@@ -182,7 +182,7 @@ class UserService:
         """
         # Import here to avoid circular import
         from app.core.auth import pwd_context
-        
+
         # Try to find user by username or email
         user = self.get_user_by_username(username)
         if not user:

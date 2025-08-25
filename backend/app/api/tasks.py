@@ -98,9 +98,6 @@ async def get_tasks(
     )
 
 
-
-
-
 # Task Templates
 @router.post(
     "/templates",
@@ -233,7 +230,7 @@ async def get_recurring_tasks(
     current_user_id: int = 1,  # Temporary for development
 ):
     """Get recurring tasks."""
-    task_service = TaskService(db)
+    TaskService(db)
     # For now, return empty list - in a real app, you would filter for recurring tasks
     return []
 

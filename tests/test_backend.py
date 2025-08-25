@@ -17,9 +17,9 @@ class TestBackendAPI:
         info = service_checker.get_service_info(config.backend_url)
 
         assert info is not None, "Backend root endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"Root endpoint returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"Root endpoint returned status {info['status_code']}"
 
         data = info["data"]
         assert "message" in data, "Root response missing message field"
@@ -34,15 +34,15 @@ class TestBackendAPI:
         info = service_checker.get_service_info(health_url)
 
         assert info is not None, "Health endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"Health endpoint returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"Health endpoint returned status {info['status_code']}"
 
         data = info["data"]
         assert "status" in data, "Health response missing status field"
-        assert data["status"] == "healthy", (
-            f"Health status is {data['status']}, expected 'healthy'"
-        )
+        assert (
+            data["status"] == "healthy"
+        ), f"Health status is {data['status']}, expected 'healthy'"
         assert "timestamp" in data, "Health response missing timestamp field"
         assert "version" in data, "Health response missing version field"
         assert "services" in data, "Health response missing services field"
@@ -51,9 +51,9 @@ class TestBackendAPI:
         services = data["services"]
         expected_services = ["database", "redis", "minio"]
         for service in expected_services:
-            assert service in services, (
-                f"Health response missing {service} status"
-            )
+            assert (
+                service in services
+            ), f"Health response missing {service} status"
             assert services[service] in [
                 "healthy",
                 "unhealthy",
@@ -65,18 +65,18 @@ class TestBackendAPI:
         info = service_checker.get_service_info(metrics_url)
 
         assert info is not None, "Metrics endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"Metrics endpoint returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"Metrics endpoint returned status {info['status_code']}"
 
         # Check that it returns Prometheus metrics format
         content = info["data"]
-        assert "http_requests_total" in content, (
-            "Metrics missing http_requests_total"
-        )
-        assert "http_request_duration_seconds" in content, (
-            "Metrics missing http_request_duration_seconds"
-        )
+        assert (
+            "http_requests_total" in content
+        ), "Metrics missing http_requests_total"
+        assert (
+            "http_request_duration_seconds" in content
+        ), "Metrics missing http_request_duration_seconds"
 
     def test_api_status_endpoint(self, service_checker, config):
         """Test the API status endpoint."""
@@ -84,15 +84,15 @@ class TestBackendAPI:
         info = service_checker.get_service_info(status_url)
 
         assert info is not None, "API status endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"API status returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"API status returned status {info['status_code']}"
 
         data = info["data"]
         assert "api_version" in data, "API status missing api_version field"
-        assert data["api_version"] == "v1", (
-            f"API version is {data['api_version']}, expected 'v1'"
-        )
+        assert (
+            data["api_version"] == "v1"
+        ), f"API version is {data['api_version']}, expected 'v1'"
         assert "status" in data, "API status missing status field"
         assert "timestamp" in data, "API status missing timestamp field"
         assert "features" in data, "API status missing features field"
@@ -106,9 +106,9 @@ class TestBackendAPI:
             "file_storage",
         ]
         for feature in expected_features:
-            assert feature in features, (
-                f"API status missing Phase 2 feature: {feature}"
-            )
+            assert (
+                feature in features
+            ), f"API status missing Phase 2 feature: {feature}"
 
     def test_documentation_endpoints(self, service_checker, config):
         """Test API documentation endpoints."""
@@ -117,33 +117,33 @@ class TestBackendAPI:
         info = service_checker.get_service_info(docs_url)
 
         assert info is not None, "API docs not responding"
-        assert info["status_code"] == 200, (
-            f"API docs returned status {info['status_code']}"
-        )
-        assert "text/html" in info["headers"].get("content-type", ""), (
-            "API docs not returning HTML"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"API docs returned status {info['status_code']}"
+        assert "text/html" in info["headers"].get(
+            "content-type", ""
+        ), "API docs not returning HTML"
 
         # Test ReDoc
         redoc_url = f"{config.backend_url}/redoc"
         info = service_checker.get_service_info(redoc_url)
 
         assert info is not None, "ReDoc not responding"
-        assert info["status_code"] == 200, (
-            f"ReDoc returned status {info['status_code']}"
-        )
-        assert "text/html" in info["headers"].get("content-type", ""), (
-            "ReDoc not returning HTML"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"ReDoc returned status {info['status_code']}"
+        assert "text/html" in info["headers"].get(
+            "content-type", ""
+        ), "ReDoc not returning HTML"
 
         # Test OpenAPI spec
         spec_url = f"{config.backend_url}/openapi.json"
         info = service_checker.get_service_info(spec_url)
 
         assert info is not None, "OpenAPI spec not responding"
-        assert info["status_code"] == 200, (
-            f"OpenAPI spec returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"OpenAPI spec returned status {info['status_code']}"
 
         data = info["data"]
         assert "openapi" in data, "OpenAPI spec missing openapi field"
@@ -166,9 +166,9 @@ class TestBackendErrorHandling:
             response = requests.get(
                 f"{config.backend_url}/non-existent-endpoint", timeout=10
             )
-            assert response.status_code == 404, (
-                f"Expected 404, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 404
+            ), f"Expected 404, got {response.status_code}"
 
             data = response.json()
             assert "detail" in data, "404 response missing detail field"
@@ -182,9 +182,9 @@ class TestBackendErrorHandling:
             response = requests.post(
                 f"{config.backend_url}/health", timeout=10
             )
-            assert response.status_code == 405, (
-                f"Expected 405, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 405
+            ), f"Expected 405, got {response.status_code}"
 
             data = response.json()
             assert "detail" in data, "405 response missing detail field"
@@ -226,15 +226,15 @@ class TestBackendSecurity:
             )
 
             headers = response.headers
-            assert "access-control-allow-origin" in headers, (
-                "Missing CORS origin header"
-            )
-            assert "access-control-allow-methods" in headers, (
-                "Missing CORS methods header"
-            )
-            assert "access-control-allow-headers" in headers, (
-                "Missing CORS headers header"
-            )
+            assert (
+                "access-control-allow-origin" in headers
+            ), "Missing CORS origin header"
+            assert (
+                "access-control-allow-methods" in headers
+            ), "Missing CORS methods header"
+            assert (
+                "access-control-allow-headers" in headers
+            ), "Missing CORS headers header"
 
             # Check that frontend origin is allowed
             allowed_origins = headers["access-control-allow-origin"]
@@ -306,9 +306,9 @@ class TestBackendPerformance:
 
         # Check results
         assert len(errors) == 0, f"Concurrent requests failed: {errors}"
-        assert len(results) == 5, (
-            f"Expected 5 successful requests, got {len(results)}"
-        )
+        assert (
+            len(results) == 5
+        ), f"Expected 5 successful requests, got {len(results)}"
 
         # Check that all responses were reasonably fast
         for response_time in results:

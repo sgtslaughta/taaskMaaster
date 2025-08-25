@@ -18,15 +18,15 @@ class TestDockerEnvironment:
 
     def test_docker_compose_available(self, service_checker):
         """Test that Docker Compose is available."""
-        assert service_checker.check_docker_compose_available(), (
-            "Docker Compose is not available"
-        )
+        assert (
+            service_checker.check_docker_compose_available()
+        ), "Docker Compose is not available"
 
     def test_docker_compose_config_valid(self, service_checker):
         """Test that Docker Compose configuration is valid."""
-        assert service_checker.check_docker_compose_config(), (
-            "Docker Compose configuration is invalid"
-        )
+        assert (
+            service_checker.check_docker_compose_config()
+        ), "Docker Compose configuration is invalid"
 
 
 class TestServiceStatus:
@@ -45,25 +45,25 @@ class TestServiceStatus:
         running_containers = service_checker.get_running_containers()
 
         for service in expected_services:
-            assert service in running_containers, (
-                f"Service {service} is not running"
-            )
+            assert (
+                service in running_containers
+            ), f"Service {service} is not running"
 
     def test_minio_service_health(self, service_checker):
         """Test MinIO service health and configuration."""
         # Test that MinIO container is running
-        assert service_checker.check_container_running("taaskmaaster-minio"), (
-            "MinIO container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-minio"
+        ), "MinIO container is not running"
 
         # Test that MinIO ports are not exposed externally (security)
         exposed_ports = service_checker.get_exposed_ports("taaskmaaster-minio")
         minio_ports = [9000, 9001]  # MinIO API and Console ports
 
         for port in minio_ports:
-            assert port not in exposed_ports, (
-                f"MinIO port {port} should not be exposed externally"
-            )
+            assert (
+                port not in exposed_ports
+            ), f"MinIO port {port} should not be exposed externally"
 
     def test_backend_container_running(self, service_checker):
         """Test that backend container is running."""
@@ -79,15 +79,15 @@ class TestServiceStatus:
 
     def test_redis_container_running(self, service_checker):
         """Test that Redis container is running."""
-        assert service_checker.check_container_running("taaskmaaster-redis"), (
-            "Redis container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-redis"
+        ), "Redis container is not running"
 
     def test_minio_container_running(self, service_checker):
         """Test that MinIO container is running."""
-        assert service_checker.check_container_running("taaskmaaster-minio"), (
-            "MinIO container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-minio"
+        ), "MinIO container is not running"
 
 
 class TestServiceHealth:
@@ -97,16 +97,16 @@ class TestServiceHealth:
     def test_backend_health(self, service_checker, config):
         """Test backend health endpoint."""
         health_url = f"{config.backend_url}/health"
-        assert service_checker.check_service_health(health_url), (
-            "Backend health check failed"
-        )
+        assert service_checker.check_service_health(
+            health_url
+        ), "Backend health check failed"
 
     @pytest.mark.slow
     def test_frontend_health(self, service_checker, config):
         """Test frontend health."""
-        assert service_checker.check_service_health(config.frontend_url), (
-            "Frontend health check failed"
-        )
+        assert service_checker.check_service_health(
+            config.frontend_url
+        ), "Frontend health check failed"
 
     def test_backend_health_response(self, service_checker, config):
         """Test backend health response structure."""
@@ -114,15 +114,15 @@ class TestServiceHealth:
         info = service_checker.get_service_info(health_url)
 
         assert info is not None, "Backend health endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"Backend health returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"Backend health returned status {info['status_code']}"
 
         data = info["data"]
         assert "status" in data, "Health response missing status field"
-        assert data["status"] == "healthy", (
-            f"Health status is {data['status']}, expected 'healthy'"
-        )
+        assert (
+            data["status"] == "healthy"
+        ), f"Health status is {data['status']}, expected 'healthy'"
         assert "timestamp" in data, "Health response missing timestamp field"
         assert "version" in data, "Health response missing version field"
         assert "services" in data, "Health response missing services field"
@@ -131,9 +131,9 @@ class TestServiceHealth:
         services = data["services"]
         expected_services = ["database", "redis", "minio"]
         for service in expected_services:
-            assert service in services, (
-                f"Health response missing {service} status"
-            )
+            assert (
+                service in services
+            ), f"Health response missing {service} status"
             assert services[service] in [
                 "healthy",
                 "unhealthy",
@@ -145,15 +145,15 @@ class TestPortAccessibility:
 
     def test_backend_port_accessible(self, service_checker, config):
         """Test that backend port is accessible."""
-        assert service_checker.check_service_health(config.backend_url), (
-            "Backend port is not accessible"
-        )
+        assert service_checker.check_service_health(
+            config.backend_url
+        ), "Backend port is not accessible"
 
     def test_frontend_port_accessible(self, service_checker, config):
         """Test that frontend port is accessible."""
-        assert service_checker.check_service_health(config.frontend_url), (
-            "Frontend port is not accessible"
-        )
+        assert service_checker.check_service_health(
+            config.frontend_url
+        ), "Frontend port is not accessible"
 
     def test_redis_port_not_exposed(self, service_checker):
         """Test that Redis port is not exposed externally."""
@@ -185,9 +185,9 @@ class TestAPIEndpoints:
     def test_api_documentation_accessible(self, service_checker, config):
         """Test that API documentation is accessible."""
         docs_url = f"{config.backend_url}/docs"
-        assert service_checker.check_service_health(docs_url), (
-            "API documentation is not accessible"
-        )
+        assert service_checker.check_service_health(
+            docs_url
+        ), "API documentation is not accessible"
 
     def test_openapi_spec_accessible(self, service_checker, config):
         """Test that OpenAPI specification is accessible."""
@@ -195,9 +195,9 @@ class TestAPIEndpoints:
         info = service_checker.get_service_info(spec_url)
 
         assert info is not None, "OpenAPI specification is not accessible"
-        assert info["status_code"] == 200, (
-            f"OpenAPI spec returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"OpenAPI spec returned status {info['status_code']}"
 
         data = info["data"]
         assert "openapi" in data, "OpenAPI spec missing openapi field"
@@ -209,9 +209,9 @@ class TestAPIEndpoints:
         info = service_checker.get_service_info(config.backend_url)
 
         assert info is not None, "API root endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"API root returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"API root returned status {info['status_code']}"
 
         data = info["data"]
         assert "message" in data, "API root missing message field"
@@ -254,12 +254,12 @@ class TestSecurity:
             )
 
             headers = response.headers
-            assert "access-control-allow-origin" in headers, (
-                "Missing CORS origin header"
-            )
-            assert "access-control-allow-methods" in headers, (
-                "Missing CORS methods header"
-            )
+            assert (
+                "access-control-allow-origin" in headers
+            ), "Missing CORS origin header"
+            assert (
+                "access-control-allow-methods" in headers
+            ), "Missing CORS methods header"
 
         except requests.RequestException as e:
             pytest.fail(f"CORS test failed: {e}")
@@ -306,9 +306,9 @@ class TestErrorHandling:
             response = requests.get(
                 f"{config.backend_url}/non-existent-endpoint", timeout=10
             )
-            assert response.status_code == 404, (
-                f"Expected 404, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 404
+            ), f"Expected 404, got {response.status_code}"
 
             data = response.json()
             assert "detail" in data, "404 response missing detail field"
@@ -322,9 +322,9 @@ class TestErrorHandling:
             response = requests.post(
                 f"{config.backend_url}/health", timeout=10
             )
-            assert response.status_code == 405, (
-                f"Expected 405, got {response.status_code}"
-            )
+            assert (
+                response.status_code == 405
+            ), f"Expected 405, got {response.status_code}"
 
             data = response.json()
             assert "detail" in data, "405 response missing detail field"

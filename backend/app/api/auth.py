@@ -23,7 +23,9 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
-@router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/login", response_model=LoginResponse, status_code=status.HTTP_200_OK
+)
 async def login(
     login_data: LoginRequest, db: Session = Depends(get_db_session)
 ):
@@ -41,7 +43,9 @@ async def login(
         HTTPException: If authentication fails
     """
     auth_service = AuthService(db)
-    user = auth_service.authenticate_user(login_data.username, login_data.password)
+    user = auth_service.authenticate_user(
+        login_data.username, login_data.password
+    )
 
     if not user:
         raise HTTPException(
@@ -53,14 +57,22 @@ async def login(
     # Create access token
     access_token_expires = timedelta(minutes=30)
     access_token = auth_service.create_access_token(
-        data={"sub": str(user.id), "username": user.username, "email": user.email},
+        data={
+            "sub": str(user.id),
+            "username": user.username,
+            "email": user.email,
+        },
         expires_delta=access_token_expires,
     )
 
     # Create refresh token
     refresh_token_expires = timedelta(days=7)
     refresh_token = auth_service.create_refresh_token(
-        data={"sub": str(user.id), "username": user.username, "email": user.email},
+        data={
+            "sub": str(user.id),
+            "username": user.username,
+            "email": user.email,
+        },
         expires_delta=refresh_token_expires,
     )
 
@@ -79,7 +91,11 @@ async def login(
     )
 
 
-@router.post("/refresh", response_model=RefreshTokenResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/refresh",
+    response_model=RefreshTokenResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def refresh_token(
     refresh_data: RefreshTokenRequest, db: Session = Depends(get_db_session)
 ):
@@ -97,7 +113,7 @@ async def refresh_token(
         HTTPException: If refresh token is invalid
     """
     auth_service = AuthService(db)
-    
+
     # Verify refresh token
     payload = auth_service.verify_token(refresh_data.refresh_token)
     if payload is None or payload.get("type") != "refresh":
@@ -127,7 +143,11 @@ async def refresh_token(
     # Create new access token
     access_token_expires = timedelta(minutes=30)
     access_token = auth_service.create_access_token(
-        data={"sub": str(user.id), "username": user.username, "email": user.email},
+        data={
+            "sub": str(user.id),
+            "username": user.username,
+            "email": user.email,
+        },
         expires_delta=access_token_expires,
     )
 
@@ -138,7 +158,9 @@ async def refresh_token(
     )
 
 
-@router.post("/logout", response_model=LogoutResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/logout", response_model=LogoutResponse, status_code=status.HTTP_200_OK
+)
 async def logout(current_user: User = Depends(get_current_user)):
     """
     Logout the current user.
@@ -155,14 +177,16 @@ async def logout(current_user: User = Depends(get_current_user)):
     """
     # In a real implementation, you might want to add the token to a blacklist
     # or implement token revocation logic here
-    
+
     return LogoutResponse(
         message=f"Successfully logged out user {current_user.username}",
     )
 
 
 @router.get("/me", response_model=dict, status_code=status.HTTP_200_OK)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+):
     """
     Get current user information.
 
@@ -180,6 +204,14 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "is_active": current_user.is_active,
         "is_superuser": current_user.is_superuser,
         "timezone": current_user.timezone,
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
-        "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None,
+        "created_at": (
+            current_user.created_at.isoformat()
+            if current_user.created_at
+            else None
+        ),
+        "updated_at": (
+            current_user.updated_at.isoformat()
+            if current_user.updated_at
+            else None
+        ),
     }

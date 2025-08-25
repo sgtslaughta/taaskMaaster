@@ -15,7 +15,6 @@ from app.models.user import User
 from app.schemas.user import (
     UserCreate,
     UserList,
-    UserLogin,
     UserPasswordChange,
     UserResponse,
     UserUpdate,
@@ -29,7 +28,7 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
     "/", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_user(
-    user_data: UserCreate, 
+    user_data: UserCreate,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_superuser),
 ):
@@ -81,11 +80,9 @@ async def get_users(
         return UserList(
             users=users, total=total, page=page, size=limit, pages=pages
         )
-    except Exception as e:
+    except Exception:
         # Return empty list if there's an error
-        return UserList(
-            users=[], total=0, page=1, size=limit, pages=0
-        )
+        return UserList(users=[], total=0, page=1, size=limit, pages=0)
 
 
 # Password change endpoint (must come before /{user_id} routes)
@@ -96,7 +93,7 @@ async def change_password(
     current_user: User = Depends(get_current_active_user),
 ):
     """Change user password."""
-    user_service = UserService(db)
+    UserService(db)
 
     # TODO: Verify current password and update to new password
     # For now, just return success
@@ -106,7 +103,7 @@ async def change_password(
 # Individual User Operations (must come after specific routes)
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
-    user_id: int, 
+    user_id: int,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -124,8 +121,8 @@ async def get_user(
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
-    user_id: int, 
-    user_data: UserUpdate, 
+    user_id: int,
+    user_data: UserUpdate,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -143,7 +140,7 @@ async def update_user(
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-    user_id: int, 
+    user_id: int,
     db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_superuser),
 ):
@@ -155,6 +152,3 @@ async def delete_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-
-
-

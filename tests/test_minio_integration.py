@@ -17,9 +17,9 @@ class TestMinIOInfrastructure:
 
     def test_minio_container_running(self, service_checker):
         """Test that MinIO container is running."""
-        assert service_checker.check_container_running("taaskmaaster-minio"), (
-            "MinIO container is not running"
-        )
+        assert service_checker.check_container_running(
+            "taaskmaaster-minio"
+        ), "MinIO container is not running"
 
     def test_minio_health_check(self, service_checker):
         """Test MinIO health check."""
@@ -35,9 +35,9 @@ class TestMinIOInfrastructure:
         # MinIO ports should not be exposed externally
         minio_ports = [9000, 9001]  # MinIO API and Console ports
         for port in minio_ports:
-            assert port not in exposed_ports, (
-                f"MinIO port {port} should not be exposed externally"
-            )
+            assert (
+                port not in exposed_ports
+            ), f"MinIO port {port} should not be exposed externally"
 
 
 class TestMinIOStorageService:
@@ -62,9 +62,9 @@ class TestMinIOStorageService:
             ]
 
             for method in required_methods:
-                assert hasattr(MinIOStorageService, method), (
-                    f"MinIOStorageService missing method: {method}"
-                )
+                assert hasattr(
+                    MinIOStorageService, method
+                ), f"MinIOStorageService missing method: {method}"
 
             assert True, "MinIOStorageService structure is correct"
 
@@ -83,16 +83,16 @@ class TestMinIOStorageService:
 
             # Test initialization
             storage_service = MinIOStorageService()
-            assert storage_service is not None, (
-                "Storage service initialization failed"
-            )
+            assert (
+                storage_service is not None
+            ), "Storage service initialization failed"
 
             # Test presigned URL generation
             mock_client.presigned_url.return_value = "https://mock-url.com"
             url = storage_service.get_presigned_url("test-object", "GET", 3600)
-            assert url == "https://mock-url.com", (
-                "Presigned URL generation failed"
-            )
+            assert (
+                url == "https://mock-url.com"
+            ), "Presigned URL generation failed"
 
 
 class TestMediaServiceMinIOIntegration:
@@ -116,14 +116,14 @@ class TestMediaServiceMinIOIntegration:
             ]
 
             for method in minio_methods:
-                assert hasattr(media_service, method), (
-                    f"MediaService missing MinIO method: {method}"
-                )
+                assert hasattr(
+                    media_service, method
+                ), f"MediaService missing MinIO method: {method}"
 
             # Test that storage_service attribute exists
-            assert hasattr(media_service, "storage_service"), (
-                "MediaService missing storage_service attribute"
-            )
+            assert hasattr(
+                media_service, "storage_service"
+            ), "MediaService missing storage_service attribute"
 
             db.close()
             assert True, "MediaService MinIO integration structure is correct"
@@ -179,9 +179,9 @@ class TestMinIOAPIEndpoints:
                 "bucket_name",
             ]
             for field in expected_fields:
-                assert field in data, (
-                    f"MinIO statistics missing field: {field}"
-                )
+                assert (
+                    field in data
+                ), f"MinIO statistics missing field: {field}"
 
     def test_download_url_endpoint_structure(self, service_checker, config):
         """Test download URL endpoint structure."""
@@ -228,9 +228,9 @@ class TestMinIOAPIEndpoints:
                     "mime_type",
                 ]
                 for field in expected_fields:
-                    assert field in data, (
-                        f"Upload URL response missing field: {field}"
-                    )
+                    assert (
+                        field in data
+                    ), f"Upload URL response missing field: {field}"
 
         except requests.RequestException as e:
             pytest.fail(f"Upload URL test failed: {e}")
@@ -255,9 +255,7 @@ class TestMinIOAPIEndpoints:
                     400,
                     404,
                     422,
-                ], (
-                    f"Upload URL validation failed for {invalid_data}: {response.status_code}"
-                )
+                ], f"Upload URL validation failed for {invalid_data}: {response.status_code}"
             except requests.RequestException as e:
                 pytest.fail(f"Upload URL validation test failed: {e}")
 
@@ -272,15 +270,13 @@ class TestMinIOErrorHandling:
         info = service_checker.get_service_info(minio_stats_url)
 
         # Should not crash even if MinIO is unavailable
-        assert info is not None, (
-            "MinIO statistics endpoint should respond even if MinIO is down"
-        )
+        assert (
+            info is not None
+        ), "MinIO statistics endpoint should respond even if MinIO is down"
         assert info["status_code"] in [
             200,
             404,
-        ], (
-            f"MinIO statistics should handle connection errors gracefully: {info['status_code']}"
-        )
+        ], f"MinIO statistics should handle connection errors gracefully: {info['status_code']}"
 
     def test_media_upload_without_minio(self, service_checker, config):
         """Test media upload handling when MinIO is unavailable."""
@@ -288,15 +284,13 @@ class TestMinIOErrorHandling:
         media_url = f"{config.backend_url}/api/v1/media/attachments"
         info = service_checker.get_service_info(media_url)
 
-        assert info is not None, (
-            "Media attachments endpoint should respond even without MinIO"
-        )
+        assert (
+            info is not None
+        ), "Media attachments endpoint should respond even without MinIO"
         assert info["status_code"] in [
             200,
             404,
-        ], (
-            f"Media attachments should handle MinIO unavailability: {info['status_code']}"
-        )
+        ], f"Media attachments should handle MinIO unavailability: {info['status_code']}"
 
 
 class TestMinIOConfiguration:
@@ -327,9 +321,9 @@ class TestMinIOConfiguration:
     def test_minio_docker_compose_config(self, service_checker):
         """Test MinIO Docker Compose configuration."""
         # Check that MinIO service is properly configured in docker-compose
-        assert service_checker.check_docker_compose_config(), (
-            "Docker Compose configuration should be valid"
-        )
+        assert (
+            service_checker.check_docker_compose_config()
+        ), "Docker Compose configuration should be valid"
 
 
 class TestMinIOPerformance:
@@ -353,9 +347,9 @@ class TestMinIOPerformance:
             )
             response_time = time.time() - start_time
 
-            assert info is not None, (
-                f"MinIO endpoint {endpoint} not responding"
-            )
+            assert (
+                info is not None
+            ), f"MinIO endpoint {endpoint} not responding"
             assert response_time < 3.0, (
                 f"Response time for {endpoint}: {response_time:.2f}s "
                 "(expected < 3.0s)"
@@ -372,15 +366,13 @@ class TestMinIOSecurity:
         info = service_checker.get_service_info(minio_stats_url)
 
         # Should not expose sensitive MinIO information without proper access
-        assert info is not None, (
-            "MinIO statistics endpoint should be accessible"
-        )
+        assert (
+            info is not None
+        ), "MinIO statistics endpoint should be accessible"
         assert info["status_code"] in [
             200,
             404,
-        ], (
-            f"MinIO statistics should handle access control: {info['status_code']}"
-        )
+        ], f"MinIO statistics should handle access control: {info['status_code']}"
 
     def test_presigned_url_security(self, service_checker, config):
         """Test presigned URL security."""

@@ -18,9 +18,9 @@ class TestPhase2APIEndpoints:
         info = service_checker.get_service_info(status_url)
 
         assert info is not None, "API status endpoint not responding"
-        assert info["status_code"] == 200, (
-            f"API status returned status {info['status_code']}"
-        )
+        assert (
+            info["status_code"] == 200
+        ), f"API status returned status {info['status_code']}"
 
         data = info["data"]
         assert "features" in data, "API status missing features field"
@@ -35,9 +35,9 @@ class TestPhase2APIEndpoints:
         ]
 
         for feature in phase2_features:
-            assert feature in features, (
-                f"API status missing Phase 2 feature: {feature}"
-            )
+            assert (
+                feature in features
+            ), f"API status missing Phase 2 feature: {feature}"
 
 
 class TestAdvancedTaskManagement:
@@ -200,25 +200,21 @@ class TestMediaAttachments:
         assert info["status_code"] in [
             200,
             404,
-        ], (
-            f"Media attachments returned unexpected status {info['status_code']}"
-        )
+        ], f"Media attachments returned unexpected status {info['status_code']}"
 
     def test_media_upload_validation_endpoint(self, service_checker, config):
         """Test media upload validation endpoint."""
         validation_url = f"{config.backend_url}/api/v1/media/upload/validate"
         info = service_checker.get_service_info(validation_url)
 
-        assert info is not None, (
-            "Media upload validation endpoint not responding"
-        )
+        assert (
+            info is not None
+        ), "Media upload validation endpoint not responding"
         assert info["status_code"] in [
             200,
             404,
             405,
-        ], (
-            f"Media upload validation returned unexpected status {info['status_code']}"
-        )
+        ], f"Media upload validation returned unexpected status {info['status_code']}"
 
     def test_media_statistics_endpoint(self, service_checker, config):
         """Test media statistics endpoint."""
@@ -332,9 +328,7 @@ class TestPhase2ErrorHandling:
                 400,
                 404,
                 422,
-            ], (
-                f"Invalid task data returned unexpected status {response.status_code}"
-            )
+            ], f"Invalid task data returned unexpected status {response.status_code}"
         except requests.RequestException as e:
             pytest.fail(f"Invalid task data test failed: {e}")
 
@@ -350,9 +344,7 @@ class TestPhase2ErrorHandling:
                 400,
                 404,
                 422,
-            ], (
-                f"Invalid goal data returned unexpected status {response.status_code}"
-            )
+            ], f"Invalid goal data returned unexpected status {response.status_code}"
         except requests.RequestException as e:
             pytest.fail(f"Invalid goal data test failed: {e}")
 
@@ -368,9 +360,7 @@ class TestPhase2ErrorHandling:
                 400,
                 404,
                 422,
-            ], (
-                f"Invalid media upload returned unexpected status {response.status_code}"
-            )
+            ], f"Invalid media upload returned unexpected status {response.status_code}"
         except requests.RequestException as e:
             pytest.fail(f"Invalid media upload test failed: {e}")
 
@@ -398,9 +388,9 @@ class TestPhase2Performance:
             )
             response_time = time.time() - start_time
 
-            assert info is not None, (
-                f"Phase 2 endpoint {endpoint} not responding"
-            )
+            assert (
+                info is not None
+            ), f"Phase 2 endpoint {endpoint} not responding"
             assert response_time < 3.0, (
                 f"Response time for {endpoint}: {response_time:.2f}s "
                 "(expected < 3.0s)"

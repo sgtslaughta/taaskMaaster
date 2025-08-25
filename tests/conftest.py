@@ -177,7 +177,11 @@ class ServiceChecker:
         """Get service information."""
         try:
             response = requests.get(url, timeout=self.config.timeout)
-            if response.status_code in [200, 404, 422]:  # Accept 200, 404, and 422 as valid responses
+            if response.status_code in [
+                200,
+                404,
+                422,
+            ]:  # Accept 200, 404, and 422 as valid responses
                 return {
                     "status_code": response.status_code,
                     "headers": dict(response.headers),
