@@ -1,20 +1,27 @@
 /**
  * @fileoverview Tasks Page Component for TaaskMaaster
- * @description Production tasks page with full task management functionality
+ * @description Production tasks page with tabbed interface for task management
  * @author TaaskMaaster Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import React, { useState, useEffect } from 'react';
-import { TaskList, TaskForm, TaskFormData, Task as FrontendTask } from '../tasks';
+import { TaskForm, TaskFormData, Task as FrontendTask } from '../tasks';
 import { AppLayout } from '../layout/AppLayout';
 import { Button } from '../../design-system/components/Button';
-import { Card } from '../../design-system/components/Card';
 import { getCommonBreadcrumbs } from '../navigation/Breadcrumb';
 import { NavigationItem } from '../navigation/Sidebar';
+import { TabNavigation, TabItem } from '../navigation/TabNavigation';
+import { OverviewTab, TasksTab, ListsTab, TemplatesTab } from './tasks';
 import { cn } from '../../design-system/utils/cn';
 import { taskService, Task as BackendTask, TaskStatus, TaskPriority, TaskCategory, CreateTaskRequest, UpdateTaskRequest } from '../../services/taskService';
 import { userService, User } from '../../services/userService';
+import { 
+  ChartBarIcon, 
+  ClipboardDocumentListIcon, 
+  ListBulletIcon, 
+  SwatchIcon 
+} from '@heroicons/react/24/outline';
 
 /**
  * @description Adapter functions to convert between backend and frontend interfaces
@@ -184,6 +191,31 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   const [formLoading, setFormLoading] = useState(false);
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('overview');
+
+  // Define tabs
+  const tabs: TabItem[] = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: ChartBarIcon,
+    },
+    {
+      id: 'tasks',
+      label: 'Tasks',
+      icon: ClipboardDocumentListIcon,
+    },
+    {
+      id: 'lists',
+      label: 'Lists',
+      icon: ListBulletIcon,
+    },
+    {
+      id: 'templates',
+      label: 'Templates',
+      icon: SwatchIcon,
+    },
+  ];
 
   // Load tasks and categories on component mount
   useEffect(() => {
@@ -429,23 +461,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
     return tasks.filter(task => !task.parentTaskId);
   };
 
-  /**
-   * @description Get task statistics
-   */
-  const getTaskStats = () => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-    const overdue = tasks.filter(t => {
-      if (t.status === 'completed') return false;
-      if (!t.dueDate) return false;
-      return new Date(t.dueDate) < new Date();
-    }).length;
 
-    return { total, completed, inProgress, overdue };
-  };
-
-  const stats = getTaskStats();
 
   return (
     <AppLayout
@@ -455,122 +471,82 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       onNavigation={onNavigation}
       className={className}
     >
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Task Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Organize, track, and complete tasks as a family
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => loadTasks()}
-              disabled={loading}
-            >
-              Refresh
-            </Button>
-            <Button
-              onClick={handleCreateTask}
-            >
-              Add Task
-            </Button>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Task Management</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  Organize, track, and complete tasks as a family
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => loadTasks()}
+                  disabled={loading}
+                >
+                  Refresh
+                </Button>
+                <Button
+                  onClick={handleCreateTask}
+                >
+                  Add Task
+                </Button>
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="min-h-[600px]">
+              {activeTab === 'overview' && (
+                <OverviewTab
+                  tasks={tasks}
+                  loading={loading}
+                  error={error}
+                  onCreateTask={handleCreateTask}
+                  onUpdateTask={handleTaskUpdate}
+                  onDeleteTask={handleTaskDelete}
+                  onStatusChange={handleStatusChange}
+                  onAssignTask={handleTaskAssign}
+                  onRefresh={loadTasks}
+                  className={className}
+                />
+              )}
+              {activeTab === 'tasks' && (
+                <TasksTab className={className} />
+              )}
+              {activeTab === 'lists' && (
+                <ListsTab className={className} />
+              )}
+              {activeTab === 'templates' && (
+                <TemplatesTab className={className} />
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Task Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">📝</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.total}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                    <span className="text-green-600 dark:text-green-400 text-sm font-medium">✅</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.completed}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                    <span className="text-orange-600 dark:text-orange-400 text-sm font-medium">🔄</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.inProgress}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-                    <span className="text-red-600 dark:text-red-400 text-sm font-medium">⏰</span>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Task List */}
-        <TaskList
-          tasks={tasks}
-          loading={loading}
-          error={error}
-          onCreateTask={handleCreateTask}
-          onUpdateTask={handleTaskUpdate}
-          onDeleteTask={handleTaskDelete}
-          onStatusChange={handleStatusChange}
-          onAssignTask={handleTaskAssign}
-          className={className}
-        />
-
-        {/* Task Form Modal */}
-        <TaskForm
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          onSubmit={handleTaskSubmit}
-          task={editingTask}
-          loading={formLoading}
-          categories={getCategoryNames()}
-          users={users}
-          parentTasks={getParentTasks()}
-        />
       </div>
+
+      {/* Floating Tab Navigation */}
+      <TabNavigation
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        className="hidden lg:block"
+      />
+
+      {/* Task Form Modal */}
+      <TaskForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleTaskSubmit}
+        task={editingTask}
+        loading={formLoading}
+        categories={getCategoryNames()}
+        users={users}
+        parentTasks={getParentTasks()}
+      />
     </AppLayout>
   );
 };

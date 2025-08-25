@@ -8,7 +8,9 @@
 export { Header } from './Header';
 export { Sidebar } from './Sidebar';
 export { Breadcrumb, generateBreadcrumbsFromPath, getCommonBreadcrumbs } from './Breadcrumb';
+export { TabNavigation } from './TabNavigation';
 
 export type { HeaderProps } from './Header';
 export type { SidebarProps, NavigationItem } from './Sidebar';
 export type { BreadcrumbProps, BreadcrumbItem } from './Breadcrumb';
+export type { TabNavigationProps, TabItem } from './TabNavigation';
