@@ -12,24 +12,72 @@ import { REWARD_TYPES } from './TaskForm';
  * @description Task interface
  */
 export interface Task {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'overdue';
+  status: 'todo' | 'in_progress' | 'done' | 'review' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: string;
-  tags: string[];
-  assignedTo: string;
-  dueDate: string;
+  due_date?: string;
+  completed_at?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
   points: number;
-  rewardType?: string;
-  rewardValue?: number;
-  rewardDescription?: string;
-  createdAt: string;
-  updatedAt: string;
-  attachments?: string[];
-  parentTaskId?: string;
-  subtasks?: Task[];
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
+  is_recurring: boolean;
+  recurrence_pattern?: any;
+  created_by_id: number;
+  assigned_to_id?: number;
+  category_id?: number;
+  template_id?: number;
+  parent_task_id?: number;
+  created_at: string;
+  updated_at: string;
+  assigned_to?: {
+    id: number;
+    username: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  category?: {
+    id: number;
+    name: string;
+    description?: string;
+    color?: string;
+    icon?: string;
+  };
+  template?: {
+    id: number;
+    name: string;
+    description?: string;
+    title_pattern: string;
+    description_template?: string;
+    estimated_hours?: number;
+    points: number;
+    priority: string;
+    is_public: boolean;
+  };
+  tags: {
+    id: number;
+    name: string;
+    color?: string;
+  }[];
+  subtasks: Task[];
+  dependencies: {
+    id: number;
+    dependent_task_id: number;
+    dependency_type: string;
+  }[];
+  media_attachments: {
+    id: number;
+    filename: string;
+    file_path: string;
+    file_size: number;
+    mime_type: string;
+    uploaded_at?: string;
+  }[];
 }
 
 /**
@@ -55,19 +103,19 @@ export interface TaskListProps {
   /**
    * @description Function to handle task update
    */
-  onUpdateTask?: (taskId: string, updates: Partial<Task>) => void;
+  onUpdateTask?: (taskId: number, updates: Partial<Task>) => void;
   /**
    * @description Function to handle task deletion
    */
-  onDeleteTask?: (taskId: string) => void;
+  onDeleteTask?: (taskId: number) => void;
   /**
    * @description Function to handle task status change
    */
-  onStatusChange?: (taskId: string, status: Task['status']) => void;
+  onStatusChange?: (taskId: number, status: Task['status'], actualHours?: number) => void;
   /**
    * @description Function to handle task assignment
    */
-  onAssignTask?: (taskId: string, userId: string) => void;
+  onAssignTask?: (taskId: number, userId: number) => void;
   /**
    * @description Function to handle task click
    */
@@ -224,11 +272,11 @@ export const TaskList: React.FC<TaskListProps> = ({
                       <p className="text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
                       
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <span>Category: {task.category}</span>
-                        <span>Assigned to: {task.assignedTo || 'Unassigned'}</span>
+                        <span>Category: {task.category?.name || 'Uncategorized'}</span>
+                        <span>Assigned to: {task.assigned_to?.username || 'Unassigned'}</span>
                         {rewardDisplay && <span>Reward: {rewardDisplay}</span>}
                         {task.points > 0 && <span>Points: {task.points}</span>}
-                        <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                        <span>Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
                       </div>
 
                       {task.tags && task.tags.length > 0 && (
@@ -238,7 +286,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                               key={index}
                               className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
                             >
-                              #{tag}
+                              #{tag.name}
                             </span>
                           ))}
                         </div>
@@ -250,7 +298,11 @@ export const TaskList: React.FC<TaskListProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onStatusChange?.(task.id, task.status === 'completed' ? 'pending' : 'completed');
+                        onStatusChange?.(
+                          task.id,
+                          task.status === 'completed' ? 'pending' : 'completed',
+                          task.status === 'completed' ? undefined : task.actual_hours
+                        );
                       }}
                       className={`px-3 py-1 text-sm rounded-md ${
                         task.status === 'completed'

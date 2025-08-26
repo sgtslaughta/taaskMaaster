@@ -6,6 +6,7 @@
  */
 
 import { apiGet, apiPost } from './api';
+import { saveLoginState, clearLoginState, getLoginState } from '../utils/cookies';
 
 /**
  * @description Login request interface
@@ -94,11 +95,22 @@ export class AuthService {
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
+      console.log('AuthService: Attempting login with credentials:', credentials);
       const response = await apiPost<LoginResponse>('/api/v1/auth/login', credentials);
+      console.log('AuthService: Received response:', response);
       
-      // Store tokens in localStorage
+      // Store tokens in localStorage and cookies
       localStorage.setItem('access_token', response.data.access_token);
       localStorage.setItem('refresh_token', response.data.refresh_token);
+      
+      // Save login state in cookies
+      saveLoginState({
+        userId: response.data.user_id.toString(),
+        username: response.data.username,
+        email: response.data.email,
+        token: response.data.access_token,
+        lastLogin: Date.now(),
+      });
       
       // Store user info
       this.currentUser = {
@@ -110,8 +122,10 @@ export class AuthService {
         is_superuser: response.data.is_superuser,
       };
 
+      console.log('AuthService: Login successful, returning data:', response.data);
       return response.data;
     } catch (error) {
+      console.error('AuthService: Login error:', error);
       throw new Error('Login failed. Please check your credentials.');
     }
   }
@@ -124,9 +138,10 @@ export class AuthService {
     try {
       const response = await apiPost<LogoutResponse>('/api/v1/auth/logout');
       
-      // Clear tokens and user data
+      // Clear tokens and user data from localStorage and cookies
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      clearLoginState();
       this.currentUser = null;
 
       return response.data;
@@ -134,6 +149,7 @@ export class AuthService {
       // Even if logout fails, clear local data
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      clearLoginState();
       this.currentUser = null;
       
       return { message: 'Logged out successfully' };
@@ -151,8 +167,18 @@ export class AuthService {
         refresh_token: refreshToken,
       });
       
-      // Update stored access token
+      // Update stored access token in localStorage and cookies
       localStorage.setItem('access_token', response.data.access_token);
+      
+      // Update login state in cookies
+      const loginState = getLoginState();
+      if (loginState) {
+        saveLoginState({
+          ...loginState,
+          token: response.data.access_token,
+          lastLogin: Date.now(),
+        });
+      }
       
       return response.data;
     } catch (error) {

@@ -62,27 +62,27 @@ export interface TasksTabProps {
   /**
    * @description Function to handle task update
    */
-  onUpdateTask: (taskId: string, updates: Partial<FrontendTask>) => void;
+  onUpdateTask: (taskId: number, updates: Partial<FrontendTask>) => void;
   /**
    * @description Function to handle task deletion
    */
-  onDeleteTask: (taskId: string) => void;
+  onDeleteTask: (taskId: number) => void;
   /**
    * @description Function to handle task status change
    */
-  onStatusChange: (taskId: string, status: FrontendTask['status']) => void;
+  onStatusChange: (taskId: number, status: FrontendTask['status']) => void;
   /**
    * @description Function to handle task assignment
    */
-  onAssignTask: (taskId: string, userId: string) => void;
+  onAssignTask: (taskId: number, userId: number) => void;
   /**
    * @description Function to handle task completion
    */
-  onCompleteTask?: (taskId: string) => void;
+  onCompleteTask?: (taskId: number) => void;
   /**
    * @description Function to handle bulk update
    */
-  onBulkUpdate?: (taskIds: string[], updates: Partial<FrontendTask>) => void;
+  onBulkUpdate?: (taskIds: number[], updates: Partial<FrontendTask>) => void;
   /**
    * @description Function to handle task export
    */
@@ -280,10 +280,10 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Status</option>
-              <option value="pending">Pending</option>
+              <option value="todo">Todo</option>
               <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="overdue">Overdue</option>
+              <option value="done">Done</option>
+              <option value="cancelled">Cancelled</option>
             </select>
 
             <select
@@ -350,9 +350,9 @@ interface TaskTableProps {
   onSortChange: (sort: string) => void;
   onTaskSelect: (task: FrontendTask, selected: boolean) => void;
   onTaskClick: (task: FrontendTask) => void;
-  onStatusChange: (taskId: string, status: FrontendTask['status']) => void;
-  onDeleteTask: (taskId: string) => void;
-  onCompleteTask?: (taskId: string) => void;
+  onStatusChange: (taskId: number, status: FrontendTask['status']) => void;
+  onDeleteTask: (taskId: number) => void;
+  onCompleteTask?: (taskId: number) => void;
 }
 
 const TaskTable: React.FC<TaskTableProps> = ({
@@ -370,11 +370,11 @@ const TaskTable: React.FC<TaskTableProps> = ({
 }) => {
   const getStatusIcon = (status: FrontendTask['status']) => {
     switch (status) {
-      case 'completed':
+      case 'done':
         return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
       case 'in_progress':
         return <ClockIcon className="w-4 h-4 text-yellow-500" />;
-      case 'overdue':
+      case 'cancelled':
         return <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />;
       default:
         return <ClockIcon className="w-4 h-4 text-gray-500" />;
@@ -830,7 +830,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     setIsDetailModalOpen(true);
   };
 
-  const handleBulkUpdate = (taskIds: string[], updates: Partial<FrontendTask>) => {
+  const handleBulkUpdate = (taskIds: number[], updates: Partial<FrontendTask>) => {
     if (onBulkUpdate) {
       onBulkUpdate(taskIds, updates);
       setSelectedTasks([]);

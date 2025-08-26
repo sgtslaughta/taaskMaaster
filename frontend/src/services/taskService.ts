@@ -161,6 +161,65 @@ export interface TaskListResponse {
 }
 
 /**
+ * @description Task get request interface
+ */
+export interface TaskGetRequest {
+  task_id: number;
+}
+
+/**
+ * @description Task complete request interface
+ */
+export interface TaskCompleteRequest {
+  task_id: number;
+  actual_hours?: number;
+}
+
+/**
+ * @description Task update request interface
+ */
+export interface TaskUpdateRequest {
+  task_id: number;
+  updates: {
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    due_date?: string;
+    estimated_hours?: number;
+    actual_hours?: number;
+    points?: number;
+    reward_type?: string;
+    reward_value?: number;
+    reward_description?: string;
+    is_recurring?: boolean;
+    recurrence_pattern?: any;
+    template_id?: number;
+    category_id?: number;
+    assigned_to_id?: number;
+    parent_task_id?: number;
+    tags?: string[];
+  };
+}
+
+/**
+ * @description Task delete request interface
+ */
+export interface TaskDeleteRequest {
+  task_id: number;
+}
+
+/**
+ * @description Create from template request interface
+ */
+export interface CreateFromTemplateRequest {
+  template_id: number;
+  title?: string;
+  description?: string;
+  assigned_to_id?: number;
+}
+
+/**
  * @description Task filter options interface
  */
 export interface TaskFilterOptions {
@@ -223,10 +282,14 @@ export class TaskService {
    */
   async getTask(taskId: number): Promise<Task> {
     try {
-      const response = await apiGet<Task>(`/api/v1/tasks/${taskId}`);
+      const request: TaskGetRequest = { task_id: taskId };
+      const response = await apiPost<Task>('/api/v1/tasks/get', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to fetch task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch task: ${error.message}`);
+      }
+      throw new Error('Failed to fetch task: Unknown error');
     }
   }
 
@@ -250,12 +313,19 @@ export class TaskService {
    * @param taskData - Task update data
    * @returns Promise with updated task
    */
-  async updateTask(taskId: number, taskData: UpdateTaskRequest): Promise<Task> {
+  async updateTask(taskId: number, taskData: Partial<Task>): Promise<Task> {
     try {
-      const response = await apiPut<Task>(`/api/v1/tasks/${taskId}`, taskData);
+      const request: TaskUpdateRequest = {
+        task_id: taskId,
+        updates: taskData
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/update', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to update task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to update task: ${error.message}`);
+      }
+      throw new Error('Failed to update task: Unknown error');
     }
   }
 
@@ -266,9 +336,13 @@ export class TaskService {
    */
   async deleteTask(taskId: number): Promise<void> {
     try {
-      await apiDelete(`/api/v1/tasks/${taskId}`);
+      const request: TaskDeleteRequest = { task_id: taskId };
+      await apiPost('/api/v1/tasks/delete', request);
     } catch (error) {
-      throw new Error('Failed to delete task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to delete task: ${error.message}`);
+      }
+      throw new Error('Failed to delete task: Unknown error');
     }
   }
 
@@ -280,11 +354,17 @@ export class TaskService {
    */
   async completeTask(taskId: number, actualHours?: number): Promise<Task> {
     try {
-      const params = actualHours ? `?actual_hours=${actualHours}` : '';
-      const response = await apiPost<Task>(`/api/v1/tasks/${taskId}/complete${params}`);
+      const request: TaskCompleteRequest = {
+        task_id: taskId,
+        actual_hours: actualHours
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/complete', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to complete task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to complete task: ${error.message}`);
+      }
+      throw new Error('Failed to complete task: Unknown error');
     }
   }
 
@@ -388,18 +468,23 @@ export class TaskService {
   async createTaskFromTemplate(
     templateId: number,
     title?: string,
-    description?: string
+    description?: string,
+    assignedToId?: number
   ): Promise<Task> {
     try {
-      const params = new URLSearchParams();
-      if (title) params.append('title', title);
-      if (description) params.append('description', description);
-
-      const url = `/api/v1/tasks/templates/${templateId}/create?${params.toString()}`;
-      const response = await apiPost<Task>(url);
+      const request: CreateFromTemplateRequest = {
+        template_id: templateId,
+        title,
+        description,
+        assigned_to_id: assignedToId
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/templates/create-from-template', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to create task from template.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to create task from template: ${error.message}`);
+      }
+      throw new Error('Failed to create task from template: Unknown error');
     }
   }
 

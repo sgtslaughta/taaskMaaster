@@ -52,15 +52,15 @@ export interface TaskDetailModalProps {
   /**
    * @description Function to handle task update
    */
-  onUpdateTask?: (taskId: string, updates: Partial<Task>) => void;
+  onUpdateTask?: (taskId: number, updates: Partial<Task>) => void;
   /**
    * @description Function to handle task deletion
    */
-  onDeleteTask?: (taskId: string) => void;
+  onDeleteTask?: (taskId: number) => void;
   /**
    * @description Function to handle task completion
    */
-  onCompleteTask?: (taskId: string) => void;
+  onCompleteTask?: (taskId: number) => void;
   /**
    * @description Loading state
    */
@@ -263,26 +263,28 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const handleFieldUpdate = (field: string, value: string) => {
-    if (onUpdateTask) {
-      onUpdateTask(task.id, { [field]: value });
+    if (onUpdateTask && task) {
+      const updates = { [field]: value };
+      onUpdateTask(task.id, updates);
     }
     setEditingField(null);
   };
 
   const handleStatusChange = (newStatus: Task['status']) => {
-    if (onUpdateTask) {
-      onUpdateTask(task.id, { status: newStatus });
+    if (onUpdateTask && task) {
+      const updates = { status: newStatus };
+      onUpdateTask(task.id, updates);
     }
   };
 
   const handleComplete = () => {
-    if (onCompleteTask) {
+    if (onCompleteTask && task) {
       onCompleteTask(task.id);
     }
   };
 
   const handleDelete = () => {
-    if (onDeleteTask && confirm('Are you sure you want to delete this task?')) {
+    if (onDeleteTask && task && confirm('Are you sure you want to delete this task?')) {
       onDeleteTask(task.id);
       onClose();
     }
@@ -342,7 +344,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="pending">Pending</option>
+                <option value="todo">Todo</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="overdue">Overdue</option>

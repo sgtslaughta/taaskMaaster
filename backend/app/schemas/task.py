@@ -67,14 +67,14 @@ class TaskUpdate(BaseModel):
 
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    status: Optional[TaskStatus] = None
-    priority: Optional[TaskPriority] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
     due_date: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     estimated_hours: Optional[float] = Field(None, ge=0)
     actual_hours: Optional[float] = Field(None, ge=0)
     points: Optional[int] = Field(None, ge=0)
-    reward_type: Optional[RewardType] = None
+    reward_type: Optional[str] = None
     reward_value: Optional[float] = Field(None, ge=0)
     reward_description: Optional[str] = Field(None, max_length=255)
     assigned_to_id: Optional[int] = None
@@ -83,6 +83,9 @@ class TaskUpdate(BaseModel):
     is_recurring: Optional[bool] = None
     recurrence_pattern: Optional[Dict[str, Any]] = None
     tag_names: Optional[List[str]] = None
+
+    class Config:
+        use_enum_values = True
 
 
 class TaskBulkUpdate(BaseModel):
@@ -98,6 +101,33 @@ class TaskExportRequest(BaseModel):
     format: str = Field(default="csv", description="Export format (csv, json, xlsx)")
     filters: Optional[Dict[str, Any]] = Field(None, description="Export filters")
     include_completed: bool = Field(default=True, description="Include completed tasks")
+
+
+# JSON Request Body Schemas for URI Parameter Conversion
+class TaskCompleteRequest(BaseModel):
+    """Schema for completing a task via JSON request body."""
+
+    task_id: int = Field(..., description="Task ID to complete")
+    actual_hours: Optional[float] = Field(None, ge=0, description="Actual hours spent")
+
+
+class TaskGetRequest(BaseModel):
+    """Schema for getting a task via JSON request body."""
+
+    task_id: int = Field(..., description="Task ID to retrieve")
+
+
+class TaskUpdateRequest(BaseModel):
+    """Schema for updating a task via JSON request body."""
+
+    task_id: int = Field(..., description="Task ID to update")
+    updates: Dict[str, Any] = Field(..., description="Updates to apply")
+
+
+class TaskDeleteRequest(BaseModel):
+    """Schema for deleting a task via JSON request body."""
+
+    task_id: int = Field(..., description="Task ID to delete")
     date_range: Optional[Dict[str, datetime]] = Field(None, description="Date range for export")
 
 
@@ -383,3 +413,42 @@ class TaskListStats(BaseModel):
     completion_rate: float
     most_active_list: Optional[str] = None
     recent_activity: List[Dict[str, Any]] = []
+
+
+# Template Operation Request Schemas
+class CreateFromTemplateRequest(BaseModel):
+    """Schema for creating a task from a template."""
+    
+    template_id: int = Field(..., description="Template ID to use")
+    title: Optional[str] = Field(None, description="Override template title")
+    description: Optional[str] = Field(None, description="Override template description")
+    assigned_to_id: Optional[int] = Field(None, description="User ID to assign task to")
+
+
+class GetTemplateRequest(BaseModel):
+    """Schema for getting a template."""
+    
+    template_id: int = Field(..., description="Template ID to retrieve")
+
+
+class UpdateTemplateRequest(BaseModel):
+    """Schema for updating a template."""
+    
+    template_id: int = Field(..., description="Template ID to update")
+    updates: TaskTemplateUpdate = Field(..., description="Updates to apply")
+
+
+class DeleteTemplateRequest(BaseModel):
+    """Schema for deleting a template."""
+    
+    template_id: int = Field(..., description="Template ID to delete")
+
+
+# List Operation Request Schemas
+class GetListTasksRequest(BaseModel):
+    """Schema for getting tasks in a list."""
+    
+    list_id: int = Field(..., description="List ID to get tasks from")
+    include_completed: bool = Field(default=True, description="Include completed tasks")
+    limit: int = Field(default=50, ge=1, le=1000, description="Maximum number of tasks to return")
+    offset: int = Field(default=0, ge=0, description="Number of tasks to skip")

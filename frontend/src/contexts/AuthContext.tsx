@@ -115,10 +115,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const login = async (credentials: { username: string; password: string }) => {
     try {
+      console.log('AuthContext: Starting login process');
       setIsLoading(true);
       setError(null);
 
+      console.log('AuthContext: Calling authService.login');
       const response = await authService.login(credentials);
+      console.log('AuthContext: authService.login returned:', response);
       
       // Convert API response to User interface
       const userData: User = {
@@ -143,8 +146,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(userData);
-      console.log('User logged in successfully');
+      console.log('AuthContext: User logged in successfully, user data:', userData);
     } catch (error: any) {
+      console.error('AuthContext: Login failed with error:', error);
       const errorMessage = error.message || 'Login failed';
       setError(errorMessage);
       console.error('Login failed:', error);

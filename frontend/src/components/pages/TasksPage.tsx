@@ -32,7 +32,7 @@ import {
  */
 const adaptBackendToFrontendTask = (backendTask: BackendTask): FrontendTask => {
   return {
-    id: backendTask.id.toString(),
+    id: backendTask.id,
     title: backendTask.title,
     description: backendTask.description || '',
     status: mapBackendStatusToFrontend(backendTask.status),
@@ -78,15 +78,15 @@ const adaptFrontendToBackendTask = (frontendTask: FrontendTask): Partial<Backend
 const mapBackendStatusToFrontend = (backendStatus: TaskStatus): FrontendTask['status'] => {
   switch (backendStatus) {
     case TaskStatus.TODO:
-      return 'pending';
+      return 'todo';
     case TaskStatus.IN_PROGRESS:
       return 'in_progress';
     case TaskStatus.DONE:
-      return 'completed';
+      return 'done';
     case TaskStatus.CANCELLED:
-      return 'overdue';
+      return 'cancelled';
     default:
-      return 'pending';
+      return 'todo';
   }
 };
 
@@ -95,13 +95,13 @@ const mapBackendStatusToFrontend = (backendStatus: TaskStatus): FrontendTask['st
  */
 const mapFrontendStatusToBackend = (frontendStatus: FrontendTask['status']): TaskStatus => {
   switch (frontendStatus) {
-    case 'pending':
+    case 'todo':
       return TaskStatus.TODO;
     case 'in_progress':
       return TaskStatus.IN_PROGRESS;
-    case 'completed':
+    case 'done':
       return TaskStatus.DONE;
-    case 'overdue':
+    case 'cancelled':
       return TaskStatus.CANCELLED;
     default:
       return TaskStatus.TODO;
@@ -360,7 +360,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task update
    */
-  const handleTaskUpdate = async (taskId: string, updates: Partial<FrontendTask>) => {
+  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask>) => {
     try {
       const backendUpdates: UpdateTaskRequest = {};
       
@@ -376,7 +376,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       if (updates.assignedTo !== undefined) backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
       if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
 
-      const updatedBackendTask = await taskService.updateTask(parseInt(taskId), backendUpdates);
+      const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
       const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
       setTasks(prev => prev.map(task => 
         task.id === taskId ? updatedFrontendTask : task
@@ -389,9 +389,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task deletion
    */
-  const handleTaskDelete = async (taskId: string) => {
+  const handleTaskDelete = async (taskId: number) => {
     try {
-      await taskService.deleteTask(parseInt(taskId));
+      await taskService.deleteTask(taskId);
       setTasks(prev => prev.filter(task => task.id !== taskId));
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -402,15 +402,15 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task status change
    */
-  const handleStatusChange = (taskId: string, status: FrontendTask['status']) => {
+  const handleStatusChange = (taskId: number, status: FrontendTask['status']) => {
     handleTaskUpdate(taskId, { status });
   };
 
   /**
    * @description Handle task assignment
    */
-  const handleTaskAssign = (taskId: string, userId: string) => {
-    const user = users.find(u => u.id.toString() === userId);
+  const handleTaskAssign = (taskId: number, userId: number) => {
+    const user = users.find(u => u.id === userId);
     if (user) {
       handleTaskUpdate(taskId, { assignedTo: userId });
     }
@@ -427,9 +427,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle task completion
    */
-  const handleTaskComplete = async (taskId: string) => {
+  const handleTaskComplete = async (taskId: number) => {
     try {
-      const completedBackendTask = await taskService.completeTask(parseInt(taskId));
+      const completedBackendTask = await taskService.completeTask(taskId);
       const completedFrontendTask = adaptBackendToFrontendTask(completedBackendTask);
       setTasks(prev => prev.map(task => 
         task.id === taskId ? completedFrontendTask : task
@@ -442,10 +442,10 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   /**
    * @description Handle bulk task update
    */
-  const handleBulkUpdate = async (taskIds: string[], updates: Partial<FrontendTask>) => {
+  const handleBulkUpdate = async (taskIds: number[], updates: Partial<FrontendTask>) => {
     try {
       const bulkUpdateData = {
-        task_ids: taskIds.map(id => parseInt(id)),
+        task_ids: taskIds,
         updates: {
           title: updates.title,
           description: updates.description,

@@ -118,6 +118,16 @@ class TaskService:
                 
             # Apply updates
             update_data = bulk_update_data.updates.dict(exclude_unset=True)
+
+            # Handle enum fields separately
+            if "status" in update_data:
+                task.status = TaskStatus(update_data.pop("status"))
+            if "priority" in update_data:
+                task.priority = TaskPriority(update_data.pop("priority"))
+            if "reward_type" in update_data:
+                task.reward_type = RewardType(update_data.pop("reward_type"))
+
+            # Update remaining fields
             for field, value in update_data.items():
                 if hasattr(task, field):
                     setattr(task, field, value)
@@ -388,7 +398,7 @@ class TaskService:
         return tasks, total
 
     def update_task(
-        self, task_id: int, task_data: TaskUpdate, user_id: int
+        self, task_id: int, task_data: Dict[str, Any], user_id: int
     ) -> Optional[Task]:
         """
         Update a task.
@@ -401,25 +411,74 @@ class TaskService:
         Returns:
             Updated task instance or None
         """
-        task = self.get_task(task_id, user_id)
+        # Query task directly from database
+        task = (
+            self.db.query(Task)
+            .filter(
+                Task.id == task_id,
+                or_(
+                    Task.created_by_id == user_id,
+                    Task.assigned_to_id == user_id,
+                ),
+            )
+            .first()
+        )
         if not task:
             return None
 
-        # Update fields
-        update_data = task_data.dict(exclude_unset=True)
-
         # Handle tags separately
-        tag_names = update_data.pop("tag_names", None)
+        tag_names = task_data.pop("tag_names", None)
         if tag_names is not None:
             self._update_task_tags(task_id, tag_names, user_id)
 
-        for field, value in update_data.items():
-            setattr(task, field, value)
+        # Handle enum fields separately
+        if "status" in task_data:
+            try:
+                task.status = TaskStatus(task_data.pop("status"))
+            except ValueError as e:
+                raise ValueError(f"Invalid status value: {e}")
+
+        if "priority" in task_data:
+            try:
+                task.priority = TaskPriority(task_data.pop("priority"))
+            except ValueError as e:
+                raise ValueError(f"Invalid priority value: {e}")
+
+        if "reward_type" in task_data:
+            try:
+                task.reward_type = RewardType(task_data.pop("reward_type"))
+            except ValueError as e:
+                raise ValueError(f"Invalid reward_type value: {e}")
+
+        # Handle date fields
+        if "due_date" in task_data and task_data["due_date"] is not None:
+            try:
+                task.due_date = datetime.fromisoformat(task_data.pop("due_date"))
+            except ValueError as e:
+                raise ValueError(f"Invalid due_date format: {e}")
+
+        if "completed_at" in task_data and task_data["completed_at"] is not None:
+            try:
+                task.completed_at = datetime.fromisoformat(task_data.pop("completed_at"))
+            except ValueError as e:
+                raise ValueError(f"Invalid completed_at format: {e}")
+
+        # Update remaining fields
+        for field, value in task_data.items():
+            if hasattr(task, field):
+                try:
+                    setattr(task, field, value)
+                except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid value for {field}: {e}")
 
         task.updated_at = datetime.utcnow()
 
-        self.db.commit()
-        self.db.refresh(task)
+        try:
+            self.db.commit()
+            self.db.refresh(task)
+        except Exception as e:
+            self.db.rollback()
+            raise ValueError(f"Failed to update task: {e}")
 
         # Invalidate cache for the user
         redis_service.invalidate_task_cache(user_id, task_id)
@@ -440,10 +499,35 @@ class TaskService:
         Returns:
             True if deleted, False otherwise
         """
-        task = self.get_task(task_id, user_id)
+        # Get user to check role for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+
+        # Query the task directly from the database
+        query = self.db.query(Task).filter(Task.id == task_id)
+        
+        # RBAC: Admins and organizers can delete any task
+        if user.role.value not in [UserRole.ADMIN.value, UserRole.ORGANIZER.value]:
+            # Regular users can only delete their own tasks or tasks assigned to them
+            query = query.filter(
+                or_(
+                    Task.created_by_id == user_id,
+                    Task.assigned_to_id == user_id,
+                )
+            )
+        
+        task = query.first()
+        
         if not task:
             return False
 
+        # Delete task associations first
+        self.db.query(TaskTagAssociation).filter(
+            TaskTagAssociation.task_id == task_id
+        ).delete()
+
+        # Delete the task
         self.db.delete(task)
         self.db.commit()
 
@@ -469,7 +553,25 @@ class TaskService:
         Returns:
             Updated task instance or None
         """
-        task = self.get_task(task_id, user_id)
+        # Get user to check role for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+
+        # Query task directly from database
+        query = self.db.query(Task).filter(Task.id == task_id)
+        
+        # RBAC: Admins and organizers can complete any task
+        if user.role.value not in [UserRole.ADMIN.value, UserRole.ORGANIZER.value]:
+            # Regular users can only complete their own tasks or tasks assigned to them
+            query = query.filter(
+                or_(
+                    Task.created_by_id == user_id,
+                    Task.assigned_to_id == user_id,
+                )
+            )
+        
+        task = query.first()
         if not task:
             return None
 
@@ -478,8 +580,23 @@ class TaskService:
         if actual_hours is not None:
             task.actual_hours = actual_hours
 
-        self.db.commit()
-        self.db.refresh(task)
+        # Invalidate cache before committing
+        redis_service.invalidate_task_cache(user_id, task_id)
+        if task.assigned_to_id and task.assigned_to_id != user_id:
+            redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
+
+        try:
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise ValueError(f"Failed to complete task: {e}")
+
+        # Query the task again to get fresh data
+        task = (
+            self.db.query(Task)
+            .filter(Task.id == task_id)
+            .first()
+        )
 
         logger.info(f"Completed task {task_id} by user {user_id}")
         return task

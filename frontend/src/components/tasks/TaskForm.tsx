@@ -34,14 +34,14 @@ export interface TaskFormData {
   priority: Task['priority'];
   category: string;
   tags: string[];
-  assignedTo: string;
+  assignedTo: number;
   dueDate: string;
   points: number;
   rewardType: string;
   rewardValue: number;
   rewardDescription: string;
   attachments?: File[];
-  parentTaskId?: string;
+  parentTaskId?: number;
   subtasks?: Partial<Task>[];
 }
 
@@ -93,11 +93,11 @@ export interface TaskFormProps {
 const defaultFormData: TaskFormData = {
   title: '',
   description: '',
-  status: 'pending',
+  status: 'todo',
   priority: 'medium',
   category: '',
   tags: [],
-  assignedTo: '',
+  assignedTo: 0,
   dueDate: '',
   points: 0,
   rewardType: 'points',
@@ -264,16 +264,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         description: task.description,
         status: task.status,
         priority: task.priority,
-        category: task.category,
-        tags: task.tags,
-        assignedTo: task.assignedTo,
-        dueDate: formatDateForInput(task.dueDate),
+        category: task.category?.name || '',
+        tags: task.tags?.map(tag => tag.name) || [],
+        assignedTo: task.assigned_to_id || 0,
+        dueDate: formatDateForInput(task.due_date),
         points: task.points,
-        rewardType: task.rewardType || 'points',
-        rewardValue: task.rewardValue || 0,
-        rewardDescription: task.rewardDescription || '',
+        rewardType: task.reward_type || 'points',
+        rewardValue: task.reward_value || 0,
+        rewardDescription: task.reward_description || '',
         attachments: [],
-        parentTaskId: task.parentTaskId,
+        parentTaskId: task.parent_task_id,
         subtasks: task.subtasks || [],
       });
     } else {
@@ -376,7 +376,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     if (title) {
       setFormData(prev => ({
         ...prev,
-        subtasks: [...(prev.subtasks || []), { title, status: 'pending' }],
+        subtasks: [...(prev.subtasks || []), { title, status: 'todo' }],
       }));
       setSubtaskInput('');
     }
@@ -476,10 +476,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Task['status'] }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="pending">Pending</option>
+                <option value="todo">Todo</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
-                <option value="overdue">Overdue</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
 
@@ -528,8 +528,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 Assigned To *
               </label>
               <select
-                value={formData.assignedTo}
-                onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                value={formData.assignedTo || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: parseInt(e.target.value) || 0 }))}
                 className={cn(
                   'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
                   'bg-white dark:bg-gray-700 text-gray-900 dark:text-white',
@@ -655,7 +655,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               </label>
               <select
                 value={formData.parentTaskId || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, parentTaskId: e.target.value || undefined }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, parentTaskId: parseInt(e.target.value) || undefined }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">No parent task</option>

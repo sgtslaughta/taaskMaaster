@@ -60,8 +60,8 @@ fastapi_app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"],
 )
 
-# Add rate limiting middleware
-fastapi_app.middleware("http")(rate_limit_middleware)
+# Add rate limiting middleware (temporarily disabled for debugging)
+# fastapi_app.middleware("http")(rate_limit_middleware)
 
 
 @fastapi_app.middleware("http")

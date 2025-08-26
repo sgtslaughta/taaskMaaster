@@ -44,7 +44,7 @@ export interface BulkEditModalProps {
   /**
    * @description Function to handle bulk update
    */
-  onBulkUpdate?: (taskIds: string[], updates: Partial<Task>) => void;
+  onBulkUpdate?: (taskIds: number[], updates: Partial<Task>) => void;
   /**
    * @description Loading state
    */

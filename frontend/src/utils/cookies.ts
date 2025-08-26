@@ -75,7 +75,7 @@ export const setCookie = (
     days = 365,
     path = '/',
     secure = process.env.NODE_ENV === 'production',
-    sameSite = 'Lax',
+    sameSite = 'None',
   } = options;
 
   const expires = new Date();
@@ -133,7 +133,7 @@ export const saveUserSettings = (settings: Partial<UserSettings>): void => {
     setCookie('taaskmaaster_settings', JSON.stringify(updatedSettings), {
       days: 365,
       secure: true,
-      sameSite: 'Strict',
+      sameSite: 'None',
     });
   } catch (error) {
     console.error('Failed to save user settings:', error);
@@ -173,7 +173,7 @@ export const saveLoginState = (userData: {
     setCookie('taaskmaaster_user', JSON.stringify(userData), {
       days: 30, // Shorter expiry for login data
       secure: true,
-      sameSite: 'Strict',
+      sameSite: 'None',
     });
   } catch (error) {
     console.error('Failed to save login state:', error);
