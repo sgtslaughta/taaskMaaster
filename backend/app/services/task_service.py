@@ -36,6 +36,7 @@ from app.schemas.task import (
     TaskExportRequest,
 )
 from app.services.redis_service import redis_service
+from app.models.user import User, UserRole
 
 logger = get_logger(__name__)
 
@@ -326,6 +327,11 @@ class TaskService:
         Returns:
             Tuple of (tasks, total_count)
         """
+        # Get user to check role for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return [], 0
+        
         # Try to get from cache if no filters applied (most common case)
         if not any([status, priority, category_id, assigned_to_id, reward_type, search]) and skip == 0:
             cached_tasks = redis_service.get_user_tasks(user_id)
@@ -335,10 +341,18 @@ class TaskService:
                 tasks = [self._dict_to_task(task_dict) for task_dict in cached_tasks[:limit]]
                 return tasks, len(cached_tasks)
         
-        # Get from database
-        query = self.db.query(Task).filter(
-            or_(Task.created_by_id == user_id, Task.assigned_to_id == user_id)
-        )
+        # Build query based on user role
+        query = self.db.query(Task)
+        
+        # RBAC: Admins and organizers can view all tasks, regular users only their own
+        if user.role in [UserRole.ADMIN, UserRole.ORGANIZER]:
+            # Admins and organizers can see all tasks
+            pass
+        else:
+            # Regular users can only see tasks they created or are assigned to
+            query = query.filter(
+                or_(Task.created_by_id == user_id, Task.assigned_to_id == user_id)
+            )
 
         # Apply filters
         if status:
@@ -506,9 +520,51 @@ class TaskService:
         )
         return template
 
+    def to_task_template_response(self, template: TaskTemplate) -> dict:
+        """
+        Convert TaskTemplate to response format.
+
+        Args:
+            template: TaskTemplate instance
+
+        Returns:
+            Dictionary representation for API response
+        """
+        response = {
+            'id': template.id,
+            'name': template.name,
+            'description': template.description,
+            'title_pattern': template.title_pattern,
+            'description_template': template.description_template,
+            'estimated_hours': template.estimated_hours,
+            'points': template.points,
+            'priority': template.priority,
+            'category_id': template.category_id,
+            'tags': template.tags,
+            'is_public': template.is_public,
+            'created_by_id': template.created_by_id,
+            'created_at': template.created_at,
+            'updated_at': template.updated_at,
+            'category': None
+        }
+        
+        # Add category data if available
+        if template.category_id:
+            category = self.db.query(TaskCategory).filter(TaskCategory.id == template.category_id).first()
+            if category:
+                response['category'] = {
+                    'id': category.id,
+                    'name': category.name,
+                    'description': category.description,
+                    'color': category.color,
+                    'icon': category.icon
+                }
+        
+        return response
+
     def get_task_templates(
         self, user_id: int, include_public: bool = True
-    ) -> List[TaskTemplate]:
+    ) -> List[dict]:
         """
         Get task templates available to user.
 
@@ -517,18 +573,35 @@ class TaskService:
             include_public: Whether to include public templates
 
         Returns:
-            List of task templates
+            List of task template response dictionaries
         """
-        query = self.db.query(TaskTemplate).filter(
-            TaskTemplate.created_by_id == user_id
-        )
-
-        if include_public:
-            query = query.union(
-                self.db.query(TaskTemplate).filter(TaskTemplate.is_public)
-            )
-
-        return query.all()
+        # Get user to check role for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return []
+        
+        # RBAC: Admins and organizers can view all templates
+        if user.role in [UserRole.ADMIN, UserRole.ORGANIZER]:
+            all_templates = self.db.query(TaskTemplate).all()
+            return [self.to_task_template_response(template) for template in all_templates]
+        else:
+            # Regular users can only see their own templates and public ones
+            templates = []
+            
+            # Get user's own templates
+            user_templates = self.db.query(TaskTemplate).filter(
+                TaskTemplate.created_by_id == user_id
+            ).all()
+            templates.extend(user_templates)
+            
+            # Get public templates if requested
+            if include_public:
+                public_templates = self.db.query(TaskTemplate).filter(
+                    TaskTemplate.is_public
+                ).all()
+                templates.extend(public_templates)
+            
+            return [self.to_task_template_response(template) for template in templates]
 
     def create_task_from_template(
         self, template_id: int, user_id: int, **kwargs
@@ -601,7 +674,30 @@ class TaskService:
         )
         return category
 
-    def get_categories(self, user_id: int) -> List[TaskCategory]:
+    def to_task_category_response(self, category: TaskCategory) -> dict:
+        """
+        Convert TaskCategory to response format.
+
+        Args:
+            category: TaskCategory instance
+
+        Returns:
+            Dictionary representation for API response
+        """
+        return {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'color': category.color,
+            'icon': category.icon,
+            'parent_id': category.parent_id,
+            'created_by_id': category.created_by_id,
+            'created_at': category.created_at,
+            'updated_at': category.updated_at,
+            'subcategories': []  # TODO: Implement subcategories if needed
+        }
+
+    def get_categories(self, user_id: int) -> List[dict]:
         """
         Get task categories for user.
 
@@ -609,13 +705,25 @@ class TaskService:
             user_id: User ID
 
         Returns:
-            List of task categories
+            List of task category response dictionaries
         """
-        return (
-            self.db.query(TaskCategory)
-            .filter(TaskCategory.created_by_id == user_id)
-            .all()
-        )
+        # Get user to check role for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return []
+        
+        # RBAC: Admins and organizers can view all categories
+        if user.role in [UserRole.ADMIN, UserRole.ORGANIZER]:
+            categories = self.db.query(TaskCategory).all()
+            return [self.to_task_category_response(category) for category in categories]
+        else:
+            # Regular users can only see their own categories
+            categories = (
+                self.db.query(TaskCategory)
+                .filter(TaskCategory.created_by_id == user_id)
+                .all()
+            )
+            return [self.to_task_category_response(category) for category in categories]
 
     def create_tag(
         self, tag_data: TaskTagCreate, created_by_id: int

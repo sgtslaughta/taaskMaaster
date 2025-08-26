@@ -5,11 +5,21 @@ This module contains the User model for authentication and user management.
 """
 
 from datetime import datetime
+from enum import Enum
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
+
+
+class UserRole(str, Enum):
+    """User roles for RBAC."""
+    
+    USER = "user"  # Basic user - can only view their own tasks
+    ORGANIZER = "organizer"  # Can create and manage tasks, view all tasks
+    ADMIN = "admin"  # Full system access
 
 
 class User(Base):
@@ -22,6 +32,7 @@ class User(Base):
         email: Unique email address
         hashed_password: Hashed password
         full_name: User's full name
+        role: User role for RBAC (user, organizer, admin)
         is_active: Whether user account is active
         is_superuser: Whether user has superuser privileges
         created_at: Account creation timestamp
@@ -38,6 +49,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
+    role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -66,5 +78,5 @@ class User(Base):
         """String representation of User."""
         return (
             f"<User(id={self.id}, username='{self.username}', "
-            f"email='{self.email}')>"
+            f"email='{self.email}', role='{self.role}')>"
         )
