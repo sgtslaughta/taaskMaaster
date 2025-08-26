@@ -42,6 +42,9 @@ const adaptBackendToFrontendTask = (backendTask: BackendTask): FrontendTask => {
     assignedTo: backendTask.assigned_to_id?.toString() || '',
     dueDate: backendTask.due_date || '',
     points: backendTask.points,
+    rewardType: backendTask.reward_type,
+    rewardValue: backendTask.reward_value,
+    rewardDescription: backendTask.reward_description,
     createdAt: backendTask.created_at,
     updatedAt: backendTask.updated_at,
     attachments: backendTask.attachments,
@@ -61,6 +64,9 @@ const adaptFrontendToBackendTask = (frontendTask: FrontendTask): Partial<Backend
     priority: mapFrontendPriorityToBackend(frontendTask.priority),
     due_date: frontendTask.dueDate,
     points: frontendTask.points,
+    reward_type: frontendTask.rewardType,
+    reward_value: frontendTask.rewardValue,
+    reward_description: frontendTask.rewardDescription,
     assigned_to_id: frontendTask.assignedTo ? parseInt(frontendTask.assignedTo) : undefined,
     parent_task_id: frontendTask.parentTaskId ? parseInt(frontendTask.parentTaskId) : undefined,
   };
@@ -289,6 +295,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       priority: mapFrontendPriorityToBackend(taskData.priority as FrontendTask['priority']),
       due_date: taskData.dueDate,
       points: taskData.points,
+      reward_type: taskData.rewardType,
+      reward_value: taskData.rewardValue,
+      reward_description: taskData.rewardDescription,
       assigned_to_id: parseInt(taskData.assignedTo) || undefined,
       parent_task_id: taskData.parentTaskId ? parseInt(taskData.parentTaskId) : undefined,
       tags: taskData.tags,
@@ -306,6 +315,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       priority: mapFrontendPriorityToBackend(taskData.priority as FrontendTask['priority']),
       due_date: taskData.dueDate,
       points: taskData.points,
+      reward_type: taskData.rewardType,
+      reward_value: taskData.rewardValue,
+      reward_description: taskData.rewardDescription,
       assigned_to_id: parseInt(taskData.assignedTo) || undefined,
       parent_task_id: taskData.parentTaskId ? parseInt(taskData.parentTaskId) : undefined,
       tags: taskData.tags,
@@ -358,6 +370,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       if (updates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(updates.priority);
       if (updates.dueDate !== undefined) backendUpdates.due_date = updates.dueDate;
       if (updates.points !== undefined) backendUpdates.points = updates.points;
+      if (updates.rewardType !== undefined) backendUpdates.reward_type = updates.rewardType;
+      if (updates.rewardValue !== undefined) backendUpdates.reward_value = updates.rewardValue;
+      if (updates.rewardDescription !== undefined) backendUpdates.reward_description = updates.rewardDescription;
       if (updates.assignedTo !== undefined) backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
       if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
 
@@ -425,6 +440,73 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   };
 
   /**
+   * @description Handle bulk task update
+   */
+  const handleBulkUpdate = async (taskIds: string[], updates: Partial<FrontendTask>) => {
+    try {
+      const bulkUpdateData = {
+        task_ids: taskIds.map(id => parseInt(id)),
+        updates: {
+          title: updates.title,
+          description: updates.description,
+          status: updates.status ? mapFrontendStatusToBackend(updates.status) : undefined,
+          priority: updates.priority ? mapFrontendPriorityToBackend(updates.priority) : undefined,
+          due_date: updates.dueDate,
+          points: updates.points,
+          reward_type: updates.rewardType,
+          reward_value: updates.rewardValue,
+          reward_description: updates.rewardDescription,
+          assigned_to_id: updates.assignedTo ? parseInt(updates.assignedTo) : undefined,
+        }
+      };
+
+      const updatedBackendTasks = await taskService.bulkUpdateTasks(bulkUpdateData, 1); // TODO: Use actual user ID
+      const updatedFrontendTasks = updatedBackendTasks.map(adaptBackendToFrontendTask);
+      
+      setTasks(prev => prev.map(task => {
+        const updatedTask = updatedFrontendTasks.find(updated => updated.id === task.id);
+        return updatedTask || task;
+      }));
+    } catch (err) {
+      console.error('Error bulk updating tasks:', err);
+    }
+  };
+
+  /**
+   * @description Handle task export
+   */
+  const handleExport = async (exportData: any) => {
+    try {
+      const exportRequest = {
+        format: exportData.format,
+        filters: exportData.filters,
+        include_completed: exportData.includeCompleted,
+        date_range: exportData.dateRange ? {
+          start: new Date(exportData.dateRange.start),
+          end: new Date(exportData.dateRange.end)
+        } : undefined
+      };
+
+      const exportedData = await taskService.exportTasks(exportRequest, 1); // TODO: Use actual user ID
+      
+      // Create and download file
+      const blob = new Blob([exportedData], { 
+        type: exportData.format === 'csv' ? 'text/csv' : 'application/json' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tasks_export.${exportData.format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting tasks:', err);
+    }
+  };
+
+  /**
    * @description Convert frontend Task to TaskFormData
    */
   const convertTaskToFormData = (task: FrontendTask): TaskFormData => {
@@ -438,6 +520,9 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       assignedTo: task.assignedTo,
       dueDate: task.dueDate,
       points: task.points,
+      rewardType: task.rewardType || 'points',
+      rewardValue: task.rewardValue || 0,
+      rewardDescription: task.rewardDescription || '',
       parentTaskId: task.parentTaskId,
       subtasks: task.subtasks?.map(subtask => ({
         id: subtask.id,
@@ -519,7 +604,11 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                   onDeleteTask={handleTaskDelete}
                   onStatusChange={handleStatusChange}
                   onAssignTask={handleTaskAssign}
+                  onCompleteTask={handleTaskComplete}
+                  onBulkUpdate={handleBulkUpdate}
+                  onExport={handleExport}
                   onRefresh={loadTasks}
+                  users={users}
                   className={className}
                 />
               )}

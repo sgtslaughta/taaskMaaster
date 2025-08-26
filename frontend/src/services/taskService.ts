@@ -42,6 +42,9 @@ export interface Task {
   estimated_hours?: number;
   actual_hours?: number;
   points: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -110,6 +113,9 @@ export interface CreateTaskRequest {
   due_date?: string;
   estimated_hours?: number;
   points?: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring?: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -131,6 +137,9 @@ export interface UpdateTaskRequest {
   estimated_hours?: number;
   actual_hours?: number;
   points?: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring?: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -161,6 +170,7 @@ export interface TaskFilterOptions {
   priority?: TaskPriority;
   category_id?: number;
   assigned_to_id?: number;
+  reward_type?: string;
   search?: string;
 }
 
@@ -195,6 +205,7 @@ export class TaskService {
       if (options.priority) params.append('priority', options.priority);
       if (options.category_id) params.append('category_id', options.category_id.toString());
       if (options.assigned_to_id) params.append('assigned_to_id', options.assigned_to_id.toString());
+      if (options.reward_type) params.append('reward_type', options.reward_type);
       if (options.search) params.append('search', options.search);
 
       const url = `/api/v1/tasks?${params.toString()}`;
@@ -421,6 +432,66 @@ export class TaskService {
       return response.data;
     } catch (error) {
       throw new Error('Failed to create recurring tasks.');
+    }
+  }
+
+  /**
+   * @description Bulk update multiple tasks
+   * @param bulkUpdateData - Bulk update data
+   * @returns Promise with updated tasks
+   */
+  async bulkUpdateTasks(bulkUpdateData: {
+    task_ids: number[];
+    updates: Partial<Task>;
+  }): Promise<Task[]> {
+    try {
+      const response = await apiPost<Task[]>('/api/v1/tasks/bulk-update', bulkUpdateData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to bulk update tasks.');
+    }
+  }
+
+  /**
+   * @description Export tasks in various formats
+   * @param exportRequest - Export request data
+   * @returns Promise with exported data
+   */
+  async exportTasks(exportRequest: {
+    format: string;
+    filters?: any;
+    include_completed: boolean;
+    date_range?: {
+      start: Date;
+      end: Date;
+    };
+  }): Promise<string> {
+    try {
+      const response = await apiPost<string>('/api/v1/tasks/export', exportRequest);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to export tasks.');
+    }
+  }
+
+  /**
+   * @description Get available reward types
+   * @returns Promise with reward types
+   */
+  async getRewardTypes(): Promise<Array<{
+    value: string;
+    label: string;
+    description: string;
+  }>> {
+    try {
+      const response = await apiGet<{ reward_types: Array<{
+        value: string;
+        label: string;
+        description: string;
+      }> }>('/api/v1/tasks/reward-types');
+      return response.data.reward_types;
+    } catch (error) {
+      throw new Error('Failed to fetch reward types.');
     }
   }
 }

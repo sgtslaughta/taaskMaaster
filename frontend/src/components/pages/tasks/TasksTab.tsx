@@ -10,6 +10,11 @@ import { TaskList, Task as FrontendTask } from '../../tasks';
 import { Button } from '../../../design-system/components/Button';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
+
+
+import { TaskDetailModal } from '../../tasks/TaskDetailModal';
+import { BulkEditModal } from '../../tasks/BulkEditModal';
+import { TaskExportModal, TaskExportData } from '../../tasks/TaskExportModal';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
@@ -19,7 +24,10 @@ import {
   DocumentArrowDownIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -59,9 +67,25 @@ export interface TasksTabProps {
    */
   onAssignTask: (taskId: string, userId: string) => void;
   /**
+   * @description Function to handle task completion
+   */
+  onCompleteTask?: (taskId: string) => void;
+  /**
+   * @description Function to handle bulk update
+   */
+  onBulkUpdate?: (taskIds: string[], updates: Partial<FrontendTask>) => void;
+  /**
+   * @description Function to handle task export
+   */
+  onExport?: (exportData: TaskExportData) => void;
+  /**
    * @description Function to refresh tasks
    */
   onRefresh: () => void;
+  /**
+   * @description Available users for assignment
+   */
+  users?: any[];
   /**
    * @description Additional CSS classes
    */
@@ -75,9 +99,17 @@ interface QuickActionsBarProps {
   onCreateTask: () => void;
   onRefresh: () => void;
   onExport: () => void;
+  onBulkEdit: () => void;
+  selectedTasksCount: number;
 }
 
-const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onCreateTask, onRefresh, onExport }) => (
+const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ 
+  onCreateTask, 
+  onRefresh, 
+  onExport, 
+  onBulkEdit,
+  selectedTasksCount 
+}) => (
   <Card className="p-4">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center space-x-3">
@@ -91,8 +123,14 @@ const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ onCreateTask, onRefre
         </Button>
         <Button onClick={onExport} className="bg-green-600 hover:bg-green-700 text-white">
           <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          Generate Report
+          Export Tasks
         </Button>
+        {selectedTasksCount > 0 && (
+          <Button onClick={onBulkEdit} className="bg-purple-600 hover:bg-purple-700 text-white">
+            <Squares2X2Icon className="w-4 h-4 mr-2" />
+            Bulk Edit ({selectedTasksCount})
+          </Button>
+        )}
       </div>
       <div className="text-sm text-gray-600">
         {new Date().toLocaleDateString('en-US', { 
@@ -186,6 +224,7 @@ interface SearchAndFiltersProps {
     priority: string;
     category: string;
     assignee: string;
+    rewardType: string;
   };
   onFilterChange: (filter: string, value: string) => void;
   onClearFilters: () => void;
@@ -213,7 +252,7 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <select
           value={filters.status}
           onChange={(e) => onFilterChange('status', e.target.value)}
@@ -259,6 +298,18 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           <option value="unassigned">Unassigned</option>
           <option value="assigned">Assigned</option>
         </select>
+
+        <select
+          value={filters.rewardType}
+          onChange={(e) => onFilterChange('rewardType', e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">All Rewards</option>
+          <option value="points">Points</option>
+          <option value="monetary">Money</option>
+          <option value="time">Time</option>
+          <option value="custom">Custom</option>
+        </select>
       </div>
 
       {/* Clear Filters */}
@@ -283,62 +334,97 @@ interface ViewOptionsProps {
   onViewModeChange: (mode: 'compact' | 'expanded') => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
+  selectedTasksCount: number;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
 }
 
 const ViewOptions: React.FC<ViewOptionsProps> = ({
   viewMode,
   onViewModeChange,
   sortBy,
-  onSortChange
-}) => (
-  <Card className="p-4">
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center space-x-3">
-        <span className="text-sm font-medium text-gray-700">View:</span>
-        <div className="flex border border-gray-300 rounded-lg">
-          <button
-            onClick={() => onViewModeChange('compact')}
-            className={cn(
+  onSortChange,
+  selectedTasksCount,
+  onSelectAll,
+  onDeselectAll
+}) => {
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700">View:</span>
+          <div className="flex border border-gray-300 rounded-lg">
+            <button
+              onClick={() => onViewModeChange('compact')}
+                          className={cn(
               "px-3 py-1 text-sm",
               viewMode === 'compact'
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-700 hover:bg-gray-50"
             )}
-          >
-            Compact
-          </button>
-          <button
-            onClick={() => onViewModeChange('expanded')}
-            className={cn(
+            >
+              <ListBulletIcon className="w-4 h-4 mr-1" />
+              Compact
+            </button>
+            <button
+              onClick={() => onViewModeChange('expanded')}
+                          className={cn(
               "px-3 py-1 text-sm",
               viewMode === 'expanded'
                 ? "bg-blue-600 text-white"
                 : "bg-white text-gray-700 hover:bg-gray-50"
             )}
+            >
+              <Squares2X2Icon className="w-4 h-4 mr-1" />
+              Expanded
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            Expanded
-          </button>
+            <option value="created">Created Date</option>
+            <option value="due">Due Date</option>
+            <option value="priority">Priority</option>
+            <option value="status">Status</option>
+            <option value="title">Title</option>
+          </select>
+          <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {selectedTasksCount > 0 ? (
+            <button
+              onClick={onDeselectAll}
+              className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
+            >
+              <CheckIcon className="w-4 h-4 mr-1" />
+              Deselect All
+            </button>
+          ) : (
+            <button
+              onClick={onSelectAll}
+              className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
+            >
+              <CheckIcon className="w-4 h-4 mr-1" />
+              Select All
+            </button>
+          )}
+          {selectedTasksCount > 0 && (
+            <span className="text-sm text-gray-600">
+              {selectedTasksCount} selected
+            </span>
+          )}
         </div>
       </div>
-
-      <div className="flex items-center space-x-3">
-        <span className="text-sm font-medium text-gray-700">Sort by:</span>
-        <select
-          value={sortBy}
-          onChange={(e) => onSortChange(e.target.value)}
-          className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="created">Created Date</option>
-          <option value="due">Due Date</option>
-          <option value="priority">Priority</option>
-          <option value="status">Status</option>
-          <option value="title">Title</option>
-        </select>
-        <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-      </div>
-    </div>
-  </Card>
-);
+    </Card>
+  );
+};
 
 /**
  * @description Tasks tab component
@@ -354,7 +440,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   onDeleteTask,
   onStatusChange,
   onAssignTask,
+  onCompleteTask,
+  onBulkUpdate,
+  onExport,
   onRefresh,
+  users = [],
   className 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -362,10 +452,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     status: '',
     priority: '',
     category: '',
-    assignee: ''
+    assignee: '',
+    rewardType: ''
   });
   const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
   const [sortBy, setSortBy] = useState('created');
+  const [selectedTasks, setSelectedTasks] = useState<FrontendTask[]>([]);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<FrontendTask | undefined>();
 
   const handleFilterChange = (filter: string, value: string) => {
     setFilters(prev => ({ ...prev, [filter]: value }));
@@ -376,14 +472,52 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       status: '',
       priority: '',
       category: '',
-      assignee: ''
+      assignee: '',
+      rewardType: ''
     });
     setSearchTerm('');
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log('Export tasks');
+    setIsExportModalOpen(true);
+  };
+
+  const handleBulkEdit = () => {
+    setIsBulkEditModalOpen(true);
+  };
+
+  const handleTaskClick = (task: FrontendTask) => {
+    setSelectedTask(task);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleBulkUpdate = (taskIds: string[], updates: Partial<FrontendTask>) => {
+    if (onBulkUpdate) {
+      onBulkUpdate(taskIds, updates);
+      setSelectedTasks([]);
+    }
+  };
+
+  const handleExportSubmit = (exportData: TaskExportData) => {
+    if (onExport) {
+      onExport(exportData);
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelectedTasks([...tasks]);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedTasks([]);
+  };
+
+  const handleTaskSelect = (task: FrontendTask, selected: boolean) => {
+    if (selected) {
+      setSelectedTasks(prev => [...prev, task]);
+    } else {
+      setSelectedTasks(prev => prev.filter(t => t.id !== task.id));
+    }
   };
 
   return (
@@ -393,6 +527,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         onCreateTask={onCreateTask}
         onRefresh={onRefresh}
         onExport={handleExport}
+        onBulkEdit={handleBulkEdit}
+        selectedTasksCount={selectedTasks.length}
       />
 
       {/* Recent Activity and Search Filters */}
@@ -417,6 +553,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        selectedTasksCount={selectedTasks.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
       />
 
       {/* Task List */}
@@ -429,7 +568,40 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         onDeleteTask={onDeleteTask}
         onStatusChange={onStatusChange}
         onAssignTask={onAssignTask}
+        onTaskClick={handleTaskClick}
+        selectedTasks={selectedTasks}
+        onTaskSelect={handleTaskSelect}
         className={className}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        task={selectedTask}
+        users={users}
+        onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
+        onCompleteTask={onCompleteTask}
+        loading={loading}
+      />
+
+      {/* Bulk Edit Modal */}
+      <BulkEditModal
+        isOpen={isBulkEditModalOpen}
+        onClose={() => setIsBulkEditModalOpen(false)}
+        selectedTasks={selectedTasks}
+        users={users}
+        onBulkUpdate={handleBulkUpdate}
+        loading={loading}
+      />
+
+      {/* Export Modal */}
+      <TaskExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExportSubmit}
+        loading={loading}
       />
     </div>
   );

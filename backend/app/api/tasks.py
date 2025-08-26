@@ -7,10 +7,11 @@ This module contains API endpoints for advanced task management features.
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
-from app.models.task import TaskPriority, TaskStatus
+from app.models.task import TaskPriority, TaskStatus, RewardType
 from app.schemas.task import (
     TaskCategoryCreate,
     TaskCategoryResponse,
@@ -22,6 +23,8 @@ from app.schemas.task import (
     TaskTemplateCreate,
     TaskTemplateResponse,
     TaskUpdate,
+    TaskBulkUpdate,
+    TaskExportRequest,
 )
 from app.services.task_service import TaskService
 
@@ -47,6 +50,77 @@ async def create_task(
     return task_service.to_task_response(task)
 
 
+@router.post("/bulk-update", response_model=List[TaskResponse])
+async def bulk_update_tasks(
+    bulk_update_data: TaskBulkUpdate,
+    db: Session = Depends(get_db_session),
+    # TODO: Add authentication dependency
+    current_user_id: int = 1,  # Temporary for development
+):
+    """
+    Bulk update multiple tasks.
+
+    Allows updating multiple tasks with the same changes.
+    """
+    task_service = TaskService(db)
+    updated_tasks = task_service.bulk_update_tasks(bulk_update_data, current_user_id)
+    return [task_service.to_task_response(task) for task in updated_tasks]
+
+
+@router.post("/export")
+async def export_tasks(
+    export_request: TaskExportRequest,
+    db: Session = Depends(get_db_session),
+    # TODO: Add authentication dependency
+    current_user_id: int = 1,  # Temporary for development
+):
+    """
+    Export tasks in various formats.
+
+    Supports CSV and JSON export with filtering options.
+    """
+    task_service = TaskService(db)
+    try:
+        exported_data = task_service.export_tasks(export_request, current_user_id)
+        
+        if export_request.format.lower() == 'csv':
+            return PlainTextResponse(
+                content=exported_data,
+                media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=tasks_export.csv"}
+            )
+        elif export_request.format.lower() == 'json':
+            return PlainTextResponse(
+                content=exported_data,
+                media_type="application/json",
+                headers={"Content-Disposition": "attachment; filename=tasks_export.json"}
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported export format: {export_request.format}"
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/reward-types")
+async def get_reward_types():
+    """
+    Get available reward types.
+
+    Returns the list of supported reward types for task creation.
+    """
+    return {
+        "reward_types": [
+            {"value": RewardType.POINTS, "label": "Points", "description": "Gamification points"},
+            {"value": RewardType.MONETARY, "label": "Money", "description": "Monetary rewards"},
+            {"value": RewardType.TIME, "label": "Time", "description": "Time-based rewards"},
+            {"value": RewardType.CUSTOM, "label": "Custom", "description": "Custom rewards"},
+        ]
+    }
+
+
 @router.get("/", response_model=TaskList)
 async def get_tasks(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -65,6 +139,9 @@ async def get_tasks(
     assigned_to_id: Optional[int] = Query(
         None, description="Filter by assigned user ID"
     ),
+    reward_type: Optional[RewardType] = Query(
+        None, description="Filter by reward type"
+    ),
     search: Optional[str] = Query(
         None, description="Search in title and description"
     ),
@@ -75,8 +152,8 @@ async def get_tasks(
     """
     Get tasks with filtering and pagination.
 
-    Supports filtering by status, priority, category, assigned user, and text
-    search.
+    Supports filtering by status, priority, category, assigned user, reward type,
+    and text search.
     """
     task_service = TaskService(db)
     tasks, total = task_service.get_tasks(
@@ -87,6 +164,7 @@ async def get_tasks(
         priority=priority,
         category_id=category_id,
         assigned_to_id=assigned_to_id,
+        reward_type=reward_type,
         search=search,
     )
 

@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { REWARD_TYPES } from './TaskForm';
 
 /**
  * @description Task interface
@@ -21,6 +22,9 @@ export interface Task {
   assignedTo: string;
   dueDate: string;
   points: number;
+  rewardType?: string;
+  rewardValue?: number;
+  rewardDescription?: string;
   createdAt: string;
   updatedAt: string;
   attachments?: string[];
@@ -65,6 +69,18 @@ export interface TaskListProps {
    */
   onAssignTask?: (taskId: string, userId: string) => void;
   /**
+   * @description Function to handle task click
+   */
+  onTaskClick?: (task: Task) => void;
+  /**
+   * @description Selected tasks
+   */
+  selectedTasks?: Task[];
+  /**
+   * @description Function to handle task selection
+   */
+  onTaskSelect?: (task: Task, selected: boolean) => void;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -84,8 +100,58 @@ export const TaskList: React.FC<TaskListProps> = ({
   onDeleteTask,
   onStatusChange,
   onAssignTask,
+  onTaskClick,
+  selectedTasks = [],
+  onTaskSelect,
   className,
 }) => {
+  const getRewardDisplay = (task: Task) => {
+    if (!task.rewardType || task.rewardValue === 0) {
+      return null;
+    }
+
+    const rewardType = REWARD_TYPES.find(type => type.value === task.rewardType);
+    if (!rewardType) return null;
+
+    let display = `${rewardType.icon} ${task.rewardValue}`;
+    
+    switch (task.rewardType) {
+      case 'monetary':
+        display += ' USD';
+        break;
+      case 'time':
+        display += ' min';
+        break;
+      case 'points':
+        display += ' pts';
+        break;
+      case 'custom':
+        display = task.rewardDescription || 'Custom reward';
+        break;
+    }
+
+    return display;
+  };
+
+  const getPriorityColor = (priority: Task['priority']) => {
+    switch (priority) {
+      case 'urgent':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400';
+      case 'high':
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'low':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400';
+    }
+  };
+
+  const isTaskSelected = (task: Task) => {
+    return selectedTasks.some(selectedTask => selectedTask.id === task.id);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -105,68 +171,109 @@ export const TaskList: React.FC<TaskListProps> = ({
 
   return (
     <div className={className}>
-      <div className="mb-4">
-        <button
-          onClick={onCreateTask}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-        >
-          Add Task
-        </button>
-      </div>
-
       <div className="space-y-4">
         {tasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <p>No tasks found. Create your first task to get started!</p>
           </div>
         ) : (
-          tasks.map((task) => (
-            <div key={task.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">{task.title}</h3>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      task.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
-                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
-                      task.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' :
-                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                    }`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
+          tasks.map((task) => {
+            const isSelected = isTaskSelected(task);
+            const rewardDisplay = getRewardDisplay(task);
+            
+            return (
+              <div 
+                key={task.id} 
+                className={`bg-white dark:bg-gray-800 border rounded-lg p-4 transition-colors cursor-pointer ${
+                  isSelected 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+                onClick={() => onTaskClick?.(task)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3 flex-1">
+                    {onTaskSelect && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onTaskSelect(task, e.target.checked);
+                        }}
+                        className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    )}
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{task.title}</h3>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          task.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
+                          task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
+                          task.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {task.status.replace('_', ' ')}
+                        </span>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
+                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                        </span>
+                      </div>
+                      
+                      <p className="text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span>Category: {task.category}</span>
+                        <span>Assigned to: {task.assignedTo || 'Unassigned'}</span>
+                        {rewardDisplay && <span>Reward: {rewardDisplay}</span>}
+                        {task.points > 0 && <span>Points: {task.points}</span>}
+                        <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                      </div>
+
+                      {task.tags && task.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {task.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Category: {task.category}</span>
-                    <span>Assigned to: {task.assignedTo}</span>
-                    <span>Points: {task.points}</span>
-                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                  
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStatusChange?.(task.id, task.status === 'completed' ? 'pending' : 'completed');
+                      }}
+                      className={`px-3 py-1 text-sm rounded-md ${
+                        task.status === 'completed'
+                          ? 'bg-gray-600 text-white hover:bg-gray-700'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {task.status === 'completed' ? 'Undo' : 'Complete'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteTask?.(task.id);
+                      }}
+                      className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
                   </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => onStatusChange?.(task.id, 'completed')}
-                    disabled={task.status === 'completed'}
-                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50"
-                  >
-                    Complete
-                  </button>
-                  <button
-                    onClick={() => onUpdateTask?.(task.id, {})}
-                    className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDeleteTask?.(task.id)}
-                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

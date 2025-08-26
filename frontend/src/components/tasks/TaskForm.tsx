@@ -1,6 +1,6 @@
 /**
  * @fileoverview Task Form Component for TaaskMaaster
- * @description Comprehensive task creation and editing form with validation
+ * @description Comprehensive task creation and editing form with validation and multiple reward types
  * @author TaaskMaaster Team
  * @version 2.0.0
  */
@@ -15,6 +15,16 @@ import { cn } from '../../design-system/utils/cn';
 import { User } from '../../services/userService';
 
 /**
+ * @description Reward type options
+ */
+export const REWARD_TYPES = [
+  { value: 'points', label: 'Points', description: 'Gamification points', icon: '🎯' },
+  { value: 'monetary', label: 'Money', description: 'Monetary rewards', icon: '💰' },
+  { value: 'time', label: 'Time', description: 'Time-based rewards', icon: '⏰' },
+  { value: 'custom', label: 'Custom', description: 'Custom rewards', icon: '🎁' },
+];
+
+/**
  * @description Task form data interface
  */
 export interface TaskFormData {
@@ -27,6 +37,9 @@ export interface TaskFormData {
   assignedTo: string;
   dueDate: string;
   points: number;
+  rewardType: string;
+  rewardValue: number;
+  rewardDescription: string;
   attachments?: File[];
   parentTaskId?: string;
   subtasks?: Partial<Task>[];
@@ -87,6 +100,9 @@ const defaultFormData: TaskFormData = {
   assignedTo: '',
   dueDate: '',
   points: 0,
+  rewardType: 'points',
+  rewardValue: 0,
+  rewardDescription: '',
   attachments: [],
   subtasks: [],
 };
@@ -122,6 +138,98 @@ const formatDateForInput = (dateString?: string): string => {
   const date = new Date(dateString);
   date.setHours(12, 0, 0, 0);
   return date.toISOString().slice(0, 16);
+};
+
+/**
+ * @description Reward Type Selector component
+ */
+interface RewardTypeSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+  rewardValue: number;
+  onRewardValueChange: (value: number) => void;
+  rewardDescription: string;
+  onRewardDescriptionChange: (value: string) => void;
+}
+
+const RewardTypeSelector: React.FC<RewardTypeSelectorProps> = ({
+  value,
+  onChange,
+  rewardValue,
+  onRewardValueChange,
+  rewardDescription,
+  onRewardDescriptionChange,
+}) => {
+  const selectedRewardType = REWARD_TYPES.find(type => type.value === value);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Reward Type
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {REWARD_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => onChange(type.value)}
+              className={cn(
+                "p-3 border rounded-lg text-left transition-colors",
+                value === type.value
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+              )}
+            >
+              <div className="text-lg mb-1">{type.icon}</div>
+              <div className="font-medium text-sm">{type.label}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{type.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {selectedRewardType && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {selectedRewardType.label} Amount
+            </label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                min="0"
+                step={selectedRewardType.value === 'monetary' ? '0.01' : '1'}
+                value={rewardValue}
+                onChange={(e) => onRewardValueChange(parseFloat(e.target.value) || 0)}
+                placeholder={`Enter ${selectedRewardType.label.toLowerCase()} amount`}
+                className="flex-1"
+              />
+              <span className="text-sm text-gray-500 dark:text-gray-400 min-w-fit">
+                {selectedRewardType.value === 'monetary' ? '$' : 
+                 selectedRewardType.value === 'time' ? 'min' : 
+                 selectedRewardType.value === 'points' ? 'pts' : ''}
+              </span>
+            </div>
+          </div>
+
+          {selectedRewardType.value === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Custom Reward Description
+              </label>
+              <Input
+                value={rewardDescription}
+                onChange={(e) => onRewardDescriptionChange(e.target.value)}
+                placeholder="e.g., Ice cream, Movie night, Extra screen time"
+                maxLength={255}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 /**
@@ -161,6 +269,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         assignedTo: task.assignedTo,
         dueDate: formatDateForInput(task.dueDate),
         points: task.points,
+        rewardType: task.rewardType || 'points',
+        rewardValue: task.rewardValue || 0,
+        rewardDescription: task.rewardDescription || '',
         attachments: [],
         parentTaskId: task.parentTaskId,
         subtasks: task.subtasks || [],
@@ -209,6 +320,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
 
     if (formData.points < 0) {
       newErrors.points = 'Points cannot be negative';
+    }
+
+    if (formData.rewardValue < 0) {
+      newErrors.rewardValue = 'Reward value cannot be negative';
+    }
+
+    if (formData.rewardType === 'custom' && !formData.rewardDescription.trim()) {
+      newErrors.rewardDescription = 'Custom reward description is required';
     }
 
     setErrors(newErrors);
@@ -475,6 +594,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               )}
             </div>
           </div>
+
+          {/* Reward Type and Value */}
+          <RewardTypeSelector
+            value={formData.rewardType}
+            onChange={(value) => setFormData(prev => ({ ...prev, rewardType: value }))}
+            rewardValue={formData.rewardValue}
+            onRewardValueChange={(value) => setFormData(prev => ({ ...prev, rewardValue: value }))}
+            rewardDescription={formData.rewardDescription}
+            onRewardDescriptionChange={(value) => setFormData(prev => ({ ...prev, rewardDescription: value }))}
+          />
 
           {/* Tags */}
           <div>

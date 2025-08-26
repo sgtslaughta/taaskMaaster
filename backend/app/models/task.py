@@ -44,6 +44,15 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class RewardType(str, Enum):
+    """Reward types for task completion."""
+
+    POINTS = "points"
+    MONETARY = "monetary"
+    TIME = "time"
+    CUSTOM = "custom"
+
+
 class RecurrenceType(str, Enum):
     """Recurrence pattern types."""
 
@@ -69,7 +78,10 @@ class Task(Base):
         completed_at: Completion timestamp
         estimated_hours: Estimated time to complete
         actual_hours: Actual time spent
-        points: Points awarded for completion
+        points: Points awarded for completion (legacy field)
+        reward_type: Type of reward for task completion
+        reward_value: Value of the reward (amount, points, time, etc.)
+        reward_description: Description of custom rewards
         is_recurring: Whether task repeats
         recurrence_pattern: JSON pattern for recurring tasks
         template_id: Reference to task template
@@ -94,7 +106,10 @@ class Task(Base):
     completed_at = Column(DateTime, nullable=True)
     estimated_hours = Column(Float, default=0.0)
     actual_hours = Column(Float, default=0.0)
-    points = Column(Integer, default=0)
+    points = Column(Integer, default=0)  # Legacy field for backward compatibility
+    reward_type = Column(SQLEnum(RewardType), default=RewardType.POINTS, index=True)
+    reward_value = Column(Float, default=0.0)  # Amount, points, time in minutes, etc.
+    reward_description = Column(String(255), nullable=True)  # For custom rewards
     is_recurring = Column(Boolean, default=False)
     recurrence_pattern = Column(JSON, nullable=True)
     template_id = Column(

@@ -7,6 +7,9 @@ templates, categories, tags, dependencies, and recurring tasks.
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+import io
+import csv
+import json
 
 from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session
@@ -21,6 +24,7 @@ from app.models.task import (
     TaskTag,
     TaskTagAssociation,
     TaskTemplate,
+    RewardType,
 )
 from app.schemas.task import (
     TaskCategoryCreate,
@@ -28,6 +32,8 @@ from app.schemas.task import (
     TaskTagCreate,
     TaskTemplateCreate,
     TaskUpdate,
+    TaskBulkUpdate,
+    TaskExportRequest,
 )
 from app.services.redis_service import redis_service
 
@@ -60,6 +66,9 @@ class TaskService:
             due_date=task_data.due_date,
             estimated_hours=task_data.estimated_hours,
             points=task_data.points,
+            reward_type=task_data.reward_type,
+            reward_value=task_data.reward_value,
+            reward_description=task_data.reward_description,
             is_recurring=task_data.is_recurring,
             recurrence_pattern=task_data.recurrence_pattern,
             template_id=task_data.template_id,
@@ -86,6 +95,170 @@ class TaskService:
 
         logger.info(f"Created task {task.id} by user {created_by_id}")
         return task
+
+    def bulk_update_tasks(self, bulk_update_data: TaskBulkUpdate, user_id: int) -> List[Task]:
+        """
+        Bulk update multiple tasks.
+
+        Args:
+            bulk_update_data: Bulk update data containing task IDs and updates
+            user_id: ID of user performing the update
+
+        Returns:
+            List of updated task instances
+        """
+        updated_tasks = []
+        
+        for task_id in bulk_update_data.task_ids:
+            task = self.get_task(task_id, user_id)
+            if not task:
+                logger.warning(f"Task {task_id} not found or access denied for user {user_id}")
+                continue
+                
+            # Apply updates
+            update_data = bulk_update_data.updates.dict(exclude_unset=True)
+            for field, value in update_data.items():
+                if hasattr(task, field):
+                    setattr(task, field, value)
+            
+            task.updated_at = datetime.utcnow()
+            updated_tasks.append(task)
+        
+        self.db.commit()
+        
+        # Invalidate cache for all updated tasks
+        for task in updated_tasks:
+            redis_service.invalidate_task_cache(task.created_by_id, task.id)
+            if task.assigned_to_id and task.assigned_to_id != task.created_by_id:
+                redis_service.invalidate_task_cache(task.assigned_to_id, task.id)
+        
+        logger.info(f"Bulk updated {len(updated_tasks)} tasks by user {user_id}")
+        return updated_tasks
+
+    def export_tasks(self, export_request: TaskExportRequest, user_id: int) -> str:
+        """
+        Export tasks in the specified format.
+
+        Args:
+            export_request: Export request data
+            user_id: ID of user requesting export
+
+        Returns:
+            Exported data as string
+        """
+        # Get tasks based on filters
+        query = self.db.query(Task).filter(Task.created_by_id == user_id)
+        
+        # Apply filters
+        if export_request.filters:
+            if export_request.filters.get('status'):
+                query = query.filter(Task.status == TaskStatus(export_request.filters['status']))
+            if export_request.filters.get('priority'):
+                query = query.filter(Task.priority == TaskPriority(export_request.filters['priority']))
+            if export_request.filters.get('category_id'):
+                query = query.filter(Task.category_id == export_request.filters['category_id'])
+        
+        # Apply date range
+        if export_request.date_range:
+            start_date = export_request.date_range.get('start')
+            end_date = export_request.date_range.get('end')
+            if start_date:
+                query = query.filter(Task.created_at >= start_date)
+            if end_date:
+                query = query.filter(Task.created_at <= end_date)
+        
+        # Include/exclude completed tasks
+        if not export_request.include_completed:
+            query = query.filter(Task.status != TaskStatus.DONE)
+        
+        tasks = query.all()
+        
+        if export_request.format.lower() == 'csv':
+            return self._export_to_csv(tasks)
+        elif export_request.format.lower() == 'json':
+            return self._export_to_json(tasks)
+        else:
+            raise ValueError(f"Unsupported export format: {export_request.format}")
+
+    def _export_to_csv(self, tasks: List[Task]) -> str:
+        """
+        Export tasks to CSV format.
+
+        Args:
+            tasks: List of tasks to export
+
+        Returns:
+            CSV string
+        """
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'ID', 'Title', 'Description', 'Status', 'Priority', 'Due Date',
+            'Completed At', 'Estimated Hours', 'Actual Hours', 'Points',
+            'Reward Type', 'Reward Value', 'Reward Description',
+            'Category', 'Assigned To', 'Created At', 'Updated At'
+        ])
+        
+        # Write data
+        for task in tasks:
+            writer.writerow([
+                task.id,
+                task.title,
+                task.description or '',
+                task.status.value,
+                task.priority.value,
+                task.due_date.isoformat() if task.due_date else '',
+                task.completed_at.isoformat() if task.completed_at else '',
+                task.estimated_hours,
+                task.actual_hours,
+                task.points,
+                task.reward_type.value if task.reward_type else '',
+                task.reward_value,
+                task.reward_description or '',
+                task.category.name if task.category else '',
+                task.assigned_to.username if task.assigned_to else '',
+                task.created_at.isoformat(),
+                task.updated_at.isoformat(),
+            ])
+        
+        return output.getvalue()
+
+    def _export_to_json(self, tasks: List[Task]) -> str:
+        """
+        Export tasks to JSON format.
+
+        Args:
+            tasks: List of tasks to export
+
+        Returns:
+            JSON string
+        """
+        tasks_data = []
+        for task in tasks:
+            task_dict = {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'status': task.status.value,
+                'priority': task.priority.value,
+                'due_date': task.due_date.isoformat() if task.due_date else None,
+                'completed_at': task.completed_at.isoformat() if task.completed_at else None,
+                'estimated_hours': task.estimated_hours,
+                'actual_hours': task.actual_hours,
+                'points': task.points,
+                'reward_type': task.reward_type.value if task.reward_type else None,
+                'reward_value': task.reward_value,
+                'reward_description': task.reward_description,
+                'category': task.category.name if task.category else None,
+                'assigned_to': task.assigned_to.username if task.assigned_to else None,
+                'created_at': task.created_at.isoformat(),
+                'updated_at': task.updated_at.isoformat(),
+            }
+            tasks_data.append(task_dict)
+        
+        return json.dumps(tasks_data, indent=2)
 
     def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
         """
@@ -134,6 +307,7 @@ class TaskService:
         priority: Optional[TaskPriority] = None,
         category_id: Optional[int] = None,
         assigned_to_id: Optional[int] = None,
+        reward_type: Optional[RewardType] = None,
         search: Optional[str] = None,
     ) -> tuple[List[Task], int]:
         """
@@ -153,7 +327,7 @@ class TaskService:
             Tuple of (tasks, total_count)
         """
         # Try to get from cache if no filters applied (most common case)
-        if not any([status, priority, category_id, assigned_to_id, search]) and skip == 0:
+        if not any([status, priority, category_id, assigned_to_id, reward_type, search]) and skip == 0:
             cached_tasks = redis_service.get_user_tasks(user_id)
             if cached_tasks:
                 logger.info(f"User {user_id} tasks retrieved from cache")
@@ -175,6 +349,8 @@ class TaskService:
             query = query.filter(Task.category_id == category_id)
         if assigned_to_id:
             query = query.filter(Task.assigned_to_id == assigned_to_id)
+        if reward_type:
+            query = query.filter(Task.reward_type == reward_type)
         if search:
             search_filter = or_(
                 Task.title.ilike(f"%{search}%"),
@@ -191,7 +367,7 @@ class TaskService:
         )
 
         # Cache the results if no filters applied
-        if not any([status, priority, category_id, assigned_to_id, search]) and skip == 0:
+        if not any([status, priority, category_id, assigned_to_id, reward_type, search]) and skip == 0:
             task_dicts = [self._task_to_dict(task) for task in tasks]
             redis_service.cache_user_tasks(user_id, task_dicts)
 
