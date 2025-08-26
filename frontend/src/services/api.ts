@@ -96,10 +96,10 @@ const createApiInstance = (): AxiosInstance => {
             return instance(originalRequest);
           }
         } catch (refreshError) {
-          // Refresh failed, redirect to login
+          // Refresh failed, clear tokens and let AuthContext handle the state
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          // Don't redirect - let the AuthContext handle authentication state
         }
       }
 

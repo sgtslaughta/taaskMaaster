@@ -17,29 +17,29 @@ export interface Task {
   description: string;
   status: 'todo' | 'in_progress' | 'done' | 'review' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  due_date?: string;
-  completed_at?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
+  dueDate?: string;
+  completedAt?: string;
+  estimatedHours?: number;
+  actualHours?: number;
   points: number;
-  reward_type?: string;
-  reward_value?: number;
-  reward_description?: string;
-  is_recurring: boolean;
-  recurrence_pattern?: any;
-  created_by_id: number;
-  assigned_to_id?: number;
-  category_id?: number;
-  template_id?: number;
-  parent_task_id?: number;
-  created_at: string;
-  updated_at: string;
-  assigned_to?: {
+  rewardType?: string;
+  rewardValue?: number;
+  rewardDescription?: string;
+  isRecurring: boolean;
+  recurrencePattern?: any;
+  createdById: number;
+  assignedToId?: number;
+  categoryId?: number;
+  templateId?: number;
+  parentTaskId?: number;
+  createdAt: string;
+  updatedAt: string;
+  assignedTo?: {
     id: number;
     username: string;
     email: string;
-    first_name?: string;
-    last_name?: string;
+    firstName?: string;
+    lastName?: string;
   };
   category?: {
     id: number;
@@ -52,12 +52,12 @@ export interface Task {
     id: number;
     name: string;
     description?: string;
-    title_pattern: string;
-    description_template?: string;
-    estimated_hours?: number;
+    titlePattern: string;
+    descriptionTemplate?: string;
+    estimatedHours?: number;
     points: number;
     priority: string;
-    is_public: boolean;
+    isPublic: boolean;
   };
   tags: {
     id: number;
@@ -67,16 +67,16 @@ export interface Task {
   subtasks: Task[];
   dependencies: {
     id: number;
-    dependent_task_id: number;
-    dependency_type: string;
+    dependentTaskId: number;
+    dependencyType: string;
   }[];
-  media_attachments: {
+  mediaAttachments: {
     id: number;
     filename: string;
-    file_path: string;
-    file_size: number;
-    mime_type: string;
-    uploaded_at?: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+    uploadedAt?: string;
   }[];
 }
 

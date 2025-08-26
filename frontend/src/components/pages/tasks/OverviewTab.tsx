@@ -125,10 +125,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
    */
   const getTaskStats = () => {
     const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
+    const completed = tasks.filter(t => t.status === 'done').length;
     const inProgress = tasks.filter(t => t.status === 'in_progress').length;
     const overdue = tasks.filter(t => {
-      if (t.status === 'completed') return false;
+      if (t.status === 'done') return false;
       if (!t.dueDate) return false;
       return new Date(t.dueDate) < new Date();
     }).length;
@@ -148,7 +148,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
    * @description Get average completion time
    */
   const getAverageCompletionTime = () => {
-    const completedTasks = tasks.filter(t => t.status === 'completed');
+    const completedTasks = tasks.filter(t => t.status === 'done');
     if (completedTasks.length === 0) return 'N/A';
     
     const totalDays = completedTasks.reduce((sum, task) => {
@@ -186,7 +186,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         return taskDate === dateStr;
       });
       
-      const completedTasks = dayTasks.filter(task => task.status === 'completed');
+      const completedTasks = dayTasks.filter(task => task.status === 'done');
       
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -219,10 +219,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     const categoryMap = new Map<string, { total: number; completed: number }>();
     
     tasks.forEach(task => {
-      const category = task.category || 'Uncategorized';
+      const category = task.category?.name || 'Uncategorized';
       const current = categoryMap.get(category) || { total: 0, completed: 0 };
       current.total += 1;
-      if (task.status === 'completed') current.completed += 1;
+      if (task.status === 'done') current.completed += 1;
       categoryMap.set(category, current);
     });
     
@@ -250,7 +250,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         return taskDate === dateStr;
       });
       
-      const completedTasks = dayTasks.filter(task => task.status === 'completed');
+      const completedTasks = dayTasks.filter(task => task.status === 'done');
       
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -277,7 +277,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       const dayPoints = tasks
         .filter(task => {
           const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
-          return taskDate === dateStr && task.status === 'completed';
+          return taskDate === dateStr && task.status === 'done';
         })
         .reduce((sum, task) => sum + (task.points || 0), 0);
       

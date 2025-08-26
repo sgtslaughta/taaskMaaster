@@ -539,7 +539,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                         {task.title}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {task.category}
+                        {task.category?.name || 'Uncategorized'}
                       </div>
                     </div>
                   </td>
@@ -560,7 +560,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {task.assignedTo || 'Unassigned'}
+                    {task.assignedTo?.username || 'Unassigned'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
@@ -684,7 +684,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Assigned:</span>
                 <span className="text-sm text-gray-900 dark:text-white">
-                  {task.assignedTo || 'Unassigned'}
+                  {task.assignedTo?.username || 'Unassigned'}
                 </span>
               </div>
               
@@ -754,11 +754,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     let filtered = tasks.filter(task => {
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           task.category.toLowerCase().includes(searchTerm.toLowerCase());
+                           (task.category?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = !filters.status || task.status === filters.status;
       const matchesPriority = !filters.priority || task.priority === filters.priority;
-      const matchesCategory = !filters.category || task.category === filters.category;
+      const matchesCategory = !filters.category || task.category?.name === filters.category;
       const matchesAssignee = !filters.assignee || 
         (filters.assignee === 'unassigned' && !task.assignedTo) ||
         (filters.assignee === 'assigned' && task.assignedTo);
