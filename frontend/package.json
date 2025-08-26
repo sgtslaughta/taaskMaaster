@@ -35,7 +35,8 @@
     "framer-motion": "^10.16.16",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0"
+    "tailwind-merge": "^2.0.0",
+    "recharts": "^2.8.0"
   },
   "devDependencies": {
     "eslint": "^8.56.0",

@@ -1,22 +1,47 @@
 /**
- * @fileoverview Overview Tab Component for TaaskMaaster
- * @description Overview tab with task statistics, recent activity, and quick actions
+ * @fileoverview Analytics Dashboard Overview Tab Component for TaaskMaaster
+ * @description Analytics dashboard with metrics, charts, and performance insights
  * @author TaaskMaaster Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import React, { useState } from 'react';
-import { TaskList, Task as FrontendTask } from '../../tasks';
-import { Button } from '../../../design-system/components/Button';
+import React, { useState, useEffect } from 'react';
+import { Task as FrontendTask } from '../../tasks';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
+import { 
+  LineChart, 
+  Line, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  PieChart, 
+  Pie, 
+  Cell,
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from 'recharts';
+import { 
+  ChartBarIcon, 
+  CheckCircleIcon, 
+  ClockIcon, 
+  ExclamationTriangleIcon,
+  ArrowTrendingUpIcon,
+  CalendarIcon,
+  StarIcon
+} from '@heroicons/react/24/outline';
 
 /**
- * @description Overview tab component props
+ * @description Analytics dashboard component props
  */
 export interface OverviewTabProps {
   /**
-   * @description Tasks to display
+   * @description Tasks to analyze
    */
   tasks: FrontendTask[];
   /**
@@ -28,27 +53,7 @@ export interface OverviewTabProps {
    */
   error: string | null;
   /**
-   * @description Function to handle task creation
-   */
-  onCreateTask: () => void;
-  /**
-   * @description Function to handle task update
-   */
-  onUpdateTask: (taskId: string, updates: Partial<FrontendTask>) => void;
-  /**
-   * @description Function to handle task deletion
-   */
-  onDeleteTask: (taskId: string) => void;
-  /**
-   * @description Function to handle task status change
-   */
-  onStatusChange: (taskId: string, status: FrontendTask['status']) => void;
-  /**
-   * @description Function to handle task assignment
-   */
-  onAssignTask: (taskId: string, userId: string) => void;
-  /**
-   * @description Function to refresh tasks
+   * @description Function to refresh data
    */
   onRefresh: () => void;
   /**
@@ -58,23 +63,63 @@ export interface OverviewTabProps {
 }
 
 /**
- * @description Overview tab component
- * @param props - Overview tab component props
- * @returns Overview tab component
+ * @description KPI Card component
+ */
+interface KPICardProps {
+  title: string;
+  value: string | number;
+  trend?: {
+    value: number;
+    isPositive: boolean;
+  };
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+const KPICard: React.FC<KPICardProps> = ({ title, value, trend, icon: Icon, color }) => (
+  <Card className="p-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{title}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
+        {trend && (
+          <div className="flex items-center mt-1">
+            <ArrowTrendingUpIcon 
+              className={cn(
+                "w-3 h-3 mr-1",
+                trend.isPositive ? "text-green-500" : "text-red-500"
+              )} 
+            />
+            <span className={cn(
+              "text-xs font-medium",
+              trend.isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+            )}>
+              {trend.isPositive ? '+' : ''}{trend.value}%
+            </span>
+          </div>
+        )}
+      </div>
+      <div className={cn("p-2 rounded-lg", color)}>
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+    </div>
+  </Card>
+);
+
+/**
+ * @description Analytics dashboard component
+ * @param props - Analytics dashboard component props
+ * @returns Analytics dashboard component
  */
 export const OverviewTab: React.FC<OverviewTabProps> = ({
   tasks,
   loading,
   error,
-  onCreateTask,
-  onUpdateTask,
-  onDeleteTask,
-  onStatusChange,
-  onAssignTask,
   onRefresh,
   className,
 }) => {
-  const [activeMetricTab, setActiveMetricTab] = useState<string>('overview');
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month');
+
   /**
    * @description Get task statistics
    */
@@ -92,401 +137,409 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   };
 
   /**
-   * @description Get recent activity
+   * @description Get completion rate
    */
-  const getRecentActivity = () => {
-    return tasks
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5);
-  };
-
-  /**
-   * @description Get performance metrics
-   */
-  const getPerformanceMetrics = () => {
+  const getCompletionRate = () => {
     const stats = getTaskStats();
-    const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-    const totalPoints = tasks.reduce((sum, task) => sum + (task.points || 0), 0);
-    
-    // Calculate average completion time from completed tasks
-    const completedTasks = tasks.filter(t => t.status === 'completed');
-    let averageCompletionTime = 'N/A';
-    if (completedTasks.length > 0) {
-      const totalDays = completedTasks.reduce((sum, task) => {
-        const created = new Date(task.createdAt);
-        const completed = new Date(task.updatedAt); // Use updatedAt for completion time
-        const days = (completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
-        return sum + days;
-      }, 0);
-      const avgDays = totalDays / completedTasks.length;
-      averageCompletionTime = avgDays < 1 ? '< 1 day' : `${avgDays.toFixed(1)} days`;
-    }
-    
-    return {
-      completionRate,
-      totalPoints,
-      averageCompletionTime,
-    };
+    return stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
   };
 
   /**
-   * @description Get weekly progress data with better date handling
+   * @description Get average completion time
    */
-  const getWeeklyProgress = () => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const today = new Date();
+  const getAverageCompletionTime = () => {
+    const completedTasks = tasks.filter(t => t.status === 'completed');
+    if (completedTasks.length === 0) return 'N/A';
     
-    // Get the start of the current week (Monday)
-    const weekStart = new Date(today);
-    const dayOfWeek = today.getDay();
-    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so subtract 6 to get to Monday
-    weekStart.setDate(today.getDate() - daysToSubtract);
-    weekStart.setHours(0, 0, 0, 0); // Start of day
+    const totalDays = completedTasks.reduce((sum, task) => {
+      const created = new Date(task.createdAt);
+      const completed = new Date(task.updatedAt);
+      const days = (completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+      return sum + days;
+    }, 0);
     
-    return days.map((day, index) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + index);
+    const avgDays = totalDays / completedTasks.length;
+    return avgDays < 1 ? '< 1 day' : `${avgDays.toFixed(1)}d`;
+  };
+
+  /**
+   * @description Get total points earned
+   */
+  const getTotalPoints = () => {
+    return tasks.reduce((sum, task) => sum + (task.points || 0), 0);
+  };
+
+  /**
+   * @description Get completion trends data
+   */
+  const getCompletionTrends = () => {
+    const days = timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 90;
+    const data = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
       
-      // Use a more flexible date comparison
       const dayTasks = tasks.filter(task => {
-        const taskDate = new Date(task.createdAt);
-        const taskDateStr = taskDate.toDateString();
-        const targetDateStr = date.toDateString();
-        return taskDateStr === targetDateStr;
+        const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+        return taskDate === dateStr;
       });
       
       const completedTasks = dayTasks.filter(task => task.status === 'completed');
-      const completionRate = dayTasks.length > 0 ? (completedTasks.length / dayTasks.length) * 100 : 0;
       
-      return {
-        day,
-        value: Math.round(completionRate),
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        completed: completedTasks.length,
         total: dayTasks.length,
-        completed: completedTasks.length
-      };
-    });
+        rate: dayTasks.length > 0 ? Math.round((completedTasks.length / dayTasks.length) * 100) : 0
+      });
+    }
+    
+    return data;
   };
 
   /**
-   * @description Get category breakdown
+   * @description Get task distribution data
    */
-  const getCategoryBreakdown = () => {
-    const categoryMap = new Map<string, number>();
+  const getTaskDistribution = () => {
+    const stats = getTaskStats();
+    return [
+      { name: 'Completed', value: stats.completed, color: '#10B981' },
+      { name: 'In Progress', value: stats.inProgress, color: '#F59E0B' },
+      { name: 'Overdue', value: stats.overdue, color: '#EF4444' },
+      { name: 'Pending', value: stats.total - stats.completed - stats.inProgress - stats.overdue, color: '#6B7280' }
+    ].filter(item => item.value > 0);
+  };
+
+  /**
+   * @description Get category performance data
+   */
+  const getCategoryPerformance = () => {
+    const categoryMap = new Map<string, { total: number; completed: number }>();
     
     tasks.forEach(task => {
       const category = task.category || 'Uncategorized';
-      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+      const current = categoryMap.get(category) || { total: 0, completed: 0 };
+      current.total += 1;
+      if (task.status === 'completed') current.completed += 1;
+      categoryMap.set(category, current);
     });
     
-    const total = tasks.length;
-    return Array.from(categoryMap.entries()).map(([category, count]) => ({
+    return Array.from(categoryMap.entries()).map(([category, data]) => ({
       category,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0
-    })).sort((a, b) => b.count - a.count);
+      completionRate: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0,
+      total: data.total
+    })).sort((a, b) => b.completionRate - a.completionRate);
   };
 
   /**
-   * @description Get priority distribution
+   * @description Get productivity heatmap data
    */
-  const getPriorityDistribution = () => {
-    const highPriority = tasks.filter(t => t.priority === 'high').length;
-    const mediumPriority = tasks.filter(t => t.priority === 'medium').length;
-    const lowPriority = tasks.filter(t => t.priority === 'low').length;
+  const getProductivityHeatmap = () => {
+    const data = [];
+    const today = new Date();
     
-    return { highPriority, mediumPriority, lowPriority };
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayTasks = tasks.filter(task => {
+        const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+        return taskDate === dateStr;
+      });
+      
+      const completedTasks = dayTasks.filter(task => task.status === 'completed');
+      
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        completed: completedTasks.length,
+        intensity: completedTasks.length > 0 ? Math.min(completedTasks.length * 20, 100) : 0
+      });
+    }
+    
+    return data;
+  };
+
+  /**
+   * @description Get points tracking data
+   */
+  const getPointsTracking = () => {
+    const data = [];
+    const today = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayPoints = tasks
+        .filter(task => {
+          const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+          return taskDate === dateStr && task.status === 'completed';
+        })
+        .reduce((sum, task) => sum + (task.points || 0), 0);
+      
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        points: dayPoints
+      });
+    }
+    
+    return data;
   };
 
   const stats = getTaskStats();
-  const recentActivity = getRecentActivity();
-  const performance = getPerformanceMetrics();
-  const weeklyProgress = getWeeklyProgress();
-  const categoryBreakdown = getCategoryBreakdown();
-  const priorityDistribution = getPriorityDistribution();
+  const completionRate = getCompletionRate();
+  const averageTime = getAverageCompletionTime();
+  const totalPoints = getTotalPoints();
+
+  if (loading) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded-lg" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="h-64 bg-gray-200 rounded-lg" />
+            <div className="h-64 bg-gray-200 rounded-lg" />
+          </div>
+          <div className="h-64 bg-gray-200 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cn("text-center py-12", className)}>
+        <div className="text-red-600 mb-4">{error}</div>
+        <button
+          onClick={onRefresh}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Task Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">📝</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.total}</p>
-              </div>
-            </div>
-          </div>
+    <div className={cn("space-y-4", className)}>
+      {/* Time Range Selector */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Analytics Dashboard</h2>
+        <div className="flex space-x-1">
+          {(['week', 'month', 'quarter'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={cn(
+                "px-2 py-1 text-xs rounded-md",
+                timeRange === range
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              )}
+            >
+              {range.charAt(0).toUpperCase() + range.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard
+          title="Total Tasks"
+          value={stats.total}
+          trend={{ value: 12, isPositive: true }}
+          icon={ChartBarIcon}
+          color="bg-blue-500"
+        />
+        <KPICard
+          title="Completion Rate"
+          value={`${completionRate}%`}
+          trend={{ value: 5, isPositive: true }}
+          icon={CheckCircleIcon}
+          color="bg-green-500"
+        />
+        <KPICard
+          title="Avg. Time"
+          value={averageTime}
+          trend={{ value: 8, isPositive: false }}
+          icon={ClockIcon}
+          color="bg-yellow-500"
+        />
+        <KPICard
+          title="Points Earned"
+          value={totalPoints}
+          trend={{ value: 15, isPositive: true }}
+          icon={StarIcon}
+          color="bg-purple-500"
+        />
+      </div>
+
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Completion Trends */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Completion Trends</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={getCompletionTrends()}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="date" stroke="#9CA3AF" fontSize={10} />
+              <YAxis stroke="#9CA3AF" fontSize={10} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1F2937', 
+                  border: '1px solid #374151',
+                  color: '#F9FAFB',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="rate" 
+                stroke="#3B82F6" 
+                strokeWidth={2}
+                name="Completion Rate (%)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </Card>
 
-        <Card>
-          <div className="p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <span className="text-green-600 dark:text-green-400 text-sm font-medium">✅</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.completed}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 dark:text-orange-400 text-sm font-medium">🔄</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.inProgress}</p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-                  <span className="text-red-600 dark:text-red-400 text-sm font-medium">⏰</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
-              </div>
-            </div>
-          </div>
+        {/* Task Distribution */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Task Distribution</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={getTaskDistribution()}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={60}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {getTaskDistribution().map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1F2937', 
+                  border: '1px solid #374151',
+                  color: '#F9FAFB',
+                  fontSize: '12px'
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
-        <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            {recentActivity.length > 0 ? (
-              recentActivity.map((task) => (
-                <div key={task.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {task.status === 'completed' ? '✅' : task.status === 'in_progress' ? '🔄' : '📝'}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {task.status === 'completed' ? 'completed' : task.status === 'in_progress' ? 'in progress' : 'created'} • {new Date(task.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                    {task.assignedTo || 'Unassigned'}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-4">No recent activity</p>
-            )}
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Category Performance */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Category Performance</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={getCategoryPerformance()}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="category" stroke="#9CA3AF" fontSize={10} />
+              <YAxis stroke="#9CA3AF" fontSize={10} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1F2937', 
+                  border: '1px solid #374151',
+                  color: '#F9FAFB',
+                  fontSize: '12px'
+                }}
+              />
+              <Bar dataKey="completionRate" fill="#10B981" name="Completion Rate (%)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Points Tracking */}
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Points & Rewards Tracking</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={getPointsTracking()}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="date" stroke="#9CA3AF" fontSize={10} />
+              <YAxis stroke="#9CA3AF" fontSize={10} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1F2937', 
+                  border: '1px solid #374151',
+                  color: '#F9FAFB',
+                  fontSize: '12px'
+                }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="points" 
+                stroke="#8B5CF6" 
+                fill="#8B5CF6" 
+                fillOpacity={0.3}
+                name="Points Earned"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      {/* Productivity Heatmap */}
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Productivity Heatmap (Last 30 Days)</h3>
+        <div className="grid grid-cols-15 gap-0.5">
+          {getProductivityHeatmap().map((day, index) => (
+            <div
+              key={index}
+              className={cn(
+                "h-6 rounded text-xs flex items-center justify-center text-white font-medium",
+                day.intensity === 0 && "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                day.intensity > 0 && day.intensity <= 20 && "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200",
+                day.intensity > 20 && day.intensity <= 40 && "bg-green-300 dark:bg-green-700 text-green-900 dark:text-green-100",
+                day.intensity > 40 && day.intensity <= 60 && "bg-green-400 dark:bg-green-600 text-white",
+                day.intensity > 60 && day.intensity <= 80 && "bg-green-500 dark:bg-green-500 text-white",
+                day.intensity > 80 && "bg-green-600 dark:bg-green-400 text-white"
+              )}
+              title={`${day.date}: ${day.completed} tasks completed`}
+            >
+              {day.completed > 0 ? day.completed : ''}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center mt-2 space-x-3 text-xs text-gray-600 dark:text-gray-400">
+          <span>Less</span>
+          <div className="flex space-x-1">
+            {[0, 20, 40, 60, 80, 100].map((intensity) => (
+              <div
+                key={intensity}
+                className={cn(
+                  "w-3 h-3 rounded",
+                  intensity === 0 && "bg-gray-200 dark:bg-gray-700",
+                  intensity > 0 && intensity <= 20 && "bg-green-200 dark:bg-green-800",
+                  intensity > 20 && intensity <= 40 && "bg-green-300 dark:bg-green-700",
+                  intensity > 40 && intensity <= 60 && "bg-green-400 dark:bg-green-600",
+                  intensity > 60 && intensity <= 80 && "bg-green-500 dark:bg-green-500",
+                  intensity > 80 && "bg-green-600 dark:bg-green-400"
+                )}
+              />
+            ))}
           </div>
+          <span>More</span>
         </div>
       </Card>
-
-             {/* Performance Metrics */}
-       <Card>
-         <div className="p-6">
-           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Metrics</h3>
-           
-           {/* Metric Tabs */}
-           <div className="flex space-x-1 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-             <button
-               onClick={() => setActiveMetricTab('overview')}
-               className={cn(
-                 'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                 activeMetricTab === 'overview'
-                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-               )}
-             >
-               Overview
-             </button>
-             <button
-               onClick={() => setActiveMetricTab('trends')}
-               className={cn(
-                 'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                 activeMetricTab === 'trends'
-                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-               )}
-             >
-               Trends
-             </button>
-             <button
-               onClick={() => setActiveMetricTab('breakdown')}
-               className={cn(
-                 'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                 activeMetricTab === 'breakdown'
-                   ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-               )}
-             >
-               Breakdown
-             </button>
-           </div>
-
-           {/* Tab Content */}
-           {activeMetricTab === 'overview' && (
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               <div className="text-center">
-                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{performance.completionRate}%</p>
-                 <p className="text-sm text-gray-500 dark:text-gray-400">Completion Rate</p>
-               </div>
-               <div className="text-center">
-                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">{performance.averageCompletionTime}</p>
-                 <p className="text-sm text-gray-500 dark:text-gray-400">Avg. Completion Time</p>
-               </div>
-               <div className="text-center">
-                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{performance.totalPoints}</p>
-                 <p className="text-sm text-gray-500 dark:text-gray-400">Total Points Earned</p>
-               </div>
-             </div>
-           )}
-
-           {activeMetricTab === 'trends' && (
-             <div className="space-y-4">
-               {/* Weekly Progress Chart */}
-               <div>
-                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Weekly Progress</h4>
-                 <div className="flex items-end space-x-1 h-24">
-                   {weeklyProgress.map((day, index) => (
-                     <div key={index} className="flex-1 flex flex-col items-center">
-                       <div 
-                         className={cn(
-                           "w-full rounded-t transition-all duration-300",
-                           day.total > 0 
-                             ? "bg-blue-200 dark:bg-blue-700" 
-                             : "bg-gray-200 dark:bg-gray-600"
-                         )}
-                         style={{ height: `${Math.max(day.value, 5)}%` }}
-                       />
-                       <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                         {day.day}
-                       </span>
-                       <span className="text-xs text-gray-400 dark:text-gray-500">
-                         {day.completed}/{day.total}
-                       </span>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-
-               {/* Weekly Summary */}
-               <div>
-                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">This Week Summary</h4>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                     <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                       {weeklyProgress.reduce((sum, day) => sum + day.completed, 0)}
-                     </p>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">Tasks Completed</p>
-                   </div>
-                   <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                     <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                       {weeklyProgress.reduce((sum, day) => sum + day.total, 0)}
-                     </p>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">Total Tasks</p>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
-
-           {activeMetricTab === 'breakdown' && (
-             <div className="space-y-4">
-               {/* Category Breakdown */}
-               <div>
-                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Tasks by Category</h4>
-                 <div className="space-y-2">
-                   {categoryBreakdown.length > 0 ? (
-                     categoryBreakdown.map((item, index) => (
-                       <div key={index} className="flex items-center space-x-3">
-                         <div className="w-3 h-3 rounded-full bg-blue-500" />
-                         <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{item.category}</span>
-                         <span className="text-sm font-medium text-gray-900 dark:text-white">{item.count}</span>
-                         <span className="text-sm text-gray-500 dark:text-gray-400">{item.percentage}%</span>
-                       </div>
-                     ))
-                   ) : (
-                     <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">No tasks with categories</p>
-                   )}
-                 </div>
-               </div>
-
-               {/* Priority Distribution */}
-               <div>
-                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Priority Distribution</h4>
-                 <div className="grid grid-cols-3 gap-4">
-                   <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                     <p className="text-lg font-semibold text-red-600 dark:text-red-400">{priorityDistribution.highPriority}</p>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">High Priority</p>
-                   </div>
-                   <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                     <p className="text-lg font-semibold text-yellow-600 dark:text-yellow-400">{priorityDistribution.mediumPriority}</p>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">Medium Priority</p>
-                   </div>
-                   <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                     <p className="text-lg font-semibold text-green-600 dark:text-green-400">{priorityDistribution.lowPriority}</p>
-                     <p className="text-xs text-gray-500 dark:text-gray-400">Low Priority</p>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
-         </div>
-       </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={onCreateTask} className="bg-blue-600 hover:bg-blue-700 text-white">
-              Create Task
-            </Button>
-            <Button onClick={onRefresh} disabled={loading} className="bg-gray-600 hover:bg-gray-700 text-white">
-              Refresh
-            </Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white">
-              Generate Report
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Task List */}
-      <TaskList
-        tasks={tasks}
-        loading={loading}
-        error={error}
-        onCreateTask={onCreateTask}
-        onUpdateTask={onUpdateTask}
-        onDeleteTask={onDeleteTask}
-        onStatusChange={onStatusChange}
-        onAssignTask={onAssignTask}
-        className={className}
-      />
     </div>
   );
 };

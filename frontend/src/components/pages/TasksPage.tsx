@@ -504,6 +504,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                 <OverviewTab
                   tasks={tasks}
                   loading={loading}
+                  error={error}
                   onRefresh={loadTasks}
                   className={className}
                 />
@@ -518,6 +519,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                   onDeleteTask={handleTaskDelete}
                   onStatusChange={handleStatusChange}
                   onAssignTask={handleTaskAssign}
+                  onRefresh={loadTasks}
                   className={className}
                 />
               )}
