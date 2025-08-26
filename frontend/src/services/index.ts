@@ -20,9 +20,13 @@ export * from './gamificationService';
 // Goal management service
 export * from './goalService';
 
+// List management service
+export * from './listService';
+
 // Re-export service instances for convenience
 export { authService } from './authService';
 export { taskService } from './taskService';
 export { gamificationService } from './gamificationService';
 export { goalService } from './goalService';
 export { userService } from './userService';
+export { ListService } from './listService';

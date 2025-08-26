@@ -213,17 +213,17 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
         {/* Modal */}
         <div
           ref={modalRef}
-          className={cn(
-            modalVariants({ size, variant }),
-            'relative z-10 max-h-[90vh] overflow-hidden',
-            className
-          )}
+                  className={cn(
+          modalVariants({ size, variant }),
+          'relative z-10 max-h-[90vh] overflow-hidden dark:bg-gray-800',
+          className
+        )}
           tabIndex={-1}
           {...props}
         >
           {/* Header */}
           {(header || title || showCloseButton) && (
-            <div className={cn('flex items-start justify-between p-6 pb-0', headerClassName)}>
+            <div className={cn('flex items-start justify-between p-6 pb-0 border-b border-gray-200 dark:border-gray-700', headerClassName)}>
               <div className="flex-1 min-w-0">
                 {header ? (
                   header
@@ -232,7 +232,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                     {title && (
                       <h2
                         id="modal-title"
-                        className="text-lg font-semibold text-gray-900"
+                        className="text-lg font-semibold text-gray-900 dark:text-white"
                       >
                         {title}
                       </h2>
@@ -240,7 +240,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                     {subtitle && (
                       <p
                         id="modal-subtitle"
-                        className="mt-1 text-sm text-gray-500"
+                        className="mt-1 text-sm text-gray-500 dark:text-gray-400"
                       >
                         {subtitle}
                       </p>
@@ -252,7 +252,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                 <button
                   type="button"
                   className={cn(
-                    'ml-4 flex-shrink-0 rounded-md p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500',
+                    'ml-4 flex-shrink-0 rounded-md p-1 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500',
                     closeButtonClassName
                   )}
                   onClick={onClose}
@@ -345,12 +345,12 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
     <div className={cn('flex items-start justify-between', className)} {...props}>
       <div className="flex-1 min-w-0">
         {title && (
-          <h2 className={cn('text-lg font-semibold text-gray-900', titleClassName)}>
+          <h2 className={cn('text-lg font-semibold text-gray-900 dark:text-white', titleClassName)}>
             {title}
           </h2>
         )}
         {subtitle && (
-          <p className={cn('mt-1 text-sm text-gray-500', subtitleClassName)}>
+          <p className={cn('mt-1 text-sm text-gray-500 dark:text-gray-400', subtitleClassName)}>
             {subtitle}
           </p>
         )}

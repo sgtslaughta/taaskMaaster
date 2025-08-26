@@ -155,12 +155,89 @@ class Task(Base):
         foreign_keys="Task.parent_task_id",
     )
     media_attachments = relationship("MediaAttachment", back_populates="task")
+    lists = relationship(
+        "TaskList",
+        secondary="task_list_associations",
+        back_populates="tasks"
+    )
 
     def __repr__(self) -> str:
         """String representation of Task."""
         return (
             f"<Task(id={self.id}, title='{self.title}', "
             f"status='{self.status}')>"
+        )
+
+
+class TaskList(Base):
+    """
+    Task list model for organizing tasks into custom groups.
+
+    Attributes:
+        id: Primary key
+        name: List name
+        description: List description
+        color: List color for visual identification
+        is_public: Whether list is public/shared
+        is_archived: Whether list is archived
+        created_by_id: User who created the list
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+    """
+
+    __tablename__ = "task_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    color = Column(String(7), default="#3B82F6")  # Hex color code
+    is_public = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    created_by = relationship("User", back_populates="created_lists")
+    tasks = relationship(
+        "Task",
+        secondary="task_list_associations",
+        back_populates="lists"
+    )
+
+    def __repr__(self) -> str:
+        """String representation of TaskList."""
+        return f"<TaskList(id={self.id}, name='{self.name}')>"
+
+
+class TaskListAssociation(Base):
+    """
+    Association table for many-to-many relationship between tasks and lists.
+    Includes position for ordering tasks within lists.
+
+    Attributes:
+        id: Primary key
+        task_id: Reference to task
+        list_id: Reference to list
+        position: Position of task within the list (for ordering)
+        added_at: When task was added to list
+    """
+
+    __tablename__ = "task_list_associations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    list_id = Column(Integer, ForeignKey("task_lists.id"), nullable=False)
+    position = Column(Integer, default=0)  # For ordering tasks within list
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        """String representation of TaskListAssociation."""
+        return (
+            f"<TaskListAssociation(task_id={self.task_id}, "
+            f"list_id={self.list_id}, position={self.position})>"
         )
 
 

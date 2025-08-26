@@ -18,6 +18,7 @@ from app.api import (
     auth_router,
     gamification_router,
     goals_router,
+    lists_router,
     media_router,
     redis_router,
     tasks_router,
@@ -108,6 +109,7 @@ fastapi_app.include_router(users_router)
 fastapi_app.include_router(tasks_router)
 fastapi_app.include_router(goals_router)
 fastapi_app.include_router(gamification_router)
+fastapi_app.include_router(lists_router)
 fastapi_app.include_router(media_router)
 fastapi_app.include_router(redis_router)
 

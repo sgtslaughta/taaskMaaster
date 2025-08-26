@@ -60,6 +60,7 @@ class User(Base):
     goals = relationship("Goal", back_populates="user")
     achievements = relationship("UserAchievement", back_populates="user")
     points = relationship("Points", back_populates="user")
+    created_lists = relationship("TaskList", back_populates="created_by")
 
     def __repr__(self) -> str:
         """String representation of User."""

@@ -294,3 +294,92 @@ class TaskDependencyResponse(TaskDependencyBase):
 
     class Config:
         from_attributes = True
+
+
+# Task List Schemas
+class TaskListBase(BaseModel):
+    """Base schema for task list data."""
+    
+    name: str
+    description: Optional[str] = None
+    color: str = "#3B82F6"
+    is_public: bool = False
+    is_archived: bool = False
+
+
+class TaskListCreate(TaskListBase):
+    """Schema for creating a new task list."""
+    pass
+
+
+class TaskListUpdate(BaseModel):
+    """Schema for updating a task list."""
+    
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    is_public: Optional[bool] = None
+    is_archived: Optional[bool] = None
+
+
+class TaskListResponse(TaskListBase):
+    """Schema for task list response."""
+    
+    id: int
+    created_by_id: int
+    created_at: datetime
+    updated_at: datetime
+    task_count: int = 0
+    completed_task_count: int = 0
+    
+    class Config:
+        from_attributes = True
+
+
+class TaskListWithTasks(TaskListResponse):
+    """Schema for task list with associated tasks."""
+    
+    tasks: List[TaskResponse] = []
+
+
+class TaskListAssociationCreate(BaseModel):
+    """Schema for adding a task to a list."""
+    
+    task_id: int
+    position: Optional[int] = None
+
+
+class TaskListAssociationUpdate(BaseModel):
+    """Schema for updating task position in list."""
+    
+    position: int
+
+
+class TaskListAssociationResponse(BaseModel):
+    """Schema for task list association response."""
+    
+    id: int
+    task_id: int
+    list_id: int
+    position: int
+    added_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class TaskListBulkUpdate(BaseModel):
+    """Schema for bulk updating task positions in a list."""
+    
+    task_positions: List[Dict[str, int]]  # [{"task_id": 1, "position": 0}, ...]
+
+
+class TaskListStats(BaseModel):
+    """Schema for task list statistics."""
+    
+    total_lists: int
+    total_tasks: int
+    completed_tasks: int
+    completion_rate: float
+    most_active_list: Optional[str] = None
+    recent_activity: List[Dict[str, Any]] = []
