@@ -29,6 +29,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-taaskmaaster-media}
       MINIO_SECURE: ${MINIO_SECURE:-false}
+      DISABLE_RATE_LIMITING: ${DISABLE_RATE_LIMITING:-false}
+      DISABLE_LOGIN_RATE_LIMIT: ${DISABLE_LOGIN_RATE_LIMIT:-true}
     volumes:
       - ./backend:/app
       - backend_data:/app/data

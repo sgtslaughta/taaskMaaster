@@ -29,6 +29,7 @@ from app.schemas.task import (
     TaskTemplateCreate,
     TaskUpdate,
 )
+from app.services.redis_service import redis_service
 
 logger = get_logger(__name__)
 
@@ -78,6 +79,11 @@ class TaskService:
         self.db.commit()
         self.db.refresh(task)
 
+        # Invalidate cache for the user
+        redis_service.invalidate_task_cache(created_by_id, task.id)
+        if task.assigned_to_id and task.assigned_to_id != created_by_id:
+            redis_service.invalidate_task_cache(task.assigned_to_id, task.id)
+
         logger.info(f"Created task {task.id} by user {created_by_id}")
         return task
 
@@ -92,7 +98,15 @@ class TaskService:
         Returns:
             Task instance or None
         """
-        return (
+        # Try to get from cache first
+        cached_task = redis_service.get_task_details(task_id)
+        if cached_task and cached_task.get("user_id") == user_id:
+            logger.info(f"Task {task_id} retrieved from cache")
+            # Convert back to Task object if needed
+            return self._dict_to_task(cached_task)
+        
+        # Get from database
+        task = (
             self.db.query(Task)
             .filter(
                 Task.id == task_id,
@@ -103,6 +117,13 @@ class TaskService:
             )
             .first()
         )
+        
+        # Cache the task if found
+        if task:
+            task_dict = self._task_to_dict(task)
+            redis_service.cache_task_details(task_id, task_dict)
+        
+        return task
 
     def get_tasks(
         self,
@@ -131,6 +152,16 @@ class TaskService:
         Returns:
             Tuple of (tasks, total_count)
         """
+        # Try to get from cache if no filters applied (most common case)
+        if not any([status, priority, category_id, assigned_to_id, search]) and skip == 0:
+            cached_tasks = redis_service.get_user_tasks(user_id)
+            if cached_tasks:
+                logger.info(f"User {user_id} tasks retrieved from cache")
+                # Convert cached data back to Task objects
+                tasks = [self._dict_to_task(task_dict) for task_dict in cached_tasks[:limit]]
+                return tasks, len(cached_tasks)
+        
+        # Get from database
         query = self.db.query(Task).filter(
             or_(Task.created_by_id == user_id, Task.assigned_to_id == user_id)
         )
@@ -158,6 +189,11 @@ class TaskService:
             .limit(limit)
             .all()
         )
+
+        # Cache the results if no filters applied
+        if not any([status, priority, category_id, assigned_to_id, search]) and skip == 0:
+            task_dicts = [self._task_to_dict(task) for task in tasks]
+            redis_service.cache_user_tasks(user_id, task_dicts)
 
         return tasks, total
 
@@ -195,6 +231,11 @@ class TaskService:
         self.db.commit()
         self.db.refresh(task)
 
+        # Invalidate cache for the user
+        redis_service.invalidate_task_cache(user_id, task_id)
+        if task.assigned_to_id and task.assigned_to_id != user_id:
+            redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
+
         logger.info(f"Updated task {task_id} by user {user_id}")
         return task
 
@@ -215,6 +256,11 @@ class TaskService:
 
         self.db.delete(task)
         self.db.commit()
+
+        # Invalidate cache for the user
+        redis_service.invalidate_task_cache(user_id, task_id)
+        if task.assigned_to_id and task.assigned_to_id != user_id:
+            redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
 
         logger.info(f"Deleted task {task_id} by user {user_id}")
         return True
@@ -695,3 +741,70 @@ class TaskService:
             "dependencies": dependencies_list,
             "media_attachments": media_list,
         }
+
+    def _task_to_dict(self, task: Task) -> Dict[str, Any]:
+        """
+        Convert Task object to dictionary for caching.
+        
+        Args:
+            task: Task object
+            
+        Returns:
+            Dictionary representation of task
+        """
+        return {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "status": task.status.value,
+            "priority": task.priority.value,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            "estimated_hours": task.estimated_hours,
+            "actual_hours": task.actual_hours,
+            "points": task.points,
+            "is_recurring": task.is_recurring,
+            "recurrence_pattern": task.recurrence_pattern,
+            "created_by_id": task.created_by_id,
+            "assigned_to_id": task.assigned_to_id,
+            "category_id": task.category_id,
+            "template_id": task.template_id,
+            "parent_task_id": task.parent_task_id,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat(),
+            "user_id": task.created_by_id,  # For cache key identification
+        }
+
+    def _dict_to_task(self, task_dict: Dict[str, Any]) -> Task:
+        """
+        Convert dictionary back to Task object.
+        
+        Args:
+            task_dict: Dictionary representation of task
+            
+        Returns:
+            Task object
+        """
+        # Create a minimal Task object with cached data
+        task = Task()
+        task.id = task_dict["id"]
+        task.title = task_dict["title"]
+        task.description = task_dict["description"]
+        task.status = TaskStatus(task_dict["status"])
+        task.priority = TaskPriority(task_dict["priority"])
+        task.due_date = datetime.fromisoformat(task_dict["due_date"]) if task_dict["due_date"] else None
+        task.completed_at = datetime.fromisoformat(task_dict["completed_at"]) if task_dict["completed_at"] else None
+        task.estimated_hours = task_dict["estimated_hours"]
+        task.actual_hours = task_dict["actual_hours"]
+        task.points = task_dict["points"]
+        task.is_recurring = task_dict["is_recurring"]
+        task.recurrence_pattern = task_dict["recurrence_pattern"]
+        task.created_by_id = task_dict["created_by_id"]
+        task.assigned_to_id = task_dict["assigned_to_id"]
+        task.category_id = task_dict["category_id"]
+        task.template_id = task_dict["template_id"]
+        task.parent_task_id = task_dict["parent_task_id"]
+        task.created_at = datetime.fromisoformat(task_dict["created_at"])
+        task.updated_at = datetime.fromisoformat(task_dict["updated_at"])
+        
+        return task

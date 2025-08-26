@@ -6,6 +6,8 @@
  */
 
 import React from 'react';
+import { TaskList, Task as FrontendTask } from '../../tasks';
+import { Button } from '../../../design-system/components/Button';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
 
@@ -13,6 +15,38 @@ import { cn } from '../../../design-system/utils/cn';
  * @description Tasks tab component props
  */
 export interface TasksTabProps {
+  /**
+   * @description Tasks to display
+   */
+  tasks: FrontendTask[];
+  /**
+   * @description Loading state
+   */
+  loading: boolean;
+  /**
+   * @description Error state
+   */
+  error: string | null;
+  /**
+   * @description Function to handle task creation
+   */
+  onCreateTask: () => void;
+  /**
+   * @description Function to handle task update
+   */
+  onUpdateTask: (taskId: string, updates: Partial<FrontendTask>) => void;
+  /**
+   * @description Function to handle task deletion
+   */
+  onDeleteTask: (taskId: string) => void;
+  /**
+   * @description Function to handle task status change
+   */
+  onStatusChange: (taskId: string, status: FrontendTask['status']) => void;
+  /**
+   * @description Function to handle task assignment
+   */
+  onAssignTask: (taskId: string, userId: string) => void;
   /**
    * @description Additional CSS classes
    */
@@ -24,7 +58,17 @@ export interface TasksTabProps {
  * @param props - Tasks tab component props
  * @returns Tasks tab component
  */
-export const TasksTab: React.FC<TasksTabProps> = ({ className }) => {
+export const TasksTab: React.FC<TasksTabProps> = ({ 
+  tasks,
+  loading,
+  error,
+  onCreateTask,
+  onUpdateTask,
+  onDeleteTask,
+  onStatusChange,
+  onAssignTask,
+  className 
+}) => {
   return (
     <div className={cn('space-y-6', className)}>
       <Card>
@@ -46,6 +90,34 @@ export const TasksTab: React.FC<TasksTabProps> = ({ className }) => {
           </div>
         </div>
       </Card>
+
+      {/* Task Management Actions */}
+      <Card>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Task Management</h3>
+            <Button onClick={onCreateTask} className="bg-blue-600 hover:bg-blue-700 text-white">
+              Add Task
+            </Button>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Create, edit, and manage your tasks with advanced filtering and organization capabilities.
+          </p>
+        </div>
+      </Card>
+
+      {/* Task List */}
+      <TaskList
+        tasks={tasks}
+        loading={loading}
+        error={error}
+        onCreateTask={onCreateTask}
+        onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
+        onStatusChange={onStatusChange}
+        onAssignTask={onAssignTask}
+        className={className}
+      />
 
       {/* Placeholder for future content */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

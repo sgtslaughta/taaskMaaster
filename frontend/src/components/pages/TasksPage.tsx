@@ -504,18 +504,22 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                 <OverviewTab
                   tasks={tasks}
                   loading={loading}
+                  onRefresh={loadTasks}
+                  className={className}
+                />
+              )}
+              {activeTab === 'tasks' && (
+                <TasksTab
+                  tasks={tasks}
+                  loading={loading}
                   error={error}
                   onCreateTask={handleCreateTask}
                   onUpdateTask={handleTaskUpdate}
                   onDeleteTask={handleTaskDelete}
                   onStatusChange={handleStatusChange}
                   onAssignTask={handleTaskAssign}
-                  onRefresh={loadTasks}
                   className={className}
                 />
-              )}
-              {activeTab === 'tasks' && (
-                <TasksTab className={className} />
               )}
               {activeTab === 'lists' && (
                 <ListsTab className={className} />

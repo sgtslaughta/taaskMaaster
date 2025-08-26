@@ -10,7 +10,8 @@ import {
   ChartBarIcon, 
   ClipboardDocumentListIcon, 
   ListBulletIcon, 
-  SwatchIcon 
+  SwatchIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 import { cn } from '../../design-system/utils/cn';
 
@@ -82,6 +83,13 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
       className
     )}>
       <div className="flex flex-col">
+        {/* Hamburger Menu Icon - Only visible when collapsed */}
+        <div className="p-2 border-b border-gray-200 dark:border-gray-700 opacity-100 group-hover:opacity-0 transition-opacity duration-300 h-auto group-hover:h-0 overflow-hidden">
+          <div className="flex items-center justify-center">
+            <Bars3Icon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+          </div>
+        </div>
+
         {/* Header - Only visible on hover */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 h-0 group-hover:h-auto overflow-hidden">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Task Views</h3>
@@ -103,7 +111,8 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                   : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700',
                 tab.disabled && 'opacity-50 cursor-not-allowed',
-                'justify-center group-hover:justify-start'
+                'justify-center group-hover:justify-start',
+                'group-hover:pl-2'
               )}
               title={tab.label}
             >
@@ -112,7 +121,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
                 activeTab === tab.id
                   ? 'text-blue-500 dark:text-blue-400'
                   : 'text-gray-400 dark:text-gray-500',
-                'group-hover:mr-3'
+                'ml-2 group-hover:mr-3'
               )} />
               <span className="flex-1 text-left opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ml-3 w-0 group-hover:w-auto overflow-hidden">
                 {tab.label}

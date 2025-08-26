@@ -19,6 +19,7 @@ from app.api import (
     gamification_router,
     goals_router,
     media_router,
+    redis_router,
     tasks_router,
     users_router,
 )
@@ -28,6 +29,7 @@ from app.core.monitoring import (
     get_health_status,
     get_metrics,
 )
+from app.core.rate_limiting import rate_limit_middleware
 from app.services.storage_service import MinIOStorageService
 
 # Configure logging
@@ -56,6 +58,9 @@ fastapi_app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"],
 )
+
+# Add rate limiting middleware
+fastapi_app.middleware("http")(rate_limit_middleware)
 
 
 @fastapi_app.middleware("http")
@@ -104,6 +109,7 @@ fastapi_app.include_router(tasks_router)
 fastapi_app.include_router(goals_router)
 fastapi_app.include_router(gamification_router)
 fastapi_app.include_router(media_router)
+fastapi_app.include_router(redis_router)
 
 # Create the final app with ASGI middleware
 app = MetricsMiddleware(fastapi_app)
@@ -204,9 +210,27 @@ async def initialize_minio() -> None:
         logger.info("Continuing without MinIO storage service")
 
 
+async def initialize_redis() -> None:
+    """Initialize Redis service."""
+    try:
+        from app.services.redis_service import redis_service
+        if redis_service.available:
+            logger.info("Redis service initialized successfully")
+        else:
+            logger.warning("Redis service not available")
+    except Exception as e:
+        logger.warning(f"Redis service not available: {e}")
+        logger.info("Continuing without Redis service")
+
+
 async def cleanup_minio() -> None:
     """Cleanup MinIO storage service."""
     logger.info("MinIO storage service cleanup completed")
+
+
+async def cleanup_redis() -> None:
+    """Cleanup Redis service."""
+    logger.info("Redis service cleanup completed")
 
 
 # Startup event
@@ -222,7 +246,7 @@ async def startup_event():
     logger.info("Database tables created")
 
     # Initialize services here
-    # await initialize_redis()
+    await initialize_redis()
     await initialize_minio()
 
     logger.info("TaaskMaaster API startup complete")
@@ -236,7 +260,7 @@ async def shutdown_event():
 
     # Cleanup services here
     # await cleanup_database()
-    # await cleanup_redis()
+    await cleanup_redis()
     await cleanup_minio()
 
     logger.info("TaaskMaaster API shutdown complete")

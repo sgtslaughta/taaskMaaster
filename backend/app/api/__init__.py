@@ -8,6 +8,7 @@ from .auth import router as auth_router
 from .gamification import router as gamification_router
 from .goals import router as goals_router
 from .media import router as media_router
+from .redis import router as redis_router
 from .tasks import router as tasks_router
 from .users import router as users_router
 
