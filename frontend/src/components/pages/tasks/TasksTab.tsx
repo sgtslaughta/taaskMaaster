@@ -1,17 +1,15 @@
 /**
  * @fileoverview Tasks Tab Component for TaaskMaaster
- * @description Comprehensive task management tab with quick actions, filtering, and organization
+ * @description Comprehensive task management tab with table layout and advanced controls
  * @author TaaskMaaster Team
  * @version 2.0.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TaskList, Task as FrontendTask } from '../../tasks';
 import { Button } from '../../../design-system/components/Button';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
-
-
 import { TaskDetailModal } from '../../tasks/TaskDetailModal';
 import { BulkEditModal } from '../../tasks/BulkEditModal';
 import { TaskExportModal, TaskExportData } from '../../tasks/TaskExportModal';
@@ -27,7 +25,18 @@ import {
   ExclamationTriangleIcon,
   Squares2X2Icon,
   ListBulletIcon,
-  CheckIcon
+  CheckIcon,
+  TrashIcon,
+  PencilIcon,
+  UserIcon,
+  CalendarIcon,
+  TagIcon,
+  StarIcon,
+  Cog6ToothIcon,
+  ViewColumnsIcon,
+  AdjustmentsHorizontalIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -93,71 +102,272 @@ export interface TasksTabProps {
 }
 
 /**
- * @description Quick Actions Bar component
+ * @description Table Toolbar component
  */
-interface QuickActionsBarProps {
+interface TableToolbarProps {
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  filters: any;
+  onFilterChange: (filter: string, value: string) => void;
+  onClearFilters: () => void;
+  viewMode: 'compact' | 'expanded';
+  onViewModeChange: (mode: 'compact' | 'expanded') => void;
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+  onSortChange: (sort: string) => void;
+  selectedTasksCount: number;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
   onCreateTask: () => void;
-  onRefresh: () => void;
   onExport: () => void;
   onBulkEdit: () => void;
-  selectedTasksCount: number;
+  onRefresh: () => void;
 }
 
-const QuickActionsBar: React.FC<QuickActionsBarProps> = ({ 
-  onCreateTask, 
-  onRefresh, 
-  onExport, 
+const TableToolbar: React.FC<TableToolbarProps> = ({
+  searchTerm,
+  onSearchChange,
+  filters,
+  onFilterChange,
+  onClearFilters,
+  viewMode,
+  onViewModeChange,
+  sortBy,
+  sortDirection,
+  onSortChange,
+  selectedTasksCount,
+  onSelectAll,
+  onDeselectAll,
+  onCreateTask,
+  onExport,
   onBulkEdit,
-  selectedTasksCount 
-}) => (
-  <Card className="p-4">
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center space-x-3">
-        <Button onClick={onCreateTask} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Create Task
-        </Button>
-        <Button onClick={onRefresh} className="bg-gray-600 hover:bg-gray-700 text-white">
-          <EyeIcon className="w-4 h-4 mr-2" />
-          View All Tasks
-        </Button>
-        <Button onClick={onExport} className="bg-green-600 hover:bg-green-700 text-white">
-          <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          Export Tasks
-        </Button>
+  onRefresh
+}) => {
+  const [showFilters, setShowFilters] = useState(false);
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+      <div className="flex flex-col space-y-4">
+        {/* Top Row - Search and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search tasks..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {/* View Mode Toggle */}
+            <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg">
+              <button
+                onClick={() => onViewModeChange('compact')}
+                className={cn(
+                  "p-2 text-sm transition-colors",
+                  viewMode === 'compact'
+                    ? "bg-blue-600 text-white"
+                    : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                )}
+                title="Compact View"
+              >
+                <ListBulletIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onViewModeChange('expanded')}
+                className={cn(
+                  "p-2 text-sm transition-colors",
+                  viewMode === 'expanded'
+                    ? "bg-blue-600 text-white"
+                    : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                )}
+                title="Expanded View"
+              >
+                <Squares2X2Icon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "p-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors",
+                showFilters 
+                  ? "bg-blue-600 text-white border-blue-600" 
+                  : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+              )}
+              title="Toggle Filters"
+            >
+              <FunnelIcon className="w-4 h-4" />
+            </button>
+
+
+
+            {/* Selection Controls */}
+            {selectedTasksCount > 0 ? (
+              <button
+                onClick={onDeselectAll}
+                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                title="Deselect All"
+              >
+                <CheckIcon className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={onSelectAll}
+                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                title="Select All"
+              >
+                <CheckIcon className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Action Buttons */}
+            <button
+              onClick={onCreateTask}
+              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Create New Task"
+            >
+              <PlusIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={onRefresh}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              title="Refresh Tasks"
+            >
+              <EyeIcon className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={onExport}
+              className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              title="Export Tasks"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4" />
+            </button>
+
+            {selectedTasksCount > 0 && (
+              <button
+                onClick={onBulkEdit}
+                className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                title={`Bulk Edit (${selectedTasksCount} selected)`}
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Selection Count */}
         {selectedTasksCount > 0 && (
-          <Button onClick={onBulkEdit} className="bg-purple-600 hover:bg-purple-700 text-white">
-            <Squares2X2Icon className="w-4 h-4 mr-2" />
-            Bulk Edit ({selectedTasksCount})
-          </Button>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {selectedTasksCount} task{selectedTasksCount !== 1 ? 's' : ''} selected
+          </div>
+        )}
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <select
+              value={filters.status}
+              onChange={(e) => onFilterChange('status', e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="overdue">Overdue</option>
+            </select>
+
+            <select
+              value={filters.priority}
+              onChange={(e) => onFilterChange('priority', e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Priority</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+
+            <select
+              value={filters.category}
+              onChange={(e) => onFilterChange('category', e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Categories</option>
+              <option value="chores">Chores</option>
+              <option value="homework">Homework</option>
+              <option value="activities">Activities</option>
+              <option value="shopping">Shopping</option>
+            </select>
+
+            <select
+              value={filters.assignee}
+              onChange={(e) => onFilterChange('assignee', e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Assignees</option>
+              <option value="unassigned">Unassigned</option>
+              <option value="assigned">Assigned</option>
+            </select>
+
+            <select
+              value={filters.rewardType}
+              onChange={(e) => onFilterChange('rewardType', e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Rewards</option>
+              <option value="points">Points</option>
+              <option value="monetary">Money</option>
+              <option value="time">Time</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
         )}
       </div>
-      <div className="text-sm text-gray-600">
-        {new Date().toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}
-      </div>
     </div>
-  </Card>
-);
+  );
+};
 
 /**
- * @description Recent Activity Widget component
+ * @description Task Table component
  */
-interface RecentActivityWidgetProps {
+interface TaskTableProps {
   tasks: FrontendTask[];
+  viewMode: 'compact' | 'expanded';
+  selectedTasks: FrontendTask[];
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+  onSortChange: (sort: string) => void;
+  onTaskSelect: (task: FrontendTask, selected: boolean) => void;
+  onTaskClick: (task: FrontendTask) => void;
+  onStatusChange: (taskId: string, status: FrontendTask['status']) => void;
+  onDeleteTask: (taskId: string) => void;
+  onCompleteTask?: (taskId: string) => void;
 }
 
-const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = ({ tasks }) => {
-  const getRecentActivity = () => {
-    return tasks
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 5);
-  };
-
+const TaskTable: React.FC<TaskTableProps> = ({
+  tasks,
+  viewMode,
+  selectedTasks,
+  sortBy,
+  sortDirection,
+  onSortChange,
+  onTaskSelect,
+  onTaskClick,
+  onStatusChange,
+  onDeleteTask,
+  onCompleteTask
+}) => {
   const getStatusIcon = (status: FrontendTask['status']) => {
     switch (status) {
       case 'completed':
@@ -171,258 +381,333 @@ const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = ({ tasks }) =>
     }
   };
 
-  const getStatusText = (status: FrontendTask['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'completed';
-      case 'in_progress':
-        return 'in progress';
-      case 'overdue':
-        return 'overdue';
+  const getPriorityColor = (priority: FrontendTask['priority']) => {
+    switch (priority) {
+      case 'urgent':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400';
+      case 'high':
+        return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'low':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400';
       default:
-        return 'created';
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400';
     }
   };
 
-  const recentActivity = getRecentActivity();
+  const getRewardDisplay = (task: FrontendTask) => {
+    if (!task.rewardType || task.rewardValue === 0) {
+      return null;
+    }
 
-  return (
-    <Card className="p-4">
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">Recent Activity</h3>
-      <div className="space-y-2">
-        {recentActivity.length > 0 ? (
-          recentActivity.map((task) => (
-            <div key={task.id} className="flex items-center space-x-3 py-2 border-b border-gray-100 last:border-b-0">
-              {getStatusIcon(task.status)}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-                <p className="text-xs text-gray-500">
-                  {getStatusText(task.status)} • {new Date(task.updatedAt).toLocaleDateString()}
-                </p>
-              </div>
-              <span className="text-xs text-gray-400">
-                {task.assignedTo || 'Unassigned'}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
-        )}
-      </div>
-    </Card>
-  );
-};
+    let display = `${task.rewardValue}`;
+    
+    switch (task.rewardType) {
+      case 'monetary':
+        display += ' USD';
+        break;
+      case 'time':
+        display += ' min';
+        break;
+      case 'points':
+        display += ' pts';
+        break;
+      case 'custom':
+        display = task.rewardDescription || 'Custom';
+        break;
+    }
 
-/**
- * @description Search and Filters component
- */
-interface SearchAndFiltersProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  filters: {
-    status: string;
-    priority: string;
-    category: string;
-    assignee: string;
-    rewardType: string;
+    return display;
   };
-  onFilterChange: (filter: string, value: string) => void;
-  onClearFilters: () => void;
-}
 
-const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
-  searchTerm,
-  onSearchChange,
-  filters,
-  onFilterChange,
-  onClearFilters
-}) => (
-  <Card className="p-4">
-    <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search tasks..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+  const isTaskSelected = (task: FrontendTask) => {
+    return selectedTasks.some(selectedTask => selectedTask.id === task.id);
+  };
+
+  if (viewMode === 'compact') {
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  checked={selectedTasks.length === tasks.length && tasks.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      tasks.forEach(task => onTaskSelect(task, true));
+                    } else {
+                      tasks.forEach(task => onTaskSelect(task, false));
+                    }
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => onSortChange('title')}
+              >
+                <div className="flex items-center justify-between">
+                  <span>Task</span>
+                  {sortBy === 'title' && (
+                    sortDirection === 'asc' ? 
+                      <ChevronUpIcon className="w-4 h-4" /> : 
+                      <ChevronDownIcon className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => onSortChange('status')}
+              >
+                <div className="flex items-center justify-between">
+                  <span>Status</span>
+                  {sortBy === 'status' && (
+                    sortDirection === 'asc' ? 
+                      <ChevronUpIcon className="w-4 h-4" /> : 
+                      <ChevronDownIcon className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => onSortChange('priority')}
+              >
+                <div className="flex items-center justify-between">
+                  <span>Priority</span>
+                  {sortBy === 'priority' && (
+                    sortDirection === 'asc' ? 
+                      <ChevronUpIcon className="w-4 h-4" /> : 
+                      <ChevronDownIcon className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Assigned To
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => onSortChange('due')}
+              >
+                <div className="flex items-center justify-between">
+                  <span>Due Date</span>
+                  {sortBy === 'due' && (
+                    sortDirection === 'asc' ? 
+                      <ChevronUpIcon className="w-4 h-4" /> : 
+                      <ChevronDownIcon className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Reward
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            {tasks.map((task) => {
+              const isSelected = isTaskSelected(task);
+              const rewardDisplay = getRewardDisplay(task);
+              
+              return (
+                <tr 
+                  key={task.id} 
+                  className={cn(
+                    "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer",
+                    isSelected && "bg-blue-50 dark:bg-blue-900/20"
+                  )}
+                  onClick={() => onTaskClick(task)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        onTaskSelect(task, e.target.checked);
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {task.title}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {task.category}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      {getStatusIcon(task.status)}
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        {task.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={cn(
+                      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                      getPriorityColor(task.priority)
+                    )}>
+                      {task.priority}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {task.assignedTo || 'Unassigned'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {rewardDisplay || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      {task.status !== 'completed' && onCompleteTask && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCompleteTask(task.id);
+                          }}
+                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                          title="Complete Task"
+                        >
+                          <CheckCircleIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTask(task.id);
+                        }}
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        title="Delete Task"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
+    );
+  }
 
-      {/* Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <select
-          value={filters.status}
-          onChange={(e) => onFilterChange('status', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="overdue">Overdue</option>
-        </select>
-
-        <select
-          value={filters.priority}
-          onChange={(e) => onFilterChange('priority', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Priority</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-        </select>
-
-        <select
-          value={filters.category}
-          onChange={(e) => onFilterChange('category', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Categories</option>
-          <option value="chores">Chores</option>
-          <option value="homework">Homework</option>
-          <option value="activities">Activities</option>
-          <option value="shopping">Shopping</option>
-        </select>
-
-        <select
-          value={filters.assignee}
-          onChange={(e) => onFilterChange('assignee', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Assignees</option>
-          <option value="unassigned">Unassigned</option>
-          <option value="assigned">Assigned</option>
-        </select>
-
-        <select
-          value={filters.rewardType}
-          onChange={(e) => onFilterChange('rewardType', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="">All Rewards</option>
-          <option value="points">Points</option>
-          <option value="monetary">Money</option>
-          <option value="time">Time</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-
-      {/* Clear Filters */}
-      <div className="flex justify-between items-center">
-        <button
-          onClick={onClearFilters}
-          className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
-        >
-          <FunnelIcon className="w-4 h-4 mr-1" />
-          Clear All Filters
-        </button>
-      </div>
-    </div>
-  </Card>
-);
-
-/**
- * @description View Options component
- */
-interface ViewOptionsProps {
-  viewMode: 'compact' | 'expanded';
-  onViewModeChange: (mode: 'compact' | 'expanded') => void;
-  sortBy: string;
-  onSortChange: (sort: string) => void;
-  selectedTasksCount: number;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
-}
-
-const ViewOptions: React.FC<ViewOptionsProps> = ({
-  viewMode,
-  onViewModeChange,
-  sortBy,
-  onSortChange,
-  selectedTasksCount,
-  onSelectAll,
-  onDeselectAll
-}) => {
+  // Expanded view - card layout
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-gray-700">View:</span>
-          <div className="flex border border-gray-300 rounded-lg">
-            <button
-              onClick={() => onViewModeChange('compact')}
-                          className={cn(
-              "px-3 py-1 text-sm",
-              viewMode === 'compact'
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50"
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {tasks.map((task) => {
+        const isSelected = isTaskSelected(task);
+        const rewardDisplay = getRewardDisplay(task);
+        
+        return (
+          <div 
+            key={task.id} 
+            className={cn(
+              "bg-white dark:bg-gray-800 border rounded-lg p-4 transition-colors cursor-pointer",
+              isSelected 
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
+                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
             )}
-            >
-              <ListBulletIcon className="w-4 h-4 mr-1" />
-              Compact
-            </button>
-            <button
-              onClick={() => onViewModeChange('expanded')}
-                          className={cn(
-              "px-3 py-1 text-sm",
-              viewMode === 'expanded'
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50"
-            )}
-            >
-              <Squares2X2Icon className="w-4 h-4 mr-1" />
-              Expanded
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-gray-700">Sort by:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value)}
-            className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onClick={() => onTaskClick(task)}
           >
-            <option value="created">Created Date</option>
-            <option value="due">Due Date</option>
-            <option value="priority">Priority</option>
-            <option value="status">Status</option>
-            <option value="title">Title</option>
-          </select>
-          <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-        </div>
-
-        <div className="flex items-center space-x-3">
-          {selectedTasksCount > 0 ? (
-            <button
-              onClick={onDeselectAll}
-              className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
-            >
-              <CheckIcon className="w-4 h-4 mr-1" />
-              Deselect All
-            </button>
-          ) : (
-            <button
-              onClick={onSelectAll}
-              className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
-            >
-              <CheckIcon className="w-4 h-4 mr-1" />
-              Select All
-            </button>
-          )}
-          {selectedTasksCount > 0 && (
-            <span className="text-sm text-gray-600">
-              {selectedTasksCount} selected
-            </span>
-          )}
-        </div>
-      </div>
-    </Card>
+            <div className="flex items-start justify-between mb-3">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onTaskSelect(task, e.target.checked);
+                }}
+                className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div className="flex items-center space-x-2">
+                {task.status !== 'completed' && onCompleteTask && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCompleteTask(task.id);
+                    }}
+                    className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                    title="Complete Task"
+                  >
+                    <CheckCircleIcon className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteTask(task.id);
+                  }}
+                  className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                  title="Delete Task"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{task.title}</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-3">{task.description}</p>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
+                <div className="flex items-center">
+                  {getStatusIcon(task.status)}
+                  <span className="ml-1 text-sm text-gray-900 dark:text-white">
+                    {task.status.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Priority:</span>
+                <span className={cn(
+                  "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                  getPriorityColor(task.priority)
+                )}>
+                  {task.priority}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Assigned:</span>
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {task.assignedTo || 'Unassigned'}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Due:</span>
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                </span>
+              </div>
+              
+              {rewardDisplay && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Reward:</span>
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {rewardDisplay}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
@@ -457,11 +742,65 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   });
   const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
   const [sortBy, setSortBy] = useState('created');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedTasks, setSelectedTasks] = useState<FrontendTask[]>([]);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<FrontendTask | undefined>();
+
+  // Filter and sort tasks
+  const filteredAndSortedTasks = useMemo(() => {
+    let filtered = tasks.filter(task => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           task.category.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = !filters.status || task.status === filters.status;
+      const matchesPriority = !filters.priority || task.priority === filters.priority;
+      const matchesCategory = !filters.category || task.category === filters.category;
+      const matchesAssignee = !filters.assignee || 
+        (filters.assignee === 'unassigned' && !task.assignedTo) ||
+        (filters.assignee === 'assigned' && task.assignedTo);
+      const matchesRewardType = !filters.rewardType || task.rewardType === filters.rewardType;
+
+      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignee && matchesRewardType;
+    });
+
+    // Sort tasks
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'due':
+          if (!a.dueDate && !b.dueDate) comparison = 0;
+          else if (!a.dueDate) comparison = 1;
+          else if (!b.dueDate) comparison = -1;
+          else comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          break;
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          comparison = priorityOrder[b.priority] - priorityOrder[a.priority];
+          break;
+        case 'status':
+          const statusOrder = { completed: 4, overdue: 3, in_progress: 2, pending: 1 };
+          comparison = statusOrder[b.status] - statusOrder[a.status];
+          break;
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'created':
+        default:
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          break;
+      }
+      
+      // Apply sort direction
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [tasks, searchTerm, filters, sortBy, sortDirection]);
 
   const handleFilterChange = (filter: string, value: string) => {
     setFilters(prev => ({ ...prev, [filter]: value }));
@@ -504,8 +843,19 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     }
   };
 
+  const handleSortChange = (newSortBy: string) => {
+    if (sortBy === newSortBy) {
+      // Reverse sort direction if clicking the same sort option
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field and default to desc for most fields
+      setSortBy(newSortBy);
+      setSortDirection('desc');
+    }
+  };
+
   const handleSelectAll = () => {
-    setSelectedTasks([...tasks]);
+    setSelectedTasks([...filteredAndSortedTasks]);
   };
 
   const handleDeselectAll = () => {
@@ -520,59 +870,68 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     }
   };
 
-  return (
-    <div className={cn('space-y-6', className)}>
-      {/* Quick Actions Bar */}
-      <QuickActionsBar 
-        onCreateTask={onCreateTask}
-        onRefresh={onRefresh}
-        onExport={handleExport}
-        onBulkEdit={handleBulkEdit}
-        selectedTasksCount={selectedTasks.length}
-      />
-
-      {/* Recent Activity and Search Filters */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <SearchAndFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onClearFilters={handleClearFilters}
-          />
-        </div>
-        <div>
-          <RecentActivityWidget tasks={tasks} />
-        </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600 dark:text-gray-400">Loading tasks...</span>
       </div>
+    );
+  }
 
-      {/* View Options */}
-      <ViewOptions
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <p className="text-red-600 dark:text-red-400">Error loading tasks: {error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('bg-white dark:bg-gray-900 rounded-lg shadow-sm', className)}>
+      {/* Table Toolbar */}
+      <TableToolbar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         sortBy={sortBy}
-        onSortChange={setSortBy}
+        sortDirection={sortDirection}
+        onSortChange={handleSortChange}
         selectedTasksCount={selectedTasks.length}
         onSelectAll={handleSelectAll}
         onDeselectAll={handleDeselectAll}
+        onCreateTask={onCreateTask}
+        onExport={handleExport}
+        onBulkEdit={handleBulkEdit}
+        onRefresh={onRefresh}
       />
 
-      {/* Task List */}
-      <TaskList
-        tasks={tasks}
-        loading={loading}
-        error={error}
-        onCreateTask={onCreateTask}
-        onUpdateTask={onUpdateTask}
-        onDeleteTask={onDeleteTask}
-        onStatusChange={onStatusChange}
-        onAssignTask={onAssignTask}
-        onTaskClick={handleTaskClick}
-        selectedTasks={selectedTasks}
-        onTaskSelect={handleTaskSelect}
-        className={className}
-      />
+      {/* Task Table */}
+      <div className="p-4">
+        {filteredAndSortedTasks.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p>No tasks found. Create your first task to get started!</p>
+          </div>
+        ) : (
+          <TaskTable
+            tasks={filteredAndSortedTasks}
+            viewMode={viewMode}
+            selectedTasks={selectedTasks}
+            sortBy={sortBy}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
+            onTaskSelect={handleTaskSelect}
+            onTaskClick={handleTaskClick}
+            onStatusChange={onStatusChange}
+            onDeleteTask={onDeleteTask}
+            onCompleteTask={onCompleteTask}
+          />
+        )}
+      </div>
 
       {/* Task Detail Modal */}
       <TaskDetailModal
