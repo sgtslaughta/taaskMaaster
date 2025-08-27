@@ -571,3 +571,143 @@ class NotificationService:
 
         except Exception as e:
             logger.error(f"Error sending media attachment notification: {e}")
+
+    async def notify_user_mentioned(
+        self,
+        mentioned_user: User,
+        mentioning_user: User,
+        task: Task,
+        comment: TaskComment
+    ) -> None:
+        """
+        Send notification for user mention in task comment.
+
+        Args:
+            mentioned_user: User who was mentioned
+            mentioning_user: User who made the mention
+            task: Task where the mention occurred
+            comment: Comment containing the mention
+        """
+        try:
+            # Create mention notification
+            notification = {
+                "type": NotificationType.USER_MENTIONED,
+                "timestamp": datetime.utcnow().isoformat(),
+                "notification_type": "user_mentioned",
+                "title": f"You were mentioned in {task.title}",
+                "message": f"{mentioning_user.username} mentioned you in a comment: {comment.content[:100]}{'...' if len(comment.content) > 100 else ''}",
+                "action_url": f"/tasks/{task.id}",
+                "data": {
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "comment_id": comment.id,
+                    "mentioned_by": {
+                        "id": mentioning_user.id,
+                        "username": mentioning_user.username,
+                        "first_name": mentioning_user.first_name,
+                        "last_name": mentioning_user.last_name,
+                    },
+                    "comment_content": comment.content,
+                    "mention_context": "task_comment",
+                }
+            }
+
+            # Send to mentioned user
+            await websocket_manager.send_notification(mentioned_user.id, notification)
+
+            logger.info(f"Sent mention notification to user {mentioned_user.id} from comment {comment.id}")
+
+        except Exception as e:
+            logger.error(f"Error sending mention notification: {e}")
+
+    async def notify_user_mentioned_in_message(
+        self,
+        mentioned_user: User,
+        mentioning_user: User,
+        message: DirectMessage
+    ) -> None:
+        """
+        Send notification for user mention in direct message.
+
+        Args:
+            mentioned_user: User who was mentioned
+            mentioning_user: User who made the mention
+            message: Direct message containing the mention
+        """
+        try:
+            # Create mention notification
+            notification = {
+                "type": NotificationType.USER_MENTIONED,
+                "timestamp": datetime.utcnow().isoformat(),
+                "notification_type": "user_mentioned",
+                "title": f"You were mentioned by {mentioning_user.username}",
+                "message": f"{mentioning_user.username} mentioned you in a message: {message.content[:100]}{'...' if len(message.content) > 100 else ''}",
+                "action_url": f"/messages/{mentioning_user.id}",
+                "data": {
+                    "message_id": message.id,
+                    "mentioned_by": {
+                        "id": mentioning_user.id,
+                        "username": mentioning_user.username,
+                        "first_name": mentioning_user.first_name,
+                        "last_name": mentioning_user.last_name,
+                    },
+                    "message_content": message.content,
+                    "mention_context": "direct_message",
+                }
+            }
+
+            # Send to mentioned user
+            await websocket_manager.send_notification(mentioned_user.id, notification)
+
+            logger.info(f"Sent mention notification to user {mentioned_user.id} from message {message.id}")
+
+        except Exception as e:
+            logger.error(f"Error sending message mention notification: {e}")
+
+    async def notify_user_mentioned_in_task_chat(
+        self,
+        mentioned_user: User,
+        mentioning_user: User,
+        task: Task,
+        message: TaskChatMessage
+    ) -> None:
+        """
+        Send notification for user mention in task chat message.
+
+        Args:
+            mentioned_user: User who was mentioned
+            mentioning_user: User who made the mention
+            task: Task where the mention occurred
+            message: Task chat message containing the mention
+        """
+        try:
+            # Create mention notification
+            notification = {
+                "type": NotificationType.USER_MENTIONED,
+                "timestamp": datetime.utcnow().isoformat(),
+                "notification_type": "user_mentioned",
+                "title": f"You were mentioned in {task.title}",
+                "message": f"{mentioning_user.username} mentioned you in task chat: {message.content[:100]}{'...' if len(message.content) > 100 else ''}",
+                "action_url": f"/tasks/{task.id}",
+                "data": {
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "message_id": message.id,
+                    "mentioned_by": {
+                        "id": mentioning_user.id,
+                        "username": mentioning_user.username,
+                        "first_name": mentioning_user.first_name,
+                        "last_name": mentioning_user.last_name,
+                    },
+                    "message_content": message.content,
+                    "mention_context": "task_chat",
+                }
+            }
+
+            # Send to mentioned user
+            await websocket_manager.send_notification(mentioned_user.id, notification)
+
+            logger.info(f"Sent mention notification to user {mentioned_user.id} from task chat {message.id}")
+
+        except Exception as e:
+            logger.error(f"Error sending task chat mention notification: {e}")

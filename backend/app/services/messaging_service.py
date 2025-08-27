@@ -656,3 +656,232 @@ class UserStatusService:
             self.db.commit()
 
         return True
+
+    # Message Threading methods
+    def get_conversation_threads(
+        self,
+        user1_id: int,
+        user2_id: int,
+        skip: int = 0,
+        limit: int = 20
+    ) -> List[dict]:
+        """
+        Get conversation threads between two users.
+
+        Args:
+            user1_id: First user ID
+            user2_id: Second user ID
+            skip: Number of threads to skip
+            limit: Maximum number of threads to return
+
+        Returns:
+            List of thread dictionaries with metadata
+        """
+        from sqlalchemy import func
+
+        # Get unique thread IDs with latest message info
+        subquery = (
+            self.db.query(
+                DirectMessage.thread_id,
+                func.max(DirectMessage.created_at).label('latest_message_at'),
+                func.count(DirectMessage.id).label('message_count')
+            )
+            .filter(
+                or_(
+                    and_(
+                        DirectMessage.from_user_id == user1_id,
+                        DirectMessage.to_user_id == user2_id
+                    ),
+                    and_(
+                        DirectMessage.from_user_id == user2_id,
+                        DirectMessage.to_user_id == user1_id
+                    )
+                ),
+                DirectMessage.thread_id.isnot(None)
+            )
+            .group_by(DirectMessage.thread_id)
+            .subquery()
+        )
+
+        # Get thread details with latest message
+        threads_query = (
+            self.db.query(
+                subquery.c.thread_id,
+                subquery.c.latest_message_at,
+                subquery.c.message_count,
+                DirectMessage.content.label('latest_content'),
+                DirectMessage.from_user_id.label('latest_from_user_id'),
+                User.username.label('latest_from_username')
+            )
+            .join(
+                DirectMessage,
+                and_(
+                    DirectMessage.thread_id == subquery.c.thread_id,
+                    DirectMessage.created_at == subquery.c.latest_message_at
+                )
+            )
+            .join(User, User.id == DirectMessage.from_user_id)
+            .order_by(desc(subquery.c.latest_message_at))
+            .offset(skip)
+            .limit(limit)
+        )
+
+        thread_results = threads_query.all()
+
+        threads = []
+        for thread_result in thread_results:
+            threads.append({
+                'thread_id': thread_result.thread_id,
+                'message_count': thread_result.message_count,
+                'latest_message_at': thread_result.latest_message_at,
+                'latest_message': {
+                    'content': thread_result.latest_content,
+                    'from_user_id': thread_result.latest_from_user_id,
+                    'from_username': thread_result.latest_from_username
+                }
+            })
+
+        return threads
+
+    def create_message_thread(
+        self,
+        from_user_id: int,
+        to_user_id: int,
+        initial_message: str,
+        content_type: str = "markdown",
+        media_attachment_ids: Optional[List[int]] = None
+    ) -> dict:
+        """
+        Create a new message thread between two users.
+
+        Args:
+            from_user_id: ID of user creating the thread
+            to_user_id: ID of recipient user
+            initial_message: Initial message content
+            content_type: Message content type
+            media_attachment_ids: Optional media attachments
+
+        Returns:
+            Dictionary with thread info and initial message
+        """
+        import uuid
+
+        # Generate unique thread ID
+        thread_id = str(uuid.uuid4())
+
+        # Create initial message
+        message = self.send_direct_message(
+            from_user_id=from_user_id,
+            to_user_id=to_user_id,
+            content=initial_message,
+            content_type=content_type,
+            thread_id=thread_id,
+            media_attachment_ids=media_attachment_ids
+        )
+
+        return {
+            'thread_id': thread_id,
+            'created_at': message.created_at,
+            'initial_message': message,
+            'participant_ids': [from_user_id, to_user_id]
+        }
+
+    def get_thread_messages(
+        self,
+        thread_id: str,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 50,
+        include_media: bool = True
+    ) -> List[DirectMessage]:
+        """
+        Get messages in a specific thread.
+
+        Args:
+            thread_id: Thread ID
+            user_id: ID of requesting user (for permission check)
+            skip: Number of messages to skip
+            limit: Maximum number of messages to return
+            include_media: Whether to include media attachments
+
+        Returns:
+            List of DirectMessage instances
+
+        Raises:
+            ValueError: If user doesn't have access to thread
+        """
+        # Check if user has access to this thread
+        if not self._user_has_thread_access(thread_id, user_id):
+            raise ValueError(f"User {user_id} does not have access to thread {thread_id}")
+
+        query = (
+            self.db.query(DirectMessage)
+            .filter(DirectMessage.thread_id == thread_id)
+            .order_by(DirectMessage.created_at)
+            .offset(skip)
+            .limit(limit)
+        )
+
+        if include_media:
+            query = query.options(joinedload(DirectMessage.media_attachments))
+
+        return query.all()
+
+    def get_thread_participants(self, thread_id: str) -> List[User]:
+        """
+        Get participants in a message thread.
+
+        Args:
+            thread_id: Thread ID
+
+        Returns:
+            List of User instances who are participants in the thread
+        """
+        # Get unique user IDs from messages in thread
+        participant_ids = (
+            self.db.query(DirectMessage.from_user_id)
+            .filter(DirectMessage.thread_id == thread_id)
+            .union(
+                self.db.query(DirectMessage.to_user_id)
+                .filter(DirectMessage.thread_id == thread_id)
+            )
+            .distinct()
+            .all()
+        )
+
+        user_ids = [pid[0] for pid in participant_ids]
+        
+        if not user_ids:
+            return []
+
+        return (
+            self.db.query(User)
+            .filter(User.id.in_(user_ids))
+            .all()
+        )
+
+    def _user_has_thread_access(self, thread_id: str, user_id: int) -> bool:
+        """
+        Check if user has access to a message thread.
+
+        Args:
+            thread_id: Thread ID
+            user_id: User ID
+
+        Returns:
+            True if user has access
+        """
+        # User has access if they sent or received any message in the thread
+        message_exists = (
+            self.db.query(DirectMessage)
+            .filter(
+                DirectMessage.thread_id == thread_id,
+                or_(
+                    DirectMessage.from_user_id == user_id,
+                    DirectMessage.to_user_id == user_id
+                )
+            )
+            .first()
+        )
+
+        return message_exists is not None

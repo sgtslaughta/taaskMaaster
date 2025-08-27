@@ -10,7 +10,9 @@ from .gamification import router as gamification_router
 from .goals import router as goals_router
 from .lists import router as lists_router
 from .media import router as media_router
+from .mentions import router as mentions_router
 from .messaging import router as messaging_router
+from .presence import router as presence_router
 from .redis import router as redis_router
 from .tasks import router as tasks_router
 from .users import router as users_router
@@ -25,9 +27,10 @@ __all__ = [
     "lists_router",
     "media_router",
     "users_router",
-    # New workflow and messaging routers
     "comments_router",
+    "mentions_router",
     "messaging_router",
+    "presence_router",
     "websocket_router",
     "workflow_router",
 ]

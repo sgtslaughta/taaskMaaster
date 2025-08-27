@@ -47,6 +47,12 @@ class TaskComment(Base):
     content_type = Column(String(50), default="markdown")  # markdown, html, text
     parent_comment_id = Column(Integer, ForeignKey("task_comments.id"), nullable=True)
     is_system_comment = Column(Boolean, default=False)  # For workflow changes
+    is_edited = Column(Boolean, default=False)  # Whether comment has been edited
+    edited_at = Column(DateTime, nullable=True)  # When comment was last edited
+    edit_reason = Column(Text, nullable=True)  # Reason for edit
+    is_deleted = Column(Boolean, default=False)  # Soft delete flag
+    deleted_at = Column(DateTime, nullable=True)  # When comment was deleted
+    deletion_reason = Column(Text, nullable=True)  # Reason for deletion
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -56,6 +62,7 @@ class TaskComment(Base):
     parent_comment = relationship("TaskComment", remote_side=[id])
     replies = relationship("TaskComment", back_populates="parent_comment")
     media_attachments = relationship("CommentMediaAttachment", back_populates="comment", cascade="all, delete-orphan")
+    audit_trail = relationship("CommentAuditTrail", back_populates="comment", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         """String representation of TaskComment."""
@@ -337,3 +344,31 @@ class UserStatus(Base):
         return (
             f"<UserStatus(user_id={self.user_id}, status='{self.status}')>"
         )
+
+
+class CommentAuditTrail(Base):
+    """
+    Audit trail for comment changes.
+    
+    Tracks all modifications to comments for accountability and history.
+    """
+    
+    __tablename__ = "comment_audit_trail"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("task_comments.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    action = Column(String(50), nullable=False)  # created, updated, soft_deleted, hard_deleted
+    original_content = Column(Text, nullable=True)
+    new_content = Column(Text, nullable=True)
+    edit_reason = Column(Text, nullable=True)
+    deletion_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    comment = relationship("TaskComment", back_populates="audit_trail")
+    user = relationship("User", back_populates="comment_audit_entries")
+
+    def __repr__(self) -> str:
+        """String representation of CommentAuditTrail."""
+        return f"<CommentAuditTrail(id={self.id}, comment_id={self.comment_id}, action='{self.action}')>"

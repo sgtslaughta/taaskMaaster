@@ -5,6 +5,7 @@ This package contains all SQLAlchemy models for the application.
 """
 
 from .comment import (
+    CommentAuditTrail,
     CommentMediaAttachment,
     DirectMessage,
     DirectMessageMedia,
@@ -38,6 +39,7 @@ __all__ = [
     # New comment and messaging models
     "TaskComment",
     "TaskStatusHistory",
+    "CommentAuditTrail",
     "CommentMediaAttachment",
     "DirectMessage",
     "TaskChatMessage",

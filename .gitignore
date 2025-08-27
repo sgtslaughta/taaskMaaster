@@ -220,3 +220,4 @@ docs/tasks_page_redesign_plan.md
 alembic.ini
 backend/alembic/versions/*
 taaskmaaster.db
+docs/task_workflow_enhancement_plan.md

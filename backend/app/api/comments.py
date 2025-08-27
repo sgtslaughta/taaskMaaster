@@ -224,6 +224,7 @@ async def update_comment(
             user_id=user_id,
             content=comment_update.content,
             content_type=comment_update.content_type,
+            edit_reason=getattr(comment_update, 'edit_reason', None),
         )
         
         logger.info(f"Updated comment {comment_id} by user {user_id}")
@@ -359,6 +360,266 @@ async def remove_comment_media(
         )
     except Exception as e:
         logger.error(f"Unexpected error removing comment media: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/{comment_id}/history")
+async def get_comment_edit_history(
+    comment_id: int,
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum number of records"),
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Get edit history for a comment.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Response:**
+    ```json
+    {
+      "comment_id": 123,
+      "history": [
+        {
+          "id": 456,
+          "action": "updated",
+          "user_id": 789,
+          "created_at": "2024-01-15T10:30:00Z",
+          "original_content": "Original content",
+          "new_content": "Updated content",
+          "edit_reason": "Fixed typo"
+        }
+      ],
+      "total": 5
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    user_id = user_data["user_id"]
+    
+    try:
+        comment_service = CommentService(db)
+        history = comment_service.get_comment_edit_history(
+            comment_id=comment_id,
+            user_id=user_id,
+            skip=skip,
+            limit=limit
+        )
+        
+        return {
+            "comment_id": comment_id,
+            "history": history,
+            "total": len(history)
+        }
+        
+    except ValueError as e:
+        logger.warning(f"Failed to get comment edit history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error getting comment edit history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+# Bulk Operations
+@router.post("/bulk/delete")
+async def bulk_delete_comments(
+    comment_ids: List[int],
+    deletion_reason: Optional[str] = None,
+    soft_delete: bool = True,
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Bulk delete multiple comments.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Request Body:**
+    ```json
+    {
+      "comment_ids": [123, 456, 789],
+      "deletion_reason": "Spam cleanup",
+      "soft_delete": true
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "total_requested": 3,
+      "success_count": 2,
+      "failure_count": 1,
+      "successful": [
+        {"comment_id": 123, "message": "Successfully deleted"},
+        {"comment_id": 456, "message": "Successfully deleted"}
+      ],
+      "failed": [
+        {"comment_id": 789, "error": "You can only delete your own comments"}
+      ]
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    user_id = user_data["user_id"]
+    
+    try:
+        comment_service = CommentService(db)
+        results = comment_service.bulk_delete_comments(
+            comment_ids=comment_ids,
+            user_id=user_id,
+            deletion_reason=deletion_reason,
+            soft_delete=soft_delete
+        )
+        
+        logger.info(f"Bulk delete: {results['success_count']}/{results['total_requested']} comments deleted by user {user_id}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in bulk delete: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/bulk/update")
+async def bulk_update_comments(
+    updates: List[dict],
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Bulk update multiple comments.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Request Body:**
+    ```json
+    {
+      "updates": [
+        {
+          "comment_id": 123,
+          "content": "Updated content",
+          "content_type": "markdown",
+          "edit_reason": "Fixed typo"
+        },
+        {
+          "comment_id": 456,
+          "content": "Another update",
+          "edit_reason": "Added more details"
+        }
+      ]
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "total_requested": 2,
+      "success_count": 1,
+      "failure_count": 1,
+      "successful": [
+        {"comment_id": 123, "message": "Successfully updated"}
+      ],
+      "failed": [
+        {"comment_id": 456, "error": "You can only edit your own comments"}
+      ]
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    user_id = user_data["user_id"]
+    
+    try:
+        comment_service = CommentService(db)
+        results = comment_service.bulk_update_comments(
+            updates=updates,
+            user_id=user_id
+        )
+        
+        logger.info(f"Bulk update: {results['success_count']}/{results['total_requested']} comments updated by user {user_id}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in bulk update: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/bulk/create")
+async def bulk_create_comments(
+    comments_data: List[dict],
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Bulk create multiple comments.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Request Body:**
+    ```json
+    {
+      "comments_data": [
+        {
+          "task_id": 123,
+          "content": "First comment",
+          "content_type": "markdown"
+        },
+        {
+          "task_id": 456,
+          "content": "Second comment",
+          "parent_comment_id": 789
+        }
+      ]
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "total_requested": 2,
+      "success_count": 2,
+      "failure_count": 0,
+      "successful": [
+        {"task_id": 123, "comment_id": 1001, "message": "Successfully created"},
+        {"task_id": 456, "comment_id": 1002, "message": "Successfully created"}
+      ],
+      "failed": []
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    user_id = user_data["user_id"]
+    
+    try:
+        comment_service = CommentService(db)
+        results = comment_service.bulk_create_comments(
+            comments_data=comments_data,
+            user_id=user_id
+        )
+        
+        logger.info(f"Bulk create: {results['success_count']}/{results['total_requested']} comments created by user {user_id}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in bulk create: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"

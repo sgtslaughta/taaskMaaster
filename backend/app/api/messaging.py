@@ -5,9 +5,9 @@ This module contains FastAPI routes for messaging-related operations.
 """
 
 import json
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -566,6 +566,285 @@ async def send_typing_indicator(
         
     except Exception as e:
         logger.error(f"Unexpected error sending typing indicator: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+# Message Threading endpoints
+@router.get("/threads/{user_id}")
+async def get_conversation_threads(
+    user_id: int,
+    skip: int = Query(default=0, ge=0, description="Number of threads to skip"),
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum number of threads"),
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Get conversation threads between current user and specified user.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Response:**
+    ```json
+    {
+      "threads": [
+        {
+          "thread_id": "uuid-string",
+          "message_count": 15,
+          "latest_message_at": "2024-01-15T10:30:00Z",
+          "latest_message": {
+            "content": "Latest message content",
+            "from_user_id": 123,
+            "from_username": "john_doe"
+          }
+        }
+      ],
+      "total": 3
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    current_user_id = user_data["user_id"]
+    
+    try:
+        messaging_service = MessagingService(db)
+        threads = messaging_service.get_conversation_threads(
+            user1_id=current_user_id,
+            user2_id=user_id,
+            skip=skip,
+            limit=limit
+        )
+        
+        return {
+            "threads": threads,
+            "total": len(threads)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting conversation threads: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/threads")
+async def create_message_thread(
+    to_user_id: int,
+    initial_message: str,
+    content_type: str = "markdown",
+    media_attachment_ids: Optional[List[int]] = None,
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Create a new message thread.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Request Body:**
+    ```json
+    {
+      "to_user_id": 456,
+      "initial_message": "Hey, let's start a new conversation thread!",
+      "content_type": "markdown",
+      "media_attachment_ids": [1, 2]
+    }
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "thread_id": "uuid-string",
+      "created_at": "2024-01-15T10:30:00Z",
+      "initial_message": {
+        "id": 123,
+        "content": "Hey, let's start a new conversation thread!",
+        "from_user_id": 123,
+        "to_user_id": 456,
+        "created_at": "2024-01-15T10:30:00Z"
+      },
+      "participant_ids": [123, 456]
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    from_user_id = user_data["user_id"]
+    
+    try:
+        messaging_service = MessagingService(db)
+        thread_info = messaging_service.create_message_thread(
+            from_user_id=from_user_id,
+            to_user_id=to_user_id,
+            initial_message=initial_message,
+            content_type=content_type,
+            media_attachment_ids=media_attachment_ids
+        )
+        
+        return thread_info
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error creating message thread: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/threads/{thread_id}/messages")
+async def get_thread_messages(
+    thread_id: str,
+    skip: int = Query(default=0, ge=0, description="Number of messages to skip"),
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum number of messages"),
+    include_media: bool = Query(default=True, description="Include media attachments"),
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Get messages in a specific thread.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Response:**
+    ```json
+    {
+      "thread_id": "uuid-string",
+      "messages": [
+        {
+          "id": 123,
+          "content": "Message content",
+          "from_user_id": 123,
+          "to_user_id": 456,
+          "created_at": "2024-01-15T10:30:00Z",
+          "media_attachments": []
+        }
+      ],
+      "total": 25
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    user_id = user_data["user_id"]
+    
+    try:
+        messaging_service = MessagingService(db)
+        messages = messaging_service.get_thread_messages(
+            thread_id=thread_id,
+            user_id=user_id,
+            skip=skip,
+            limit=limit,
+            include_media=include_media
+        )
+        
+        # Convert messages to response format
+        message_list = []
+        for message in messages:
+            message_dict = {
+                "id": message.id,
+                "content": message.content,
+                "content_type": message.content_type,
+                "from_user_id": message.from_user_id,
+                "to_user_id": message.to_user_id,
+                "thread_id": message.thread_id,
+                "created_at": message.created_at,
+                "updated_at": message.updated_at,
+            }
+            
+            if include_media and hasattr(message, 'media_attachments'):
+                message_dict["media_attachments"] = [
+                    {
+                        "id": attachment.media_attachment_id,
+                        "filename": attachment.media_attachment.filename,
+                        "file_type": attachment.media_attachment.file_type,
+                        "file_size": attachment.media_attachment.file_size,
+                    }
+                    for attachment in message.media_attachments
+                ]
+            
+            message_list.append(message_dict)
+        
+        return {
+            "thread_id": thread_id,
+            "messages": message_list,
+            "total": len(message_list)
+        }
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error getting thread messages: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/threads/{thread_id}/participants")
+async def get_thread_participants(
+    thread_id: str,
+    db: Session = Depends(get_db),
+    x_user_data: Optional[str] = Header(None)
+):
+    """
+    Get participants in a message thread.
+    
+    **Headers:**
+    - X-User-Data: JSON containing user information
+    
+    **Response:**
+    ```json
+    {
+      "thread_id": "uuid-string",
+      "participants": [
+        {
+          "id": 123,
+          "username": "john_doe",
+          "first_name": "John",
+          "last_name": "Doe",
+          "email": "john@example.com"
+        }
+      ],
+      "total": 2
+    }
+    ```
+    """
+    user_data = get_user_data_from_header(x_user_data)
+    
+    try:
+        messaging_service = MessagingService(db)
+        participants = messaging_service.get_thread_participants(thread_id)
+        
+        participant_list = []
+        for participant in participants:
+            participant_list.append({
+                "id": participant.id,
+                "username": participant.username,
+                "first_name": participant.first_name,
+                "last_name": participant.last_name,
+                "email": participant.email,
+            })
+        
+        return {
+            "thread_id": thread_id,
+            "participants": participant_list,
+            "total": len(participant_list)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting thread participants: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
