@@ -255,15 +255,15 @@ class UserStatus(Base):
 - [x] Create database indexes for performance optimization
 - [x] Write/update database seeding scripts for development/testing
 
-### Week 2: Core Backend Models & Services
-- [ ] Implement TaskComment model and service
-- [ ] Implement TaskStatusHistory model and service
-- [ ] Create CommentMediaAttachment model
-- [ ] Implement DirectMessage and TaskChatMessage models and services
-- [ ] Create UserStatus model and service for online presence
-- [ ] Update TaskService with workflow validation logic
-- [ ] Create WorkflowService for status transition management
-- [ ] Implement enhanced WebSocketManager for notifications and messaging
+### Week 2: Core Backend Models & Services ✅ **COMPLETED**
+- [x] Implement TaskComment model and service
+- [x] Implement TaskStatusHistory model and service
+- [x] Create CommentMediaAttachment model
+- [x] Implement DirectMessage and TaskChatMessage models and services
+- [x] Create UserStatus model and service for online presence
+- [x] Update TaskService with workflow validation logic
+- [x] Create WorkflowService for status transition management
+- [x] Implement enhanced WebSocketManager for notifications and messaging
 
 ### Week 3: Basic API Endpoints
 - [ ] Create comment CRUD endpoints (`/api/v1/comments`)

@@ -1339,3 +1339,125 @@ class TaskService:
             task.tags = tags
         
         return task
+
+    # Workflow validation methods
+    def validate_task_assignment(
+        self,
+        task_id: int,
+        assigned_to_id: int,
+        assigner_id: int,
+    ) -> bool:
+        """
+        Validate task assignment.
+
+        Args:
+            task_id: Task ID
+            assigned_to_id: User ID to assign to
+            assigner_id: User ID performing the assignment
+
+        Returns:
+            True if assignment is valid
+
+        Raises:
+            ValueError: If assignment is invalid
+        """
+        task = self.db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            raise ValueError(f"Task {task_id} not found")
+
+        # Only task creator can assign tasks
+        if task.created_by_id != assigner_id:
+            raise ValueError("Only task creator can assign tasks")
+
+        # Verify assigned user exists
+        assigned_user = self.db.query(User).filter(User.id == assigned_to_id).first()
+        if not assigned_user:
+            raise ValueError(f"User {assigned_to_id} not found")
+
+        return True
+
+    def can_user_modify_task(
+        self,
+        task_id: int,
+        user_id: int,
+        action: str = "edit",
+    ) -> bool:
+        """
+        Check if user can modify a task.
+
+        Args:
+            task_id: Task ID
+            user_id: User ID
+            action: Action type (edit, delete, assign, etc.)
+
+        Returns:
+            True if user can perform the action
+        """
+        task = self.db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            return False
+
+        # Task creator can always modify
+        if task.created_by_id == user_id:
+            return True
+
+        # Assigned user can edit task content but not assign/delete
+        if task.assigned_to_id == user_id:
+            return action in ["edit", "comment", "status"]
+
+        # TODO: Add admin role check
+        # if user has admin role, return True
+
+        return False
+
+    def get_task_participants(self, task_id: int) -> List[int]:
+        """
+        Get list of user IDs who are participants in a task.
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            List of user IDs (creator, assignee, commenters)
+        """
+        task = self.db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            return []
+
+        participants = set()
+
+        # Add creator and assignee
+        participants.add(task.created_by_id)
+        if task.assigned_to_id:
+            participants.add(task.assigned_to_id)
+
+        # Add users who have commented on the task
+        # This will require importing TaskComment, but we'll do it here to avoid circular imports
+        try:
+            from app.models.comment import TaskComment
+            commenters = (
+                self.db.query(TaskComment.user_id)
+                .filter(TaskComment.task_id == task_id)
+                .distinct()
+                .all()
+            )
+            participants.update([c.user_id for c in commenters])
+        except ImportError:
+            # If comment model not available, just use creator and assignee
+            pass
+
+        return list(participants)
+
+    def get_task_stakeholders(self, task_id: int) -> List[int]:
+        """
+        Get list of user IDs who are stakeholders in a task (for notifications).
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            List of user IDs who should receive notifications
+        """
+        # For now, stakeholders are the same as participants
+        # In the future, this could include project managers, team leads, etc.
+        return self.get_task_participants(task_id)
