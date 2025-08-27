@@ -20,3 +20,9 @@ export { TemplateTable, type TemplateTableProps } from './TemplateTable';
 export { CreateTemplateModal, type TemplateFormData, type CreateTemplateModalProps } from './CreateTemplateModal';
 export { TaskFromTemplateModal, type TaskFromTemplateFormData, type TaskFromTemplateModalProps } from './TaskFromTemplateModal';
 export { CustomizationSettings, type CustomizationSettingsProps, type CustomizationSettings as CustomizationSettingsType } from './CustomizationSettings';
+
+// Statistics and My Tasks Components
+export { default as StatsCarousel } from './StatsCarousel';
+export { default as MyTasksTable } from './MyTasksTable';
+export type { StatsCarouselProps, StatsData } from './StatsCarousel';
+export type { MyTasksTableProps } from './MyTasksTable';

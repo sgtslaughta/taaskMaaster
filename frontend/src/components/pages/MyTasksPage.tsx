@@ -6,29 +6,20 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Task as FrontendTask } from '../tasks';
 import { AppLayout } from '../layout/AppLayout';
 import { Button } from '../../design-system/components/Button';
-import { Card } from '../../design-system/components/Card';
-import { TaskList } from '../tasks/TaskList';
 import { TaskDetailModal } from '../tasks/TaskDetailModal';
+import StatsCarousel, { type StatsCarouselProps, type StatsData } from '../tasks/StatsCarousel';
+import MyTasksTable, { type MyTasksTableProps } from '../tasks/MyTasksTable';
 import { cn } from '../../design-system/utils/cn';
-import { taskService, Task as BackendTask, TaskStatus, TaskPriority, CreateTaskRequest, UpdateTaskRequest } from '../../services/taskService';
+import { taskService, Task as FrontendTask, TaskStatus, TaskPriority, CreateTaskRequest, UpdateTaskRequest } from '../../services/taskService';
 import { userService, User } from '../../services/userService';
 import { invalidateUserCache } from '../../services/api';
 import { getNavigationItems, updateNavigationWithBadges, type NavigationUser } from '../../utils/navigation';
 import { NavigationItem } from '../navigation/Sidebar';
 import { 
-  PlusIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  TrophyIcon,
-  UserIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  ClockIcon,
-  PlayIcon,
-  ListBulletIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -291,19 +282,68 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   }, [tasks, activeFilter, searchTerm]);
 
   /**
-   * @description Get task statistics
+   * @description Get enhanced task statistics
    */
   const taskStats = React.useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const pendingTasks = tasks.filter(task => task.status === 'todo');
     const inProgressTasks = tasks.filter(task => task.status === 'in_progress');
     const completedTasks = tasks.filter(task => task.status === 'done');
     const totalPoints = completedTasks.reduce((sum, task) => sum + (task.points || 0), 0);
 
+    // Calculate due dates
+    const overdueTasks = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate < today;
+    });
+
+    const dueTodayTasks = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate.toDateString() === today.toDateString();
+    });
+
+    const dueThisWeekTasks = tasks.filter(task => {
+      if (!task.dueDate || task.status === 'done') return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate >= today && dueDate <= nextWeek;
+    });
+
+    // Calculate high priority tasks
+    const highPriorityTasks = tasks.filter(task => 
+      (task.priority === 'high' || task.priority === 'urgent') && task.status !== 'done'
+    );
+
+    // Get latest completed task
+    const latestCompleted = completedTasks
+      .sort((a, b) => {
+        if (!a.completedAt && !b.completedAt) return 0;
+        if (!a.completedAt) return 1;
+        if (!b.completedAt) return -1;
+        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+      })[0]?.title;
+
+    // Calculate completion rate
+    const totalNonCancelled = tasks.filter(task => task.status !== 'cancelled').length;
+    const completionRate = totalNonCancelled > 0 
+      ? Math.round((completedTasks.length / totalNonCancelled) * 100) 
+      : 0;
+
     return {
       pending: pendingTasks.length,
       inProgress: inProgressTasks.length,
       completed: completedTasks.length,
-      totalPoints
+      totalPoints,
+      overdue: overdueTasks.length,
+      dueToday: dueTodayTasks.length,
+      dueThisWeek: dueThisWeekTasks.length,
+      highPriority: highPriorityTasks.length,
+      latestCompleted,
+      completionRate
     };
   }, [tasks]);
 
@@ -455,88 +495,32 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
               </div>
             </div>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-gray-100 dark:bg-gray-900/20 rounded-lg">
-                      <ListBulletIcon className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Tasks</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {tasks.length}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-                      <ClockIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {taskStats.pending}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                      <PlayIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {taskStats.inProgress}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                      <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {taskStats.completed}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                      <TrophyIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Points Earned</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {taskStats.totalPoints}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
+            {/* Statistics Carousel */}
+            <StatsCarousel
+              stats={{
+                total: tasks.length,
+                pending: taskStats.pending,
+                inProgress: taskStats.inProgress,
+                completed: taskStats.completed,
+                totalPoints: taskStats.totalPoints,
+                overdue: taskStats.overdue,
+                dueToday: taskStats.dueToday,
+                dueThisWeek: taskStats.dueThisWeek,
+                highPriority: taskStats.highPriority,
+                latestCompleted: taskStats.latestCompleted,
+                completionRate: taskStats.completionRate,
+              }}
+              autoRotate={true}
+              rotationInterval={6000}
+              animationDuration={500}
+              itemsPerSlide={{
+                desktop: 4,
+                tablet: 3,
+                mobile: 2
+              }}
+              showArrows={true}
+              showDots={true}
+            />
 
             {/* Filter Toolbar */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -597,7 +581,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
               </div>
             </div>
 
-            {/* Tasks List */}
+            {/* Tasks Table */}
             <div className="min-h-[400px]">
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
@@ -605,14 +589,10 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
                 </div>
               )}
 
-              <TaskList
+              <MyTasksTable
                 tasks={filteredTasks}
                 loading={loading}
                 onTaskClick={handleTaskClick}
-                users={users}
-                showAssigneeFilter={false}
-                showBulkActions={false}
-                showEditActions={false}
                 className="w-full"
               />
             </div>
