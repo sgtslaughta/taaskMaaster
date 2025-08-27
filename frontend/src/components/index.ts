@@ -20,3 +20,7 @@ export * from './tasks';
 
 // Example components
 export * from './examples';
+
+// App Router
+export { AppRouter } from './AppRouter';
+export type { AppRouterProps, CurrentPage } from './AppRouter';

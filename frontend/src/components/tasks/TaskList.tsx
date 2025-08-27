@@ -273,10 +273,10 @@ export const TaskList: React.FC<TaskListProps> = ({
                       
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                         <span>Category: {task.category?.name || 'Uncategorized'}</span>
-                        <span>Assigned to: {task.assigned_to?.username || 'Unassigned'}</span>
+                        <span>Assigned to: {task.assignedTo?.username || 'Unassigned'}</span>
                         {rewardDisplay && <span>Reward: {rewardDisplay}</span>}
                         {task.points > 0 && <span>Points: {task.points}</span>}
-                        <span>Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
+                        <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
                       </div>
 
                       {task.tags && task.tags.length > 0 && (
@@ -301,7 +301,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                         onStatusChange?.(
                           task.id,
                           task.status === 'completed' ? 'pending' : 'completed',
-                          task.status === 'completed' ? undefined : task.actual_hours
+                          task.status === 'completed' ? undefined : task.actualHours
                         );
                       }}
                       className={`px-3 py-1 text-sm rounded-md ${

@@ -428,8 +428,13 @@ class TaskService:
         Returns:
             Updated task instance or None
         """
+        # Get user for RBAC
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+            
         # Query task directly from database
-        task = (
+        query = (
             self.db.query(Task)
             .options(
                 selectinload(Task.assigned_to),
@@ -440,15 +445,20 @@ class TaskService:
                 selectinload(Task.dependencies),
                 selectinload(Task.media_attachments)
             )
-            .filter(
-                Task.id == task_id,
+            .filter(Task.id == task_id)
+        )
+        
+        # RBAC: Admins and organizers can update any task
+        if user.role.value not in [UserRole.ADMIN.value, UserRole.ORGANIZER.value]:
+            # Regular users can only update their own tasks or tasks assigned to them
+            query = query.filter(
                 or_(
                     Task.created_by_id == user_id,
                     Task.assigned_to_id == user_id,
-                ),
+                )
             )
-            .first()
-        )
+        
+        task = query.first()
         if not task:
             return None
 

@@ -18,6 +18,7 @@ import {
   AcademicCapIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import { getNavigationItems, updateNavigationWithBadges, type NavigationUser } from '../../utils/navigation';
 import { AppLayout, NavigationItem } from '../layout/AppLayout';
 import { cn } from '../../design-system/utils/cn';
 import { gamificationService, goalService, taskService } from '../../services';
@@ -78,62 +79,22 @@ export interface DashboardProps {
 }
 
 /**
- * @description Default navigation items for the dashboard
+ * @description Generate navigation items based on user role and task counts
+ * @param user - Current user
+ * @param taskCounts - Task counts for badges
+ * @returns Role-based navigation items
  */
-const defaultNavigationItems: NavigationItem[] = [
-  {
-    id: 'dashboard',
-    name: 'Dashboard',
-    icon: HomeIcon,
-    active: true,
-  },
-  {
-    id: 'tasks',
-    name: 'Tasks',
-    icon: CheckCircleIcon,
-    badge: 3,
-  },
-  {
-    id: 'goals',
-    name: 'Goals',
-    icon: TrophyIcon,
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    icon: UserGroupIcon,
-  },
-  {
-    id: 'achievements',
-    name: 'Achievements',
-    icon: StarIcon,
-  },
-  {
-    id: 'leaderboard',
-    name: 'Leaderboard',
-    icon: ChartBarIcon,
-  },
-  {
-    id: 'calendar',
-    name: 'Calendar',
-    icon: CalendarIcon,
-  },
-  {
-    id: 'streaks',
-    name: 'Streaks',
-    icon: FireIcon,
-  },
-  {
-    id: 'learning',
-    name: 'Learning',
-    icon: AcademicCapIcon,
-  },
-  {
-    id: 'settings',
-    name: 'Settings',
-    icon: Cog6ToothIcon,
-  },
-];
+const generateNavigationItems = (
+  user: NavigationUser | null,
+  taskCounts?: {
+    myTasks?: number;
+    allTasks?: number;
+    pendingTasks?: number;
+  }
+): NavigationItem[] => {
+  const baseItems = getNavigationItems(user, 'dashboard');
+  return updateNavigationWithBadges(baseItems, taskCounts);
+};
 
 /**
  * @description Dashboard component
@@ -166,6 +127,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(() => {
+    // Initialize with basic navigation items to prevent undefined errors
+    return generateNavigationItems(user as NavigationUser | null);
+  });
 
   /**
    * @description Load dashboard data
@@ -205,6 +170,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       // Load recent activity
       await loadRecentActivity(userId);
+
+      // Generate navigation items with task counts
+      const navItems = generateNavigationItems(user as NavigationUser, {
+        myTasks: tasksPending, // Use pending tasks as "my tasks" count
+        allTasks: tasks.length,
+        pendingTasks: tasksPending,
+      });
+      setNavigationItems(navItems);
 
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -289,6 +262,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData();
   }, [user?.id]);
 
+  // Update navigation items when user changes
+  useEffect(() => {
+    if (user) {
+      const navItems = generateNavigationItems(user as NavigationUser);
+      setNavigationItems(navItems);
+    }
+  }, [user]);
+
   /**
    * @description Get appropriate greeting based on time of day
    */
@@ -320,7 +301,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
    */
   const handleNavigation = (item: NavigationItem) => {
     if (onNavigation) {
-      onNavigation(item.id);
+      // For now, we'll implement simple routing by showing different components
+      // based on the navigation item clicked
+      switch (item.id) {
+        case 'my-tasks':
+          // This would normally be handled by a router
+          // For now, we'll just call the parent's onNavigation
+          onNavigation('my-tasks');
+          break;
+        case 'task-hub':
+          onNavigation('task-hub');
+          break;
+        default:
+          onNavigation(item.id);
+          break;
+      }
     }
   };
 
@@ -329,7 +324,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <AppLayout
         user={user}
         title="Dashboard"
-        navigationItems={defaultNavigationItems}
+        navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
         className={className}
@@ -347,7 +342,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <AppLayout
         user={user}
         title="Dashboard"
-        navigationItems={defaultNavigationItems}
+        navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
         className={className}
@@ -369,7 +364,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <AppLayout
       user={user}
       title="Dashboard"
-      navigationItems={defaultNavigationItems}
+      navigationItems={navigationItems}
       onLogout={onLogout}
       onNavigation={handleNavigation}
       className={className}

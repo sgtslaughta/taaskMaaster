@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import { useState, useEffect } from 'react'
-import { TasksPage, Dashboard, LoginPage } from '../src/components'
+import { TasksPage, Dashboard, LoginPage, MyTasksPage, TaskHubPage } from '../src/components'
 import { useAuth } from '../src/contexts/AuthContext'
 import { 
   HomeIcon,
@@ -19,7 +19,7 @@ export default function Home() {
   const [apiStatus, setApiStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
-  const [currentView, setCurrentView] = useState('login')
+  const [currentView, setCurrentView] = useState('dashboard')
 
   useEffect(() => {
     // Check API health
@@ -55,10 +55,19 @@ export default function Home() {
   }
 
   const handleNavigation = (item) => {
-    console.log('Navigation clicked:', item.name)
-    if (item.id === 'tasks') {
+    console.log('Navigation clicked:', item.name || item)
+    const itemId = typeof item === 'string' ? item : item.id
+    
+    if (itemId === 'tasks') {
       setCurrentView('tasks')
-    } else if (item.id === 'dashboard') {
+    } else if (itemId === 'my-tasks') {
+      setCurrentView('my-tasks')
+    } else if (itemId === 'task-hub') {
+      setCurrentView('task-hub')
+    } else if (itemId === 'dashboard') {
+      setCurrentView('dashboard')
+    } else {
+      // For other navigation items, default to dashboard for now
       setCurrentView('dashboard')
     }
   }
@@ -189,7 +198,18 @@ export default function Home() {
       ) : currentView === 'tasks' ? (
         <TasksPage
           user={user}
-          navigationItems={navigationItems}
+          onLogout={handleLogout}
+          onNavigation={handleNavigation}
+        />
+      ) : currentView === 'my-tasks' ? (
+        <MyTasksPage
+          user={user}
+          onLogout={handleLogout}
+          onNavigation={handleNavigation}
+        />
+      ) : currentView === 'task-hub' ? (
+        <TaskHubPage
+          user={user}
           onLogout={handleLogout}
           onNavigation={handleNavigation}
         />
@@ -207,6 +227,12 @@ export default function Home() {
             console.log('Navigation:', view)
             if (view === 'tasks') {
               setCurrentView('tasks')
+            } else if (view === 'my-tasks') {
+              setCurrentView('my-tasks')
+            } else if (view === 'task-hub') {
+              setCurrentView('task-hub')
+            } else if (view === 'dashboard') {
+              setCurrentView('dashboard')
             }
           }}
         />
