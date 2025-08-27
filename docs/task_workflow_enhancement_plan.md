@@ -265,15 +265,15 @@ class UserStatus(Base):
 - [x] Create WorkflowService for status transition management
 - [x] Implement enhanced WebSocketManager for notifications and messaging
 
-### Week 3: Basic API Endpoints
-- [ ] Create comment CRUD endpoints (`/api/v1/comments`)
-- [ ] Create workflow transition endpoints (`/api/v1/workflow/transition`)
-- [ ] Add approval endpoints (`/api/v1/workflow/approve`, `/api/v1/workflow/reject`)
-- [ ] Implement messaging endpoints (`/api/v1/messages/direct`, `/api/v1/messages/task-chat`)
-- [ ] Implement WebSocket endpoints (`/ws/notifications`, `/ws/messaging`) with authentication
-- [ ] Create user status endpoints (`/api/v1/users/status`)
-- [ ] Update existing task endpoints to include comments and workflow data
-- [ ] Add proper error handling and validation
+### Week 3: Basic API Endpoints ✅ **COMPLETED**
+- [x] Create comment CRUD endpoints (`/api/v1/comments`)
+- [x] Create workflow transition endpoints (`/api/v1/workflow/transition`)
+- [x] Add approval endpoints (`/api/v1/workflow/approve`, `/api/v1/workflow/reject`)
+- [x] Implement messaging endpoints (`/api/v1/messages/direct`, `/api/v1/messages/task-chat`)
+- [x] Implement WebSocket endpoints (`/ws/notifications`, `/ws/messaging`) with authentication
+- [x] Create user status endpoints (`/api/v1/users/status`)
+- [x] Update existing task endpoints to include comments and workflow data
+- [x] Add proper error handling and validation
 
 ---
 

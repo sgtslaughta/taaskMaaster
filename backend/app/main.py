@@ -16,13 +16,17 @@ from fastapi.responses import JSONResponse
 # Import API routers
 from app.api import (
     auth_router,
+    comments_router,
     gamification_router,
     goals_router,
     lists_router,
     media_router,
+    messaging_router,
     redis_router,
     tasks_router,
     users_router,
+    websocket_router,
+    workflow_router,
 )
 from app.core.logging import configure_logging, get_logger
 from app.core.monitoring import (
@@ -112,6 +116,12 @@ fastapi_app.include_router(gamification_router)
 fastapi_app.include_router(lists_router)
 fastapi_app.include_router(media_router)
 fastapi_app.include_router(redis_router)
+
+# New workflow and messaging routers
+fastapi_app.include_router(comments_router, prefix="/api/v1/comments", tags=["comments"])
+fastapi_app.include_router(workflow_router, prefix="/api/v1/workflow", tags=["workflow"])
+fastapi_app.include_router(messaging_router, prefix="/api/v1/messages", tags=["messaging"])
+fastapi_app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
 # Create the final app with ASGI middleware
 app = MetricsMiddleware(fastapi_app)
