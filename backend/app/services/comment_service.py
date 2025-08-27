@@ -26,7 +26,9 @@ from app.models.task import Task
 from app.models.user import User
 from app.services.mention_service import MentionService
 from app.services.notification_service import NotificationService
+from app.services.permission_service import PermissionService, Permission
 from app.utils.content_validator import ContentValidator
+from app.utils.pagination import QueryOptimizer, PaginationParams, FilterCriteria, SortCriteria
 
 logger = get_logger(__name__)
 
@@ -40,6 +42,8 @@ class CommentService:
         self.content_validator = ContentValidator()
         self.mention_service = MentionService(db)
         self.notification_service = NotificationService(db)
+        self.permission_service = PermissionService(db)
+        self.query_optimizer = QueryOptimizer(db)
 
     # Task Comment methods
     def create_task_comment(
@@ -74,6 +78,12 @@ class CommentService:
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError(f"Task {task_id} not found")
+        
+        # Check permission for commenting on task
+        if not self.permission_service.has_permission(
+            user_id, Permission.COMMENT_CREATE, task_id, "task"
+        ):
+            raise ValueError("You don't have permission to comment on this task")
 
         # Validate and sanitize content
         is_valid, validation_errors = ContentValidator.validate_content(content, content_type)
@@ -196,9 +206,9 @@ class CommentService:
         if not comment:
             raise ValueError(f"Comment {comment_id} not found")
         
-        # Check permissions - only comment author can edit
-        if comment.user_id != user_id:
-            raise ValueError("You can only edit your own comments")
+        # Check permissions using permission service
+        if not self.permission_service.can_user_edit_comment(user_id, comment_id):
+            raise ValueError("You don't have permission to edit this comment")
         
         # Validate and sanitize content
         validated_content = self.content_validator.validate_and_sanitize(
@@ -261,10 +271,9 @@ class CommentService:
         if not comment:
             raise ValueError(f"Comment {comment_id} not found")
         
-        # Check permissions - only comment author can delete
-        # TODO: Add admin override capability
-        if comment.user_id != user_id:
-            raise ValueError("You can only delete your own comments")
+        # Check permissions using permission service
+        if not self.permission_service.can_user_delete_comment(user_id, comment_id):
+            raise ValueError("You don't have permission to delete this comment")
         
         # Store original content for audit trail
         original_content = comment.content
@@ -446,7 +455,13 @@ class CommentService:
             'failure_count': 0
         }
 
-        for comment_id in comment_ids:
+        # Pre-validate permissions for all comments
+        permission_result = self.permission_service.validate_bulk_operation_permissions(
+            user_id, "delete", comment_ids, "comment"
+        )
+        
+        # Process allowed deletions
+        for comment_id in permission_result["allowed"]:
             try:
                 success = self.delete_task_comment(
                     comment_id=comment_id,
@@ -472,6 +487,14 @@ class CommentService:
                     'error': str(e)
                 })
                 results['failure_count'] += 1
+        
+        # Add denied comments to failed list
+        for comment_id in permission_result["denied"]:
+            results['failed'].append({
+                'comment_id': comment_id,
+                'error': 'Permission denied'
+            })
+            results['failure_count'] += 1
 
         logger.info(f"Bulk delete: {results['success_count']}/{results['total_requested']} comments deleted by user {user_id}")
         return results
@@ -686,52 +709,77 @@ class CommentService:
         self,
         task_id: int,
         user_id: int,
-        skip: int = 0,
-        limit: int = 100,
+        pagination_params: Optional[PaginationParams] = None,
+        filters: Optional[List[FilterCriteria]] = None,
+        sorts: Optional[List[SortCriteria]] = None,
         include_system: bool = True,
-    ) -> Tuple[List[TaskComment], int]:
+        include_deleted: bool = False
+    ):
         """
-        Get comments for a task.
+        Get comments for a task with advanced filtering and pagination.
 
         Args:
             task_id: Task ID
             user_id: User ID for permission checking
-            skip: Number of records to skip
-            limit: Maximum number of records to return
+            pagination_params: Pagination parameters
+            filters: Filter criteria
+            sorts: Sort criteria
             include_system: Whether to include system comments
+            include_deleted: Whether to include soft-deleted comments
 
         Returns:
-            Tuple of (comments list, total count)
+            Pagination result with comments
         """
         # Verify user has access to task
-        task = self.db.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            raise ValueError(f"Task {task_id} not found")
+        if not self.permission_service.has_permission(
+            user_id, Permission.TASK_VIEW, task_id, "task"
+        ):
+            raise ValueError("You don't have permission to view comments for this task")
 
-        # Build query
+        # Build base query
         query = self.db.query(TaskComment).filter(TaskComment.task_id == task_id)
 
+        # Apply basic filters
         if not include_system:
             query = query.filter(TaskComment.is_system_comment == False)
+        
+        if not include_deleted:
+            query = query.filter(TaskComment.is_deleted == False)
 
-        # Get total count
-        total = query.count()
+        # Apply advanced filters
+        if filters:
+            query = self.query_optimizer.apply_filters(query, TaskComment, filters)
 
-        # Get comments with relationships
-        comments = (
-            query.options(
-                joinedload(TaskComment.user),
-                joinedload(TaskComment.media_attachments).joinedload(
-                    CommentMediaAttachment.media_attachment
-                ),
-            )
-            .order_by(TaskComment.created_at.asc())
-            .offset(skip)
-            .limit(limit)
-            .all()
+        # Apply sorting (default to created_at asc if no sorts specified)
+        if not sorts:
+            sorts = [SortCriteria(field="created_at", order="asc")]
+        query = self.query_optimizer.apply_sorting(query, TaskComment, sorts)
+
+        # Add relationships
+        query = query.options(
+            joinedload(TaskComment.user),
+            joinedload(TaskComment.media_attachments).joinedload(
+                CommentMediaAttachment.media_attachment
+            ),
+            joinedload(TaskComment.parent_comment),
+            joinedload(TaskComment.replies)
         )
 
-        return comments, total
+        # Apply pagination
+        if not pagination_params:
+            pagination_params = PaginationParams()
+
+        result = self.query_optimizer.paginate(query, pagination_params)
+        
+        # Filter comments based on permissions
+        visible_comments = self.permission_service.filter_visible_comments(
+            user_id, result.items
+        )
+        
+        # Update result with filtered comments
+        result.items = visible_comments
+        
+        return result
 
     def update_task_comment(
         self,

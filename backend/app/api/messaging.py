@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.logging import get_logger
+from app.core.rate_limiting import MessageRateLimit, BulkOperationRateLimit
 from app.schemas.messaging import (
     ConversationListResponse,
     DirectMessageCreate,
@@ -74,7 +75,8 @@ def get_user_data_from_header(x_user_data: Optional[str] = Header(None)) -> dict
 async def send_direct_message(
     message_data: DirectMessageCreate,
     db: Session = Depends(get_db),
-    x_user_data: Optional[str] = Header(None)
+    x_user_data: Optional[str] = Header(None),
+    _rate_limit: bool = Depends(MessageRateLimit)
 ):
     """
     Send a direct message to another user.

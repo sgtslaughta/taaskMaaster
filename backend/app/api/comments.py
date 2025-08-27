@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.rate_limiting import CommentRateLimit, BulkOperationRateLimit
 from app.core.logging import get_logger
 from app.schemas.comment import (
     CommentCreate,
@@ -64,7 +65,8 @@ def get_user_data_from_header(x_user_data: Optional[str] = Header(None)) -> dict
 async def create_comment(
     comment_data: CommentCreate,
     db: Session = Depends(get_db),
-    x_user_data: Optional[str] = Header(None)
+    x_user_data: Optional[str] = Header(None),
+    _rate_limit: bool = Depends(CommentRateLimit)
 ):
     """
     Create a new task comment.
@@ -438,7 +440,8 @@ async def bulk_delete_comments(
     deletion_reason: Optional[str] = None,
     soft_delete: bool = True,
     db: Session = Depends(get_db),
-    x_user_data: Optional[str] = Header(None)
+    x_user_data: Optional[str] = Header(None),
+    _rate_limit: bool = Depends(BulkOperationRateLimit)
 ):
     """
     Bulk delete multiple comments.
@@ -498,7 +501,8 @@ async def bulk_delete_comments(
 async def bulk_update_comments(
     updates: List[dict],
     db: Session = Depends(get_db),
-    x_user_data: Optional[str] = Header(None)
+    x_user_data: Optional[str] = Header(None),
+    _rate_limit: bool = Depends(BulkOperationRateLimit)
 ):
     """
     Bulk update multiple comments.
@@ -565,7 +569,8 @@ async def bulk_update_comments(
 async def bulk_create_comments(
     comments_data: List[dict],
     db: Session = Depends(get_db),
-    x_user_data: Optional[str] = Header(None)
+    x_user_data: Optional[str] = Header(None),
+    _rate_limit: bool = Depends(BulkOperationRateLimit)
 ):
     """
     Bulk create multiple comments.
