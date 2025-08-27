@@ -24,6 +24,7 @@ from app.models.comment import (
 from app.models.media import MediaAttachment
 from app.models.task import Task
 from app.models.user import User
+from app.utils.content_validator import ContentValidator
 
 logger = get_logger(__name__)
 
@@ -69,11 +70,21 @@ class CommentService:
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
+        # Validate and sanitize content
+        is_valid, validation_errors = ContentValidator.validate_content(content, content_type)
+        if not is_valid:
+            raise ValueError(f"Invalid content: {'; '.join(validation_errors)}")
+
+        sanitized_content = ContentValidator.sanitize_content(content, content_type)
+
+        # Extract mentions from content
+        mentioned_users = ContentValidator.extract_mentions(sanitized_content)
+
         # Create comment
         comment = TaskComment(
             task_id=task_id,
             user_id=user_id,
-            content=content,
+            content=sanitized_content,
             content_type=content_type,
             parent_comment_id=parent_comment_id,
             is_system_comment=is_system_comment,
@@ -98,6 +109,28 @@ class CommentService:
 
         self.db.commit()
         self.db.refresh(comment)
+
+        # Send notifications (async, don't wait for completion)
+        if not is_system_comment:
+            try:
+                import asyncio
+                from app.services.notification_service import NotificationService
+                
+                notification_service = NotificationService(self.db)
+                
+                # Create a new event loop if one doesn't exist
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Schedule notification (fire and forget)
+                asyncio.create_task(
+                    notification_service.notify_task_comment(comment, mentioned_users)
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send comment notification: {e}")
 
         logger.info(
             f"Created task comment {comment.id} for task {task_id} by user {user_id}"

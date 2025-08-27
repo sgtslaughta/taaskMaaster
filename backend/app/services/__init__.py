@@ -9,6 +9,7 @@ from .gamification_service import GamificationService
 from .goal_service import GoalService
 from .media_service import MediaService
 from .messaging_service import MessagingService, UserStatusService
+from .notification_service import NotificationService
 from .redis_service import RedisService, redis_service
 from .storage_service import MinIOStorageService
 from .task_service import TaskService
@@ -32,4 +33,5 @@ __all__ = [
     "WebSocketManager",
     "websocket_manager",
     "WorkflowService",
+    "NotificationService",
 ]

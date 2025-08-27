@@ -23,6 +23,7 @@ from app.models.comment import (
 from app.models.media import MediaAttachment
 from app.models.task import Task
 from app.models.user import User
+from app.utils.content_validator import ContentValidator
 
 logger = get_logger(__name__)
 
@@ -70,11 +71,18 @@ class MessagingService:
         if not to_user:
             raise ValueError(f"To user {to_user_id} not found")
 
+        # Validate and sanitize content
+        is_valid, validation_errors = ContentValidator.validate_content(content, content_type)
+        if not is_valid:
+            raise ValueError(f"Invalid content: {'; '.join(validation_errors)}")
+
+        sanitized_content = ContentValidator.sanitize_content(content, content_type)
+
         # Create message
         message = DirectMessage(
             from_user_id=from_user_id,
             to_user_id=to_user_id,
-            content=content,
+            content=sanitized_content,
             content_type=content_type,
             thread_id=thread_id,
         )
@@ -98,6 +106,27 @@ class MessagingService:
 
         self.db.commit()
         self.db.refresh(message)
+
+        # Send notification (async, don't wait for completion)
+        try:
+            import asyncio
+            from app.services.notification_service import NotificationService
+            
+            notification_service = NotificationService(self.db)
+            
+            # Create a new event loop if one doesn't exist
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Send direct message notification
+            asyncio.create_task(
+                notification_service.notify_direct_message(message)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send direct message notification: {e}")
 
         logger.info(
             f"Direct message {message.id} sent from user {from_user_id} to user {to_user_id}"
@@ -339,11 +368,18 @@ class MessagingService:
         if not self._user_has_task_access(task_id, from_user_id):
             raise ValueError("Insufficient permissions to send message to task")
 
+        # Validate and sanitize content
+        is_valid, validation_errors = ContentValidator.validate_content(content, content_type)
+        if not is_valid:
+            raise ValueError(f"Invalid content: {'; '.join(validation_errors)}")
+
+        sanitized_content = ContentValidator.sanitize_content(content, content_type)
+
         # Create message
         message = TaskChatMessage(
             task_id=task_id,
             from_user_id=from_user_id,
-            content=content,
+            content=sanitized_content,
             content_type=content_type,
             parent_message_id=parent_message_id,
         )
@@ -367,6 +403,27 @@ class MessagingService:
 
         self.db.commit()
         self.db.refresh(message)
+
+        # Send notification (async, don't wait for completion)
+        try:
+            import asyncio
+            from app.services.notification_service import NotificationService
+            
+            notification_service = NotificationService(self.db)
+            
+            # Create a new event loop if one doesn't exist
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Send task chat message notification
+            asyncio.create_task(
+                notification_service.notify_task_chat_message(message)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send task chat message notification: {e}")
 
         logger.info(
             f"Task chat message {message.id} sent to task {task_id} by user {from_user_id}"

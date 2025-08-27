@@ -176,6 +176,36 @@ class WorkflowService:
         self.db.commit()
         self.db.refresh(task)
 
+        # Send notifications (async, don't wait for completion)
+        try:
+            import asyncio
+            from app.services.notification_service import NotificationService
+            
+            notification_service = NotificationService(self.db)
+            
+            # Create a new event loop if one doesn't exist
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Send appropriate notification based on transition
+            if new_status == TaskStatus.SUBMITTED_FOR_APPROVAL:
+                # Notify task creator about approval request
+                asyncio.create_task(
+                    notification_service.notify_task_approval_request(task, user_id)
+                )
+            else:
+                # General status change notification
+                asyncio.create_task(
+                    notification_service.notify_task_status_changed(
+                        task, previous_status.value, new_status.value, user_id, comment
+                    )
+                )
+        except Exception as e:
+            logger.warning(f"Failed to send workflow notification: {e}")
+
         logger.info(
             f"Transitioned task {task_id} from {previous_status} to {new_status} by user {user_id}"
         )
@@ -216,12 +246,36 @@ class WorkflowService:
 
         approval_comment = comment or "Task approved"
         
-        return self.transition_task_status(
+        # Perform the transition
+        updated_task = self.transition_task_status(
             task_id=task_id,
             new_status=TaskStatus.DONE,
             user_id=approver_id,
             comment=approval_comment,
         )
+
+        # Send approval notification (async, don't wait for completion)
+        try:
+            import asyncio
+            from app.services.notification_service import NotificationService
+            
+            notification_service = NotificationService(self.db)
+            
+            # Create a new event loop if one doesn't exist
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Send approval notification
+            asyncio.create_task(
+                notification_service.notify_task_approved(updated_task, approver_id, comment)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send approval notification: {e}")
+
+        return updated_task
 
     def reject_task(
         self,
@@ -257,12 +311,36 @@ class WorkflowService:
 
         rejection_comment = f"Task rejected: {reason}"
         
-        return self.transition_task_status(
+        # Perform the transition
+        updated_task = self.transition_task_status(
             task_id=task_id,
             new_status=TaskStatus.IN_PROGRESS,
             user_id=rejector_id,
             comment=rejection_comment,
         )
+
+        # Send rejection notification (async, don't wait for completion)
+        try:
+            import asyncio
+            from app.services.notification_service import NotificationService
+            
+            notification_service = NotificationService(self.db)
+            
+            # Create a new event loop if one doesn't exist
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Send rejection notification
+            asyncio.create_task(
+                notification_service.notify_task_rejected(updated_task, rejector_id, reason)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send rejection notification: {e}")
+
+        return updated_task
 
     def get_task_status_history(
         self,
