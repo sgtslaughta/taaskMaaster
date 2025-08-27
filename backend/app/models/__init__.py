@@ -4,6 +4,17 @@ Database models for TaaskMaaster.
 This package contains all SQLAlchemy models for the application.
 """
 
+from .comment import (
+    CommentMediaAttachment,
+    DirectMessage,
+    DirectMessageMedia,
+    MessageReadReceipt,
+    TaskChatMessage,
+    TaskChatMessageMedia,
+    TaskComment,
+    TaskStatusHistory,
+    UserStatus,
+)
 from .gamification import Achievement, Leaderboard, Points, UserAchievement
 from .goal import Goal, GoalProgress
 from .media import MediaAttachment
@@ -24,4 +35,14 @@ __all__ = [
     "Points",
     "Leaderboard",
     "MediaAttachment",
+    # New comment and messaging models
+    "TaskComment",
+    "TaskStatusHistory",
+    "CommentMediaAttachment",
+    "DirectMessage",
+    "TaskChatMessage",
+    "MessageReadReceipt",
+    "DirectMessageMedia",
+    "TaskChatMessageMedia",
+    "UserStatus",
 ]

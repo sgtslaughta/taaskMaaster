@@ -38,8 +38,10 @@ class TaskStatus(str, Enum):
     """Task status values."""
 
     TODO = "todo"
+    ASSIGNED = "assigned"
     IN_PROGRESS = "in_progress"
-    REVIEW = "review"
+    SUBMITTED_FOR_APPROVAL = "submitted_for_approval"
+    REVIEW = "review"  # Legacy status, kept for backward compatibility
     DONE = "done"
     CANCELLED = "cancelled"
 
@@ -121,6 +123,12 @@ class Task(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    
+    # New workflow fields
+    submitted_for_approval_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -160,6 +168,12 @@ class Task(Base):
         secondary="task_list_associations",
         back_populates="tasks"
     )
+    
+    # New workflow and messaging relationships
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
+    status_history = relationship("TaskStatusHistory", back_populates="task", cascade="all, delete-orphan")
+    chat_messages = relationship("TaskChatMessage", back_populates="task", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         """String representation of Task."""
