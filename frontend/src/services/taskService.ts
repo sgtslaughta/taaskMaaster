@@ -23,7 +23,9 @@ export enum TaskPriority {
  */
 export enum TaskStatus {
   TODO = 'todo',
+  ASSIGNED = 'assigned',
   IN_PROGRESS = 'in_progress',
+  SUBMITTED_FOR_APPROVAL = 'submitted_for_approval',
   REVIEW = 'review',
   DONE = 'done',
   CANCELLED = 'cancelled',
