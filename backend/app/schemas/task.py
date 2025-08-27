@@ -423,6 +423,10 @@ class CreateFromTemplateRequest(BaseModel):
     title: Optional[str] = Field(None, description="Override template title")
     description: Optional[str] = Field(None, description="Override template description")
     assigned_to_id: Optional[int] = Field(None, description="User ID to assign task to")
+    due_date: Optional[datetime] = Field(None, description="Override template due date")
+    priority: Optional[TaskPriority] = Field(None, description="Override template priority")
+    estimated_hours: Optional[float] = Field(None, description="Override template estimated hours")
+    points: Optional[int] = Field(None, description="Override template points")
 
 
 class GetTemplateRequest(BaseModel):

@@ -66,6 +66,14 @@ export interface TaskDetailModalProps {
    */
   loading?: boolean;
   /**
+   * @description Whether the current user can edit this task
+   */
+  canEdit?: boolean;
+  /**
+   * @description Current user information
+   */
+  currentUser?: { id: string; username: string; role?: string } | null;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -77,24 +85,20 @@ export interface TaskDetailModalProps {
 interface EditableFieldProps {
   label: string;
   value: string;
-  isEditing: boolean;
-  onEdit: () => void;
   onSave: (value: string) => void;
-  onCancel: () => void;
   type?: 'text' | 'textarea' | 'select';
   options?: { value: string; label: string }[];
+  editMode?: boolean;
   className?: string;
 }
 
 const EditableField: React.FC<EditableFieldProps> = ({
   label,
   value,
-  isEditing,
-  onEdit,
   onSave,
-  onCancel,
   type = 'text',
   options = [],
+  editMode = false,
   className
 }) => {
   const [editValue, setEditValue] = useState(value);
@@ -103,16 +107,12 @@ const EditableField: React.FC<EditableFieldProps> = ({
     setEditValue(value);
   }, [value]);
 
-  const handleSave = () => {
-    onSave(editValue);
+  const handleChange = (newValue: string) => {
+    setEditValue(newValue);
+    onSave(newValue);
   };
 
-  const handleCancel = () => {
-    setEditValue(value);
-    onCancel();
-  };
-
-  if (isEditing) {
+  if (editMode) {
     return (
       <div className={cn("space-y-2", className)}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -121,14 +121,14 @@ const EditableField: React.FC<EditableFieldProps> = ({
         {type === 'textarea' ? (
           <textarea
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         ) : type === 'select' ? (
           <select
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             {options.map(option => (
@@ -140,45 +140,29 @@ const EditableField: React.FC<EditableFieldProps> = ({
         ) : (
           <Input
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
         )}
-        <div className="flex gap-2">
-          <Button
-            onClick={handleSave}
-            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-          >
-            <CheckIcon className="w-4 h-4 mr-1" />
-            Save
-          </Button>
-          <Button
-            onClick={handleCancel}
-            className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
-          >
-            <XMarkIcon className="w-4 h-4 mr-1" />
-            Cancel
-          </Button>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("group", className)}>
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {label}
-        </label>
-        <button
-          onClick={onEdit}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        >
-          <PencilIcon className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="mt-1 text-sm text-gray-900 dark:text-white">
-        {value || 'Not set'}
+    <div className={cn("space-y-2", className)}>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </label>
+      <div className="text-sm text-gray-900 dark:text-white">
+        {(() => {
+          if (typeof value === 'string') {
+            return value || 'Not set';
+          } else if (value && typeof value === 'object') {
+            return JSON.stringify(value);
+          } else {
+            return value?.toString() || 'Not set';
+          }
+        })()}
       </div>
     </div>
   );
@@ -198,9 +182,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onDeleteTask,
   onCompleteTask,
   loading = false,
+  canEdit = false,
+  currentUser = null,
   className,
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedTask, setEditedTask] = useState<Partial<Task>>({});
 
   if (!task) {
     return null;
@@ -262,18 +250,40 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     return display;
   };
 
-  const handleFieldUpdate = (field: string, value: string) => {
-    if (onUpdateTask && task) {
-      const updates = { [field]: value };
-      onUpdateTask(task.id, updates);
+  const handleFieldUpdate = (field: string, value: any) => {
+    setEditedTask(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveChanges = () => {
+    if (onUpdateTask && task && Object.keys(editedTask).length > 0) {
+      onUpdateTask(task.id, editedTask);
     }
-    setEditingField(null);
+    setIsEditMode(false);
+    setEditedTask({});
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedTask({});
+  };
+
+  // Helper function to get current field value (edited or original)
+  const getFieldValue = (field: keyof Task) => {
+    return editedTask[field] !== undefined ? editedTask[field] : task[field];
   };
 
   const handleStatusChange = (newStatus: Task['status']) => {
-    if (onUpdateTask && task) {
-      const updates = { status: newStatus };
-      onUpdateTask(task.id, updates);
+    if (isEditMode) {
+      handleFieldUpdate('status', newStatus);
+    } else {
+      // Direct status change when not in edit mode
+      if (onUpdateTask && task) {
+        const updates = { status: newStatus };
+        onUpdateTask(task.id, updates);
+      }
     }
   };
 
@@ -304,32 +314,83 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div className="flex items-center space-x-3">
               {getStatusIcon(task.status)}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {task.title}
-                </h2>
+                {isEditMode ? (
+                  <Input
+                    value={getFieldValue('title') as string}
+                    onChange={(e) => handleFieldUpdate('title', e.target.value)}
+                    className="text-xl font-semibold text-gray-900 dark:text-white bg-transparent border-none focus:ring-2 focus:ring-blue-500 p-0"
+                    placeholder="Task title"
+                  />
+                ) : (
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {getFieldValue('title') as string}
+                  </h2>
+                )}
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Created {new Date(task.createdAt).toLocaleDateString()}
                 </p>
+                {!canEdit && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    Read-only: You can only edit tasks you created or are assigned to
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              {task.status !== 'completed' && (
+              {canEdit && !isEditMode && (
+                <Button
+                  onClick={() => setIsEditMode(true)}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  title="Edit task"
+                >
+                  <PencilIcon className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+              {isEditMode && (
+                <>
+                  <Button
+                    onClick={handleSaveChanges}
+                    disabled={loading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    title="Save changes"
+                  >
+                    <CheckIcon className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button
+                    onClick={handleCancelEdit}
+                    disabled={loading}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    title="Cancel editing"
+                  >
+                    <XMarkIcon className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </>
+              )}
+              {canEdit && task.status !== 'completed' && (
                 <Button
                   onClick={handleComplete}
                   disabled={loading}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  title="Mark task as complete"
                 >
                   <CheckCircleIcon className="w-4 h-4 mr-2" />
                   Complete
                 </Button>
               )}
-              <Button
-                onClick={handleDelete}
-                disabled={loading}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                Delete
-              </Button>
+              {canEdit && (
+                <Button
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  title="Delete task"
+                >
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
 
@@ -339,16 +400,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Status
               </label>
-              <select
-                value={task.status}
-                onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="todo">Todo</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="overdue">Overdue</option>
-              </select>
+              {isEditMode ? (
+                <select
+                  value={getFieldValue('status') as Task['status']}
+                  onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="todo">Todo</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="done">Done</option>
+                  <option value="review">Review</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {(getFieldValue('status') as string).replace('_', ' ')}
+                </div>
+              )}
             </div>
 
             <div>
@@ -367,36 +435,59 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {/* Description */}
           <EditableField
             label="Description"
-            value={task.description}
-            isEditing={editingField === 'description'}
-            onEdit={() => setEditingField('description')}
+            value={(() => {
+              const descValue = getFieldValue('description');
+              return typeof descValue === 'string' ? descValue : (descValue?.toString() || task.description || '');
+            })()}
             onSave={(value) => handleFieldUpdate('description', value)}
-            onCancel={() => setEditingField(null)}
             type="textarea"
+            editMode={isEditMode}
           />
 
           {/* Category and Assignee */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <EditableField
               label="Category"
-              value={task.category}
-              isEditing={editingField === 'category'}
-              onEdit={() => setEditingField('category')}
+              value={(() => {
+                const categoryValue = getFieldValue('category');
+                if (typeof categoryValue === 'string') {
+                  return categoryValue;
+                } else if (categoryValue && typeof categoryValue === 'object' && 'name' in categoryValue) {
+                  return (categoryValue as any).name;
+                } else {
+                  return task.category?.name || 'Uncategorized';
+                }
+              })()}
               onSave={(value) => handleFieldUpdate('category', value)}
-              onCancel={() => setEditingField(null)}
               type="text"
+              editMode={isEditMode}
             />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Assigned To
               </label>
-              <div className="flex items-center space-x-2">
-                <UserIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-900 dark:text-white">
-                  {task.assignedTo || 'Unassigned'}
-                </span>
-              </div>
+              {isEditMode ? (
+                <select
+                  value={getFieldValue('assignedToId') || ''}
+                  onChange={(e) => handleFieldUpdate('assignedToId', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <UserIcon className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {(getFieldValue('assignedTo') as any)?.username || task.assignedTo?.username || 'Unassigned'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -406,21 +497,88 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Due Date
               </label>
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-900 dark:text-white">
-                  {task.dueDate ? new Date(task.dueDate).toLocaleString() : 'No due date'}
-                </span>
-              </div>
+              {isEditMode ? (
+                <input
+                  type="datetime-local"
+                  value={getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => handleFieldUpdate('dueDate', e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <CalendarIcon className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toLocaleString() : 'No due date'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Reward
+                Points
               </label>
-              <div className="text-sm text-gray-900 dark:text-white">
-                {getRewardDisplay()}
-              </div>
+              {isEditMode ? (
+                <input
+                  type="number"
+                  value={task.points || 0}
+                  onChange={(e) => handleFieldUpdate('points', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="0"
+                />
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {task.points || 0} points
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Priority and Estimated Hours */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Priority
+              </label>
+              {isEditMode ? (
+                <select
+                  value={task.priority}
+                  onChange={(e) => handleFieldUpdate('priority', e.target.value as Task['priority'])}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              ) : (
+                <span className={cn(
+                  "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
+                  getPriorityColor(task.priority)
+                )}>
+                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                </span>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Estimated Hours
+              </label>
+              {isEditMode ? (
+                <input
+                  type="number"
+                  step="0.5"
+                  value={task.estimatedHours || 0}
+                  onChange={(e) => handleFieldUpdate('estimatedHours', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="0"
+                />
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {task.estimatedHours || 0} hours
+                </div>
+              )}
             </div>
           </div>
 
@@ -437,7 +595,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
                   >
                     <TagIcon className="w-3 h-3 mr-1" />
-                    {tag}
+                    {typeof tag === 'string' ? tag : (tag as any)?.name || JSON.stringify(tag)}
                   </span>
                 ))}
               </div>

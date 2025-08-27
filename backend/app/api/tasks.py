@@ -312,7 +312,11 @@ async def create_task_from_template(
         current_user.id,
         title=request.title,
         description=request.description,
-        assigned_to_id=request.assigned_to_id
+        assigned_to_id=request.assigned_to_id,
+        due_date=request.due_date,
+        priority=request.priority,
+        estimated_hours=request.estimated_hours,
+        points=request.points
     )
 
     if not task:
@@ -320,7 +324,7 @@ async def create_task_from_template(
             status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
 
-    return task
+    return task_service.to_task_response(task)
 
 
 # Task Categories

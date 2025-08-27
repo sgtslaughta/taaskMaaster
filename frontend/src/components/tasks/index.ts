@@ -18,4 +18,5 @@ export { TemplateCard, type TaskTemplate, type TemplateCardProps } from './Templ
 export { TemplateGrid, type TemplateGridProps } from './TemplateGrid';
 export { TemplateTable, type TemplateTableProps } from './TemplateTable';
 export { CreateTemplateModal, type TemplateFormData, type CreateTemplateModalProps } from './CreateTemplateModal';
+export { TaskFromTemplateModal, type TaskFromTemplateFormData, type TaskFromTemplateModalProps } from './TaskFromTemplateModal';
 export { CustomizationSettings, type CustomizationSettingsProps, type CustomizationSettings as CustomizationSettingsType } from './CustomizationSettings';

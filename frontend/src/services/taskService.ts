@@ -6,6 +6,7 @@
  */
 
 import { apiGet, apiPost, apiPut, apiDelete } from './api';
+import { TaskTemplate } from '../components/tasks/TemplateCard';
 
 /**
  * @description Task priority enum
@@ -85,22 +86,7 @@ export interface TaskTag {
   updated_at: string;
 }
 
-/**
- * @description Task template interface
- */
-export interface TaskTemplate {
-  id: number;
-  name: string;
-  description?: string;
-  estimated_hours?: number;
-  points: number;
-  category_id?: number;
-  tags?: string[];
-  is_public: boolean;
-  created_by_id: number;
-  created_at: string;
-  updated_at: string;
-}
+// TaskTemplate interface is imported from TemplateCard to avoid duplication
 
 /**
  * @description Create task request interface
@@ -217,6 +203,10 @@ export interface CreateFromTemplateRequest {
   title?: string;
   description?: string;
   assigned_to_id?: number;
+  due_date?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  estimated_hours?: number;
+  points?: number;
 }
 
 /**
@@ -461,22 +451,25 @@ export class TaskService {
   /**
    * @description Create a task from a template
    * @param templateId - Template ID
-   * @param title - Override title (optional)
-   * @param description - Override description (optional)
+   * @param customData - Custom task data to override template values
    * @returns Promise with created task
    */
   async createTaskFromTemplate(
     templateId: number,
-    title?: string,
-    description?: string,
-    assignedToId?: number
+    customData?: {
+      title?: string;
+      description?: string;
+      assigned_to_id?: number;
+      due_date?: string;
+      priority?: 'low' | 'medium' | 'high' | 'urgent';
+      estimated_hours?: number;
+      points?: number;
+    }
   ): Promise<Task> {
     try {
       const request: CreateFromTemplateRequest = {
         template_id: templateId,
-        title,
-        description,
-        assigned_to_id: assignedToId
+        ...customData
       };
       const response = await apiPost<Task>('/api/v1/tasks/templates/create-from-template', request);
       return response.data;
@@ -577,6 +570,28 @@ export class TaskService {
       return response.data.reward_types;
     } catch (error) {
       throw new Error('Failed to fetch reward types.');
+    }
+  }
+
+  /**
+   * @description Get users for task assignment
+   * @returns Promise with users list
+   */
+  async getUsers(): Promise<Array<{ id: number; username: string; email: string }>> {
+    try {
+      const response = await apiGet<{ 
+        users: Array<{ 
+          id: number; 
+          username: string; 
+          email: string; 
+          full_name?: string; 
+          is_active: boolean;
+        }>;
+        total: number;
+      }>('/api/v1/users/for-assignment');
+      return response.data.users;
+    } catch (error) {
+      throw new Error('Failed to fetch users for assignment.');
     }
   }
 }

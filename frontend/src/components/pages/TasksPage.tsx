@@ -381,14 +381,23 @@ export const TasksPage: React.FC<TasksPageProps> = ({
       if (updates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(updates.priority);
       if (updates.dueDate !== undefined) backendUpdates.due_date = updates.dueDate;
       if (updates.points !== undefined) backendUpdates.points = updates.points;
+      if (updates.estimatedHours !== undefined) backendUpdates.estimated_hours = updates.estimatedHours;
       if (updates.rewardType !== undefined) backendUpdates.reward_type = updates.rewardType;
       if (updates.rewardValue !== undefined) backendUpdates.reward_value = updates.rewardValue;
       if (updates.rewardDescription !== undefined) backendUpdates.reward_description = updates.rewardDescription;
-      if (updates.assignedTo !== undefined) backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
+      if (updates.assignedToId !== undefined) {
+        backendUpdates.assigned_to_id = updates.assignedToId;
+      }
+      if (updates.assignedTo !== undefined) {
+        backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
+      }
       if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
 
       const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
       const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
+      
+
+      
       setTasks(prev => prev.map(task => 
         task.id === taskId ? updatedFrontendTask : task
       ));

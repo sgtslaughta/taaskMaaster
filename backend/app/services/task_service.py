@@ -12,7 +12,7 @@ import csv
 import json
 
 from sqlalchemy import and_, desc, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.logging import get_logger
 from app.models.task import (
@@ -292,6 +292,15 @@ class TaskService:
         # Get from database
         task = (
             self.db.query(Task)
+            .options(
+                selectinload(Task.assigned_to),
+                selectinload(Task.category),
+                selectinload(Task.template),
+                selectinload(Task.tags),
+                selectinload(Task.subtasks),
+                selectinload(Task.dependencies),
+                selectinload(Task.media_attachments)
+            )
             .filter(
                 Task.id == task_id,
                 or_(
@@ -346,13 +355,21 @@ class TaskService:
         if not any([status, priority, category_id, assigned_to_id, reward_type, search]) and skip == 0:
             cached_tasks = redis_service.get_user_tasks(user_id)
             if cached_tasks:
-                logger.info(f"User {user_id} tasks retrieved from cache")
-                # Convert cached data back to Task objects
+                logger.info(f"User {user_id} tasks retrieved from cache with relationships")
+                # Convert cached data back to Task objects with relationships
                 tasks = [self._dict_to_task(task_dict) for task_dict in cached_tasks[:limit]]
                 return tasks, len(cached_tasks)
         
         # Build query based on user role
-        query = self.db.query(Task)
+        query = self.db.query(Task).options(
+            selectinload(Task.assigned_to),
+            selectinload(Task.category),
+            selectinload(Task.template),
+            selectinload(Task.tags),
+            selectinload(Task.subtasks),
+            selectinload(Task.dependencies),
+            selectinload(Task.media_attachments)
+        )
         
         # RBAC: Admins and organizers can view all tasks, regular users only their own
         if user.role in [UserRole.ADMIN, UserRole.ORGANIZER]:
@@ -414,6 +431,15 @@ class TaskService:
         # Query task directly from database
         task = (
             self.db.query(Task)
+            .options(
+                selectinload(Task.assigned_to),
+                selectinload(Task.category),
+                selectinload(Task.template),
+                selectinload(Task.tags),
+                selectinload(Task.subtasks),
+                selectinload(Task.dependencies),
+                selectinload(Task.media_attachments)
+            )
             .filter(
                 Task.id == task_id,
                 or_(
@@ -425,6 +451,9 @@ class TaskService:
         )
         if not task:
             return None
+
+        # Store the old assigned_to_id to invalidate cache later
+        old_assigned_to_id = task.assigned_to_id
 
         # Handle tags separately
         tag_names = task_data.pop("tag_names", None)
@@ -480,9 +509,15 @@ class TaskService:
             self.db.rollback()
             raise ValueError(f"Failed to update task: {e}")
 
-        # Invalidate cache for the user
+        # Invalidate cache for the user who made the update
         redis_service.invalidate_task_cache(user_id, task_id)
-        if task.assigned_to_id and task.assigned_to_id != user_id:
+        
+        # Invalidate cache for the old assigned user (if different)
+        if old_assigned_to_id and old_assigned_to_id != user_id:
+            redis_service.invalidate_task_cache(old_assigned_to_id, task_id)
+            
+        # Invalidate cache for the new assigned user (if different from both user_id and old_assigned_to_id)
+        if task.assigned_to_id and task.assigned_to_id != user_id and task.assigned_to_id != old_assigned_to_id:
             redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
 
         logger.info(f"Updated task {task_id} by user {user_id}")
@@ -742,21 +777,29 @@ class TaskService:
         if not template:
             return None
 
+        # Build task creation parameters, avoiding conflicts
+        # Use template values as fallback when kwargs values are None or missing
+        task_params = {
+            "title": kwargs.get("title") or template.title_pattern,
+            "description": kwargs.get("description") or template.description_template,
+            "priority": kwargs.get("priority") or template.priority,
+            "estimated_hours": kwargs.get("estimated_hours") or template.estimated_hours,
+            "points": kwargs.get("points") or template.points,
+            "category_id": kwargs.get("category_id") or template.category_id,
+            "tag_names": kwargs.get("tag_names") or template.tags,
+        }
+        
+        # Add any additional kwargs that aren't already handled
+        handled_keys = {
+            "title", "description", "priority", "estimated_hours", 
+            "points", "category_id", "tag_names"
+        }
+        for key, value in kwargs.items():
+            if key not in handled_keys:
+                task_params[key] = value
+
         # Create task data from template
-        task_data = TaskCreate(
-            title=kwargs.get("title", template.title_pattern),
-            description=kwargs.get(
-                "description", template.description_template
-            ),
-            priority=kwargs.get("priority", template.priority),
-            estimated_hours=kwargs.get(
-                "estimated_hours", template.estimated_hours
-            ),
-            points=kwargs.get("points", template.points),
-            category_id=kwargs.get("category_id", template.category_id),
-            tag_names=kwargs.get("tag_names", template.tags),
-            **kwargs,
-        )
+        task_data = TaskCreate(**task_params)
 
         return self.create_task(task_data, user_id)
 
@@ -1153,6 +1196,40 @@ class TaskService:
         Returns:
             Dictionary representation of task
         """
+        # Serialize assigned_to user
+        assigned_to_dict = None
+        if task.assigned_to:
+            assigned_to_dict = {
+                "id": task.assigned_to.id,
+                "username": task.assigned_to.username,
+                "email": task.assigned_to.email,
+                "first_name": getattr(task.assigned_to, 'first_name', None),
+                "last_name": getattr(task.assigned_to, 'last_name', None),
+                "role": task.assigned_to.role.value if task.assigned_to.role else None,
+            }
+        
+        # Serialize category
+        category_dict = None
+        if task.category:
+            category_dict = {
+                "id": task.category.id,
+                "name": task.category.name,
+                "description": task.category.description,
+                "color": task.category.color,
+            }
+        
+        # Serialize tags
+        tags_list = []
+        if task.tags:
+            tags_list = [
+                {
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                }
+                for tag in task.tags
+            ]
+        
         return {
             "id": task.id,
             "title": task.title,
@@ -1174,6 +1251,10 @@ class TaskService:
             "created_at": task.created_at.isoformat(),
             "updated_at": task.updated_at.isoformat(),
             "user_id": task.created_by_id,  # For cache key identification
+            # Relationship data
+            "assigned_to": assigned_to_dict,
+            "category": category_dict,
+            "tags": tags_list,
         }
 
     def _dict_to_task(self, task_dict: Dict[str, Any]) -> Task:
@@ -1186,6 +1267,9 @@ class TaskService:
         Returns:
             Task object
         """
+        from app.models.user import User
+        from app.models.task import TaskCategory, TaskTag
+        
         # Create a minimal Task object with cached data
         task = Task()
         task.id = task_dict["id"]
@@ -1207,5 +1291,41 @@ class TaskService:
         task.parent_task_id = task_dict["parent_task_id"]
         task.created_at = datetime.fromisoformat(task_dict["created_at"])
         task.updated_at = datetime.fromisoformat(task_dict["updated_at"])
+        
+        # Reconstruct relationships from cached data
+        # Assigned user
+        if task_dict.get("assigned_to"):
+            assigned_to_data = task_dict["assigned_to"]
+            user = User()
+            user.id = assigned_to_data["id"]
+            user.username = assigned_to_data["username"]
+            user.email = assigned_to_data["email"]
+            user.first_name = assigned_to_data.get("first_name")
+            user.last_name = assigned_to_data.get("last_name")
+            if assigned_to_data.get("role"):
+                from app.models.user import UserRole
+                user.role = UserRole(assigned_to_data["role"])
+            task.assigned_to = user
+        
+        # Category
+        if task_dict.get("category"):
+            category_data = task_dict["category"]
+            category = TaskCategory()
+            category.id = category_data["id"]
+            category.name = category_data["name"]
+            category.description = category_data.get("description")
+            category.color = category_data.get("color")
+            task.category = category
+        
+        # Tags
+        if task_dict.get("tags"):
+            tags = []
+            for tag_data in task_dict["tags"]:
+                tag = TaskTag()
+                tag.id = tag_data["id"]
+                tag.name = tag_data["name"]
+                tag.color = tag_data.get("color")
+                tags.append(tag)
+            task.tags = tags
         
         return task

@@ -5,8 +5,9 @@
  * @version 2.0.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TaskList, Task as FrontendTask } from '../../tasks';
+import { useAuth } from '../../../contexts/AuthContext';
 import { Button } from '../../../design-system/components/Button';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
@@ -570,7 +571,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      {task.status !== 'completed' && onCompleteTask && (
+                      {task.status !== 'done' && onCompleteTask && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -632,7 +633,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                 className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <div className="flex items-center space-x-2">
-                {task.status !== 'completed' && onCompleteTask && (
+                {task.status !== 'done' && onCompleteTask && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -732,6 +733,28 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   users = [],
   className 
 }) => {
+  const { user } = useAuth();
+
+  /**
+   * @description Check if user can edit a task
+   * @param task - Task to check permissions for
+   * @returns Whether user can edit the task
+   */
+  const canEditTask = (task: FrontendTask): boolean => {
+    if (!user) return false;
+    
+    // Admins can edit any task
+    if (user.role === 'admin') return true;
+    
+    // Task creators can edit their own tasks
+    if (task.createdById === parseInt(user.id)) return true;
+    
+    // Assigned users can edit tasks assigned to them
+    if (task.assignedToId === parseInt(user.id)) return true;
+    
+    return false;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
@@ -744,10 +767,21 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   const [sortBy, setSortBy] = useState('created');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedTasks, setSelectedTasks] = useState<FrontendTask[]>([]);
+  const [selectedTask, setSelectedTask] = useState<FrontendTask | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<FrontendTask | undefined>();
+
+  // Update selectedTask when tasks array changes (after updates)
+  useEffect(() => {
+    if (selectedTask) {
+      const updatedTask = tasks.find(task => task.id === selectedTask.id);
+      if (updatedTask) {
+
+        setSelectedTask(updatedTask);
+      }
+    }
+  }, [tasks, selectedTask?.id]);
 
   // Filter and sort tasks
   const filteredAndSortedTasks = useMemo(() => {
@@ -783,7 +817,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           comparison = priorityOrder[b.priority] - priorityOrder[a.priority];
           break;
         case 'status':
-          const statusOrder = { completed: 4, overdue: 3, in_progress: 2, pending: 1 };
+          const statusOrder = { done: 4, cancelled: 3, in_progress: 2, todo: 1, review: 1 };
           comparison = statusOrder[b.status] - statusOrder[a.status];
           break;
         case 'title':
@@ -828,6 +862,27 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   const handleTaskClick = (task: FrontendTask) => {
     setSelectedTask(task);
     setIsDetailModalOpen(true);
+  };
+
+  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask>) => {
+    if (onUpdateTask) {
+      await onUpdateTask(taskId, updates);
+      // Don't close modal automatically - let user close it manually
+      // The task will be updated in the tasks list via the parent component
+    }
+  };
+
+  const handleTaskDelete = async (taskId: number) => {
+    if (onDeleteTask) {
+      await onDeleteTask(taskId);
+      setIsDetailModalOpen(false);
+      setSelectedTask(null);
+    }
+  };
+
+  const handleDetailModalClose = () => {
+    setIsDetailModalOpen(false);
+    setSelectedTask(null);
   };
 
   const handleBulkUpdate = (taskIds: number[], updates: Partial<FrontendTask>) => {
@@ -934,16 +989,20 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       </div>
 
       {/* Task Detail Modal */}
-      <TaskDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        task={selectedTask}
-        users={users}
-        onUpdateTask={onUpdateTask}
-        onDeleteTask={onDeleteTask}
-        onCompleteTask={onCompleteTask}
-        loading={loading}
-      />
+      {selectedTask && (
+        <TaskDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={handleDetailModalClose}
+          task={selectedTask}
+          users={users}
+          onUpdateTask={handleTaskUpdate}
+          onDeleteTask={handleTaskDelete}
+          onCompleteTask={onCompleteTask}
+          loading={loading}
+          canEdit={canEditTask(selectedTask)}
+          currentUser={user}
+        />
+      )}
 
       {/* Bulk Edit Modal */}
       <BulkEditModal

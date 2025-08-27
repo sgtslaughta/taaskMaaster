@@ -13,11 +13,13 @@ import {
   TemplateTable, 
   CreateTemplateModal, 
   CustomizationSettings,
+  TaskFromTemplateModal,
   type TaskTemplate,
   type TemplateFormData,
-  type CustomizationSettings as CustomizationSettingsType
+  type CustomizationSettings as CustomizationSettingsType,
+  type TaskFromTemplateFormData
 } from '../../tasks';
-import { taskService } from '../../../services/taskService';
+import { taskService, TaskCategory } from '../../../services/taskService';
 import { 
   Cog6ToothIcon,
   PlusIcon,
@@ -48,12 +50,15 @@ type TabView = 'templates' | 'customization';
  */
 export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
-  const [categories, setCategories] = useState<Array<{ id: number; name: string; color: string }>>([]);
+  const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPublic, setShowPublic] = useState(true);
   const [currentView, setCurrentView] = useState<TabView>('templates');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | undefined>();
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [users, setUsers] = useState<Array<{ id: number; username: string }>>([]);
   const [customizationSettings, setCustomizationSettings] = useState<CustomizationSettingsType>({
     priorityLevels: [
       { id: 'low', name: 'Low', color: '#10B981', order: 1 },
@@ -75,17 +80,19 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
   });
 
   /**
-   * @description Load templates and categories
+   * @description Load templates, categories, and users
    */
   const loadData = async () => {
     try {
       setLoading(true);
-      const [templatesData, categoriesData] = await Promise.all([
+      const [templatesData, categoriesData, usersData] = await Promise.all([
         taskService.getTemplates(showPublic),
-        taskService.getCategories()
+        taskService.getCategories(),
+        taskService.getUsers()
       ]);
       setTemplates(templatesData);
       setCategories(categoriesData);
+      setUsers(usersData);
     } catch (error) {
       console.error('Failed to load templates data:', error);
     } finally {
@@ -109,16 +116,35 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
   };
 
   /**
-   * @description Handle template usage
+   * @description Handle template usage - open customization modal
    * @param template - Template to use
    */
-  const handleUseTemplate = async (template: TaskTemplate) => {
+  const handleUseTemplate = (template: TaskTemplate) => {
+    setSelectedTemplate(template);
+    setShowTemplateModal(true);
+  };
+
+  /**
+   * @description Handle creating task from template with custom data
+   * @param templateId - Template ID
+   * @param formData - Custom task data
+   */
+  const handleCreateFromTemplate = async (templateId: number, formData: TaskFromTemplateFormData) => {
     try {
-      const task = await taskService.createTaskFromTemplate(template.id);
-      // You could navigate to the task or show a success message
+      const task = await taskService.createTaskFromTemplate(templateId, {
+        title: formData.title,
+        description: formData.description,
+        assigned_to_id: formData.assigned_to_id,
+        due_date: formData.due_date,
+        priority: formData.priority,
+        estimated_hours: formData.estimated_hours,
+        points: formData.points,
+      });
       console.log('Task created from template:', task);
+      // You could show a success message or refresh the tasks list
     } catch (error) {
       console.error('Failed to create task from template:', error);
+      throw error; // Re-throw to let the modal handle the error
     }
   };
 
@@ -339,13 +365,30 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
       <CreateTemplateModal
         isOpen={showCreateModal}
         template={editingTemplate}
-        categories={categories}
+        categories={categories.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          color: cat.color || '#6B7280'
+        }))}
         loading={loading}
         onClose={() => {
           setShowCreateModal(false);
           setEditingTemplate(undefined);
         }}
         onSave={handleCreateTemplate}
+      />
+
+      {/* Create Task from Template Modal */}
+      <TaskFromTemplateModal
+        isOpen={showTemplateModal}
+        template={selectedTemplate}
+        users={users}
+        loading={loading}
+        onClose={() => {
+          setShowTemplateModal(false);
+          setSelectedTemplate(null);
+        }}
+        onCreate={handleCreateFromTemplate}
       />
     </div>
   );

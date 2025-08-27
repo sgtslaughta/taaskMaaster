@@ -225,13 +225,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {/* Meta Information */}
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center justify-between">
-            <span>Category: {task.category}</span>
+            <span>Category: {task.category?.name || 'Uncategorized'}</span>
             <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
               {formatDate(task.dueDate)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Assigned to: {task.assignedTo}</span>
+            <span>Assigned to: {task.assignedTo?.username || 'Unassigned'}</span>
             <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
