@@ -184,7 +184,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Main content */}
         <main className={cn(
-          'flex-1 p-6 transition-all duration-200',
+          'flex-1 min-w-0 p-6 transition-all duration-200',
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64' // Adjust margin based on sidebar state
         )}>
           {/* Page title */}
@@ -197,7 +197,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           )}
 
           {/* Page content */}
-          <div className="space-y-6">
+          <div className="space-y-6 w-full max-w-full">
             {children}
           </div>
         </main>

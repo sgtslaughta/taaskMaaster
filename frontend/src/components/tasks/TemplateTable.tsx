@@ -281,9 +281,9 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
   }
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-6 w-full', className)}>
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 w-full">
         {/* Search */}
         <div className="flex-1 relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -297,12 +297,12 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
           {/* Category Filter */}
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="min-w-0 flex-shrink-0 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Categories</option>
             {categories.map(category => (
@@ -314,7 +314,7 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
           <select
             value={selectedPriority}
             onChange={(e) => setSelectedPriority(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="min-w-0 flex-shrink-0 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Priorities</option>
             {priorities.map(priority => (
@@ -329,7 +329,7 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onTogglePublic?.(!showPublic)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-shrink-0"
           >
             {showPublic ? (
               <>
@@ -347,7 +347,7 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
           {/* Create New */}
           <Button
             onClick={onCreateNew}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-shrink-0"
           >
             <PlusIcon className="h-4 w-4" />
             <span className="hidden sm:inline">New Template</span>
@@ -378,8 +378,11 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
 
       {/* Templates Table */}
       {filteredAndSortedTemplates.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block table-responsive">
+            <div className="table-scroll">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th 
@@ -395,7 +398,7 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[200px]">
                   Description
                 </th>
                 <th 
@@ -475,7 +478,7 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate">
+                    <div className="text-sm text-gray-900 dark:text-white max-w-[200px] truncate" title={template.description || '-'}>
                       {template.description || '-'}
                     </div>
                   </td>
@@ -564,7 +567,102 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-4">
+          {filteredAndSortedTemplates.map((template) => (
+            <div 
+              key={template.id}
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+            >
+              <div className="flex flex-col space-y-3">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {template.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">
+                      {template.title_pattern}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-1 ml-2">
+                    <button
+                      onClick={() => onUse?.(template)}
+                      className="p-1.5 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 rounded"
+                      title="Use Template"
+                    >
+                      <DocumentDuplicateIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onEdit?.(template)}
+                      className="p-1.5 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 rounded"
+                      title="Edit Template"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete?.(template)}
+                      className="p-1.5 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 rounded"
+                      title="Delete Template"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {template.description && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    {template.description}
+                  </p>
+                )}
+
+                {/* Details */}
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <span className={cn(
+                    "inline-flex items-center px-2 py-1 rounded-full font-medium",
+                    getPriorityColor(template.priority)
+                  )}>
+                    {getPriorityLabel(template.priority)}
+                  </span>
+                  
+                  {template.category && (
+                    <div className="flex items-center">
+                      <div 
+                        className="w-2 h-2 rounded-full mr-1"
+                        style={{ backgroundColor: template.category.color }}
+                      ></div>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {template.category.name}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <StarIcon className="h-3 w-3 mr-1 text-yellow-500" />
+                    {template.points}
+                  </div>
+
+                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <ClockIcon className="h-3 w-3 mr-1 text-blue-500" />
+                    {template.estimated_hours}h
+                  </div>
+
+                  {template.is_public && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                      <EyeIcon className="h-3 w-3 mr-1" />
+                      Public
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       ) : (
         /* Empty State */
         <div className="text-center py-12">

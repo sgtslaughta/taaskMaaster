@@ -211,9 +211,9 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
   }, [showPublic]);
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-6 w-full', className)}>
       {/* Header with Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Templates & Customization
@@ -264,10 +264,10 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({ className }) => {
       </div>
 
       {/* Content Area */}
-      <div className="min-h-[600px]">
+      <div className="min-h-[600px] w-full">
         {currentView === 'templates' ? (
           /* Templates View */
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
