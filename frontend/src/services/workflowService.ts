@@ -1,234 +1,251 @@
 /**
- * @fileoverview Workflow Service for TaaskMaaster
- * @description Service for handling workflow operations with the backend API
- * @author TaaskMaaster Team
- * @version 1.0.0
+ * Workflow Service
+ * 
+ * Handles all workflow-related API calls including status transitions,
+ * approvals, rejections, and workflow history.
  */
 
-import { apiGet, apiPost } from './api';
-import { TaskStatus } from './taskService';
+import { apiClient } from './apiClient';
+import { TaskStatus } from '../types/task';
+import { TaskStatusHistory } from '../types/workflow';
 
-/**
- * @description Workflow transition request
- */
-export interface WorkflowTransitionRequest {
+export interface TransitionRequest {
   task_id: number;
   new_status: TaskStatus;
   comment?: string;
-  force?: boolean;
 }
 
-/**
- * @description Workflow approval request
- */
-export interface WorkflowApprovalRequest {
+export interface ApprovalRequest {
   task_id: number;
   comment?: string;
+  notify_assignee?: boolean;
 }
 
-/**
- * @description Workflow rejection request
- */
-export interface WorkflowRejectionRequest {
+export interface RejectionRequest {
   task_id: number;
   reason: string;
+  comment?: string;
+  notify_assignee?: boolean;
 }
 
-/**
- * @description Workflow transition response
- */
-export interface WorkflowTransitionResponse {
+export interface WorkflowResponse {
   success: boolean;
   message: string;
+  new_status?: TaskStatus;
   task_id: number;
-  previous_status: string;
-  new_status: string;
-  transitioned_by: number;
-  comment?: string;
+  timestamp: string;
 }
 
-/**
- * @description Valid transitions response
- */
 export interface ValidTransitionsResponse {
   task_id: number;
   current_status: TaskStatus;
   valid_transitions: TaskStatus[];
-  user_id: number;
+  can_approve: boolean;
+  can_reject: boolean;
 }
 
-/**
- * @description Workflow Service Class
- * @class WorkflowService
- */
-export class WorkflowService {
+export interface StatusHistoryResponse {
+  task_id: number;
+  history: TaskStatusHistory[];
+  total_count: number;
+}
+
+class WorkflowService {
   /**
-   * Transition a task to a new status
-   * @param transitionData - Transition request data
-   * @returns Promise<WorkflowTransitionResponse>
+   * Get valid status transitions for a task
    */
-  static async transitionTaskStatus(
-    transitionData: WorkflowTransitionRequest
-  ): Promise<WorkflowTransitionResponse> {
-    try {
-      const response = await apiPost('/api/v1/workflow/transition', transitionData);
-      return response.data;
-    } catch (error) {
-      console.error('Error transitioning task status:', error);
-      throw error;
-    }
+  async getValidTransitions(taskId: number): Promise<ValidTransitionsResponse> {
+    const response = await apiClient.get(`/api/v1/workflow/transitions/${taskId}`);
+    return response.data;
   }
 
   /**
-   * Approve a task that's submitted for approval
-   * @param approvalData - Approval request data
-   * @returns Promise<WorkflowTransitionResponse>
+   * Transition task to new status
    */
-  static async approveTask(
-    approvalData: WorkflowApprovalRequest
-  ): Promise<WorkflowTransitionResponse> {
-    try {
-      const response = await apiPost('/api/v1/workflow/approve', approvalData);
-      return response.data;
-    } catch (error) {
-      console.error('Error approving task:', error);
-      throw error;
-    }
+  async transitionTaskStatus(request: TransitionRequest): Promise<WorkflowResponse> {
+    const response = await apiClient.post('/api/v1/workflow/transition', request);
+    return response.data;
   }
 
   /**
-   * Reject a task that's submitted for approval
-   * @param rejectionData - Rejection request data
-   * @returns Promise<WorkflowTransitionResponse>
+   * Approve a task
    */
-  static async rejectTask(
-    rejectionData: WorkflowRejectionRequest
-  ): Promise<WorkflowTransitionResponse> {
-    try {
-      const response = await apiPost('/api/v1/workflow/reject', rejectionData);
-      return response.data;
-    } catch (error) {
-      console.error('Error rejecting task:', error);
-      throw error;
-    }
+  async approveTask(request: ApprovalRequest): Promise<WorkflowResponse> {
+    const response = await apiClient.post('/api/v1/workflow/approve', request);
+    return response.data;
   }
 
   /**
-   * Get valid transitions for a task
-   * @param taskId - Task ID
-   * @returns Promise<ValidTransitionsResponse>
+   * Reject a task
    */
-  static async getValidTransitions(taskId: number): Promise<ValidTransitionsResponse> {
-    try {
-      const response = await apiGet(`/api/v1/workflow/transitions/${taskId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching valid transitions:', error);
-      throw error;
-    }
+  async rejectTask(request: RejectionRequest): Promise<WorkflowResponse> {
+    const response = await apiClient.post('/api/v1/workflow/reject', request);
+    return response.data;
   }
 
   /**
-   * Get status change history for a task
-   * @param taskId - Task ID
-   * @param skip - Number of records to skip
-   * @param limit - Maximum number of records to return
-   * @returns Promise<TaskStatusHistoryListResponse>
+   * Get task status history
    */
-  static async getTaskStatusHistory(
-    taskId: number,
-    skip: number = 0,
-    limit: number = 100
-  ): Promise<import('./commentService').TaskStatusHistoryListResponse> {
-    try {
-      const params = new URLSearchParams({
-        skip: skip.toString(),
-        limit: limit.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/workflow/history/${taskId}?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching task status history:', error);
-      throw error;
-    }
+  async getTaskStatusHistory(taskId: number, limit?: number): Promise<StatusHistoryResponse> {
+    const params = limit ? { limit } : {};
+    const response = await apiClient.get(`/api/v1/workflow/history/${taskId}`, { params });
+    return response.data;
   }
 
   /**
-   * Get user-friendly status display name
-   * @param status - Task status
-   * @returns string
+   * Bulk transition multiple tasks
    */
-  static getStatusDisplayName(status: TaskStatus): string {
-    switch (status) {
-      case TaskStatus.TODO:
-        return 'To Do';
-      case TaskStatus.ASSIGNED:
-        return 'Assigned';
-      case TaskStatus.IN_PROGRESS:
-        return 'In Progress';
-      case TaskStatus.SUBMITTED_FOR_APPROVAL:
-        return 'Submitted for Approval';
-      case TaskStatus.REVIEW:
-        return 'Review';
-      case TaskStatus.DONE:
-        return 'Done';
-      case TaskStatus.CANCELLED:
-        return 'Cancelled';
-      default:
-        return status;
-    }
+  async bulkTransitionTasks(requests: TransitionRequest[]): Promise<WorkflowResponse[]> {
+    const response = await apiClient.post('/api/v1/workflow/bulk-transition', {
+      transitions: requests
+    });
+    return response.data.results;
   }
 
   /**
-   * Get status color for UI display
-   * @param status - Task status
-   * @returns string
+   * Get workflow statistics for a project or user
    */
-  static getStatusColor(status: TaskStatus): string {
-    switch (status) {
-      case TaskStatus.TODO:
-        return 'gray';
-      case TaskStatus.ASSIGNED:
-        return 'blue';
-      case TaskStatus.IN_PROGRESS:
-        return 'yellow';
-      case TaskStatus.SUBMITTED_FOR_APPROVAL:
-        return 'purple';
-      case TaskStatus.REVIEW:
-        return 'orange';
-      case TaskStatus.DONE:
-        return 'green';
-      case TaskStatus.CANCELLED:
-        return 'red';
-      default:
-        return 'gray';
-    }
+  async getWorkflowStats(filters?: {
+    project_id?: number;
+    user_id?: number;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{
+    status_distribution: Record<TaskStatus, number>;
+    transition_counts: Record<string, number>;
+    average_completion_time: number;
+    approval_rate: number;
+  }> {
+    const response = await apiClient.get('/api/v1/workflow/stats', { params: filters });
+    return response.data;
   }
 
   /**
-   * Check if a status transition is a completion action
-   * @param fromStatus - Current status
-   * @param toStatus - Target status
-   * @returns boolean
+   * Get pending approvals for current user
    */
-  static isCompletionTransition(fromStatus: TaskStatus, toStatus: TaskStatus): boolean {
-    return (
-      fromStatus === TaskStatus.SUBMITTED_FOR_APPROVAL &&
-      toStatus === TaskStatus.DONE
-    );
+  async getPendingApprovals(limit?: number): Promise<{
+    tasks: Array<{
+      id: number;
+      title: string;
+      assigned_user: {
+        id: number;
+        username: string;
+        first_name?: string;
+        last_name?: string;
+      };
+      submitted_at: string;
+      priority: string;
+    }>;
+    total_count: number;
+  }> {
+    const params = limit ? { limit } : {};
+    const response = await apiClient.get('/api/v1/workflow/pending-approvals', { params });
+    return response.data;
   }
 
   /**
-   * Check if a status transition is a rejection action
-   * @param fromStatus - Current status
-   * @param toStatus - Target status
-   * @returns boolean
+   * Check if user can perform workflow action
    */
-  static isRejectionTransition(fromStatus: TaskStatus, toStatus: TaskStatus): boolean {
-    return (
-      fromStatus === TaskStatus.SUBMITTED_FOR_APPROVAL &&
-      toStatus === TaskStatus.IN_PROGRESS
-    );
+  async canPerformAction(taskId: number, action: 'transition' | 'approve' | 'reject'): Promise<{
+    can_perform: boolean;
+    reason?: string;
+  }> {
+    const response = await apiClient.get(`/api/v1/workflow/permissions/${taskId}/${action}`);
+    return response.data;
+  }
+
+  /**
+   * Get workflow template/rules for task type
+   */
+  async getWorkflowRules(taskType?: string): Promise<{
+    allowed_transitions: Record<TaskStatus, TaskStatus[]>;
+    approval_required: TaskStatus[];
+    auto_transitions: Record<TaskStatus, TaskStatus>;
+    notification_settings: Record<string, boolean>;
+  }> {
+    const params = taskType ? { task_type: taskType } : {};
+    const response = await apiClient.get('/api/v1/workflow/rules', { params });
+    return response.data;
+  }
+
+  /**
+   * Create custom workflow transition with validation
+   */
+  async createCustomTransition(request: {
+    task_id: number;
+    from_status: TaskStatus;
+    to_status: TaskStatus;
+    validation_rules?: string[];
+    notification_config?: {
+      notify_assignee: boolean;
+      notify_creator: boolean;
+      email_template?: string;
+    };
+  }): Promise<WorkflowResponse> {
+    const response = await apiClient.post('/api/v1/workflow/custom-transition', request);
+    return response.data;
+  }
+
+  /**
+   * Schedule automatic status transition
+   */
+  async scheduleTransition(request: {
+    task_id: number;
+    target_status: TaskStatus;
+    scheduled_at: string;
+    condition?: string;
+    comment?: string;
+  }): Promise<{
+    success: boolean;
+    scheduled_transition_id: number;
+    message: string;
+  }> {
+    const response = await apiClient.post('/api/v1/workflow/schedule-transition', request);
+    return response.data;
+  }
+
+  /**
+   * Cancel scheduled transition
+   */
+  async cancelScheduledTransition(transitionId: number): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const response = await apiClient.delete(`/api/v1/workflow/scheduled-transitions/${transitionId}`);
+    return response.data;
+  }
+
+  /**
+   * Get workflow analytics and insights
+   */
+  async getWorkflowAnalytics(filters?: {
+    project_id?: number;
+    team_id?: number;
+    date_range?: string;
+    status_filter?: TaskStatus[];
+  }): Promise<{
+    completion_trends: Array<{
+      date: string;
+      completed_tasks: number;
+      average_time: number;
+    }>;
+    bottlenecks: Array<{
+      status: TaskStatus;
+      average_duration: number;
+      task_count: number;
+    }>;
+    user_performance: Array<{
+      user_id: number;
+      username: string;
+      completion_rate: number;
+      average_time: number;
+      tasks_completed: number;
+    }>;
+    status_flow: Record<string, number>;
+  }> {
+    const response = await apiClient.get('/api/v1/workflow/analytics', { params: filters });
+    return response.data;
   }
 }
+
+export const workflowService = new WorkflowService();
