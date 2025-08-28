@@ -94,14 +94,13 @@ class CommentService:
         # Extract mentions from content
         mentioned_users = ContentValidator.extract_mentions(sanitized_content)
 
-        # Create comment
+        # Create comment (content_type is used for validation but not stored)
         comment = TaskComment(
             task_id=task_id,
             user_id=user_id,
             content=sanitized_content,
-            content_type=content_type,
             parent_comment_id=parent_comment_id,
-            is_system_comment=is_system_comment,
+            is_system_generated=is_system_comment,
         )
 
         self.db.add(comment)
@@ -740,10 +739,9 @@ class CommentService:
 
         # Apply basic filters
         if not include_system:
-            query = query.filter(TaskComment.is_system_comment == False)
+            query = query.filter(TaskComment.is_system_generated == False)
         
-        if not include_deleted:
-            query = query.filter(TaskComment.is_deleted == False)
+        # Note: TaskComment model doesn't have is_deleted field - using soft delete pattern would require adding it
 
         # Apply advanced filters
         if filters:
@@ -758,7 +756,7 @@ class CommentService:
         query = query.options(
             joinedload(TaskComment.user),
             joinedload(TaskComment.media_attachments).joinedload(
-                CommentMediaAttachment.media_attachment
+                CommentMediaAttachment.media
             ),
             joinedload(TaskComment.parent_comment),
             joinedload(TaskComment.replies)
@@ -881,7 +879,7 @@ class CommentService:
                 joinedload(TaskComment.user),
                 joinedload(TaskComment.task),
                 joinedload(TaskComment.media_attachments).joinedload(
-                    CommentMediaAttachment.media_attachment
+                    CommentMediaAttachment.media
                 ),
             )
             .filter(TaskComment.id == comment_id)

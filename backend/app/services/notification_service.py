@@ -96,12 +96,10 @@ class NotificationService:
                     "user": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                     "comment_content": comment.content,
-                    "comment_type": comment.content_type,
-                    "is_system_comment": comment.is_system_comment,
+                    "is_system_generated": comment.is_system_generated,
                 }
             }
 
@@ -166,8 +164,7 @@ class NotificationService:
                     "user": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                     "comment": comment,
                 }
@@ -220,8 +217,7 @@ class NotificationService:
                     "submitted_by": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                     "requires_action": True,
                 }
@@ -276,8 +272,7 @@ class NotificationService:
                     "approved_by": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                     "comment": comment,
                 }
@@ -332,8 +327,7 @@ class NotificationService:
                     "rejected_by": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                     "reason": reason,
                     "requires_action": True,
@@ -373,8 +367,7 @@ class NotificationService:
                 "sender": {
                     "id": sender.id,
                     "username": sender.username,
-                    "first_name": sender.first_name,
-                    "last_name": sender.last_name,
+                    "full_name": sender.full_name,
                 },
                 "content": message.content,
                 "data": {
@@ -427,8 +420,7 @@ class NotificationService:
                 "sender": {
                     "id": sender.id,
                     "username": sender.username,
-                    "first_name": sender.first_name,
-                    "last_name": sender.last_name,
+                    "full_name": sender.full_name,
                 },
                 "content": message.content,
                 "context": {
@@ -495,8 +487,7 @@ class NotificationService:
                         "mentioned_by": {
                             "id": mentioning_user.id,
                             "username": mentioning_user.username,
-                            "first_name": mentioning_user.first_name,
-                            "last_name": mentioning_user.last_name,
+                            "full_name": mentioning_user.full_name,
                         },
                         "comment_content": comment.content,
                     }
@@ -559,8 +550,7 @@ class NotificationService:
                     "user": {
                         "id": user.id,
                         "username": user.username,
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
+                        "full_name": user.full_name,
                     },
                 }
             }
@@ -606,8 +596,7 @@ class NotificationService:
                     "mentioned_by": {
                         "id": mentioning_user.id,
                         "username": mentioning_user.username,
-                        "first_name": mentioning_user.first_name,
-                        "last_name": mentioning_user.last_name,
+                        "full_name": mentioning_user.full_name,
                     },
                     "comment_content": comment.content,
                     "mention_context": "task_comment",
@@ -650,8 +639,7 @@ class NotificationService:
                     "mentioned_by": {
                         "id": mentioning_user.id,
                         "username": mentioning_user.username,
-                        "first_name": mentioning_user.first_name,
-                        "last_name": mentioning_user.last_name,
+                        "full_name": mentioning_user.full_name,
                     },
                     "message_content": message.content,
                     "mention_context": "direct_message",
@@ -698,8 +686,7 @@ class NotificationService:
                     "mentioned_by": {
                         "id": mentioning_user.id,
                         "username": mentioning_user.username,
-                        "first_name": mentioning_user.first_name,
-                        "last_name": mentioning_user.last_name,
+                        "full_name": mentioning_user.full_name,
                     },
                     "message_content": message.content,
                     "mention_context": "task_chat",

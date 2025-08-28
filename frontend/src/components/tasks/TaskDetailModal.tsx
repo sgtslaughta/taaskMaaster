@@ -12,8 +12,9 @@ import { Input } from '../../design-system/components/Input';
 import { Card } from '../../design-system/components/Card';
 import { Task } from './TaskList';
 import { cn } from '../../design-system/utils/cn';
-import { User } from '../../services/userService';
 import { REWARD_TYPES } from './TaskForm';
+import SimpleTaskComments from '../comments/SimpleTaskComments';
+import { User, UserRole } from '../../types/user';
 import { 
   PencilIcon, 
   CheckIcon, 
@@ -160,7 +161,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
           } else if (value && typeof value === 'object') {
             return JSON.stringify(value);
           } else {
-            return value?.toString() || 'Not set';
+            return String(value) || 'Not set';
           }
         })()}
       </div>
@@ -196,12 +197,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
-      case 'completed':
+      case 'done':
         return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
       case 'in_progress':
         return <PlayIcon className="w-5 h-5 text-blue-500" />;
-      case 'overdue':
-        return <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />;
+      case 'review':
+        return <ExclamationTriangleIcon className="w-5 h-5 text-orange-500" />;
+      case 'cancelled':
+        return <StopIcon className="w-5 h-5 text-red-500" />;
       default:
         return <ClockIcon className="w-5 h-5 text-gray-500" />;
     }
@@ -370,7 +373,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </Button>
                 </>
               )}
-              {canEdit && task.status !== 'completed' && (
+              {canEdit && task.status !== 'done' && (
                 <Button
                   onClick={handleComplete}
                   disabled={loading}
@@ -613,7 +616,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <input
                       type="checkbox"
-                      checked={subtask.status === 'completed'}
+                      checked={subtask.status === 'done'}
                       onChange={() => {
                         // Handle subtask status change
                       }}
@@ -621,7 +624,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     />
                     <span className={cn(
                       "flex-1 text-sm",
-                      subtask.status === 'completed' 
+                      subtask.status === 'done' 
                         ? "text-gray-500 line-through" 
                         : "text-gray-900 dark:text-white"
                     )}>
@@ -651,6 +654,39 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Comments Section */}
+          {currentUser && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                Discussion
+              </label>
+              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <SimpleTaskComments
+                  taskId={task.id}
+                  currentUser={{
+                    id: parseInt(currentUser.id),
+                    username: currentUser.username,
+                    email: '', // We'll need to get this from the user object
+                    first_name: currentUser.username,
+                    last_name: '',
+                    full_name: currentUser.username,
+                    role: (currentUser.role as UserRole) || UserRole.USER,
+                    status: 'active' as any,
+                    is_active: true,
+                    is_verified: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }}
+                  maxHeight={300}
+                  allowRichText={true}
+                  allowMediaUpload={true}
+                  showTypingIndicators={true}
+                  autoScrollToBottom={true}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Modal>

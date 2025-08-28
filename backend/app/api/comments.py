@@ -20,6 +20,7 @@ from app.schemas.comment import (
     CommentUpdate,
     TaskStatusHistoryListResponse,
 )
+from app.utils.pagination import PaginationParams
 from app.services.comment_service import CommentService
 
 logger = get_logger(__name__)
@@ -137,13 +138,21 @@ async def get_task_comments(
     
     try:
         comment_service = CommentService(db)
-        comments, total = comment_service.get_task_comments(
+        
+        # Create pagination parameters
+        pagination_params = PaginationParams(skip=skip, limit=limit)
+        
+        # Call the service method with correct parameters
+        result = comment_service.get_task_comments(
             task_id=task_id,
             user_id=user_id,
-            skip=skip,
-            limit=limit,
+            pagination_params=pagination_params,
             include_system=include_system,
         )
+        
+        # Extract comments and total from the result
+        comments = result.items
+        total = result.total
         
         return CommentListResponse(
             comments=comments,

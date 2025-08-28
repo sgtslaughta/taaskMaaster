@@ -16,7 +16,7 @@ from app.models.task_comment import TaskComment
 from app.models.direct_message import DirectMessage
 from app.models.comment import TaskChatMessage
 from app.models.task import Task
-from app.models.user import User
+from app.models.user import User, UserRole
 
 logger = get_logger(__name__)
 
@@ -51,13 +51,7 @@ class Permission(str, Enum):
     ADMIN_MODERATE = "admin:moderate"
 
 
-class UserRole(str, Enum):
-    """User roles with different permission levels."""
-    
-    ADMIN = "admin"
-    MODERATOR = "moderator"
-    USER = "user"
-    GUEST = "guest"
+# UserRole is now imported from app.models.user
 
 
 class PermissionService:
@@ -89,13 +83,16 @@ class PermissionService:
                 Permission.MESSAGE_VIEW,
                 Permission.MESSAGE_DELETE,
             },
-            UserRole.MODERATOR: {
-                Permission.ADMIN_MODERATE,
+            UserRole.ORGANIZER: {
                 Permission.TASK_VIEW,
+                Permission.TASK_EDIT,
+                Permission.TASK_ASSIGN,
+                Permission.TASK_APPROVE,
                 Permission.TASK_COMMENT,
                 Permission.COMMENT_VIEW,
                 Permission.COMMENT_CREATE,
-                Permission.COMMENT_MODERATE,
+                Permission.COMMENT_EDIT,
+                Permission.COMMENT_DELETE,
                 Permission.MESSAGE_SEND,
                 Permission.MESSAGE_VIEW,
             },
@@ -106,10 +103,6 @@ class PermissionService:
                 Permission.COMMENT_CREATE,
                 Permission.MESSAGE_SEND,
                 Permission.MESSAGE_VIEW,
-            },
-            UserRole.GUEST: {
-                Permission.TASK_VIEW,
-                Permission.COMMENT_VIEW,
             }
         }
 
@@ -125,18 +118,15 @@ class PermissionService:
         """
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
-            return UserRole.GUEST
+            return UserRole.USER  # Default to USER instead of GUEST
         
-        # TODO: Add role field to User model
-        # For now, assume admin based on email or other criteria
-        if hasattr(user, 'role'):
+        # User model has role field
+        if hasattr(user, 'role') and user.role:
             return UserRole(user.role)
         
-        # Fallback logic - you can customize this
-        if hasattr(user, 'is_admin') and user.is_admin:
+        # Fallback logic
+        if hasattr(user, 'is_superuser') and user.is_superuser:
             return UserRole.ADMIN
-        elif hasattr(user, 'is_moderator') and user.is_moderator:
-            return UserRole.MODERATOR
         else:
             return UserRole.USER
 
@@ -166,15 +156,17 @@ class PermissionService:
             if user_role == UserRole.ADMIN:
                 return True
             
-            # Check role-based permissions
-            role_perms = self.role_permissions.get(user_role, set())
-            if permission in role_perms:
-                # Additional context-specific checks
-                return self._check_context_permission(
+            # Check context-specific permissions first (task creator/assignee access)
+            if resource_id and resource_type:
+                context_permission = self._check_context_permission(
                     user_id, permission, resource_id, resource_type
                 )
+                if context_permission:
+                    return True
             
-            return False
+            # Check role-based permissions as fallback
+            role_perms = self.role_permissions.get(user_role, set())
+            return permission in role_perms
             
         except Exception as e:
             logger.error(f"Error checking permission: {e}")
@@ -200,7 +192,7 @@ class PermissionService:
             True if user has contextual permission
         """
         if not resource_id or not resource_type:
-            return True  # No additional context to check
+            return False  # No context to check, rely on role-based permissions
         
         try:
             if resource_type == "task":

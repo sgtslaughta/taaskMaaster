@@ -35,13 +35,16 @@ class CommentUpdate(BaseModel):
     content_type: str = Field(default="markdown", description="Content format (markdown, text, html)")
 
 
-class CommentResponse(CommentBase):
+class CommentResponse(BaseModel):
     """Schema for comment response."""
     
     id: int
     task_id: int
     user_id: int
-    is_system_comment: bool
+    content: str
+    content_type: str = Field(default="markdown", description="Content format (markdown, text, html)")
+    parent_comment_id: Optional[int] = None
+    is_system_generated: bool
     created_at: datetime
     updated_at: datetime
     
