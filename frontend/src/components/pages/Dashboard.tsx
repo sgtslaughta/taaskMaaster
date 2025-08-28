@@ -22,6 +22,8 @@ import { getNavigationItems, updateNavigationWithBadges, type NavigationUser } f
 import { AppLayout, NavigationItem } from '../layout/AppLayout';
 import { cn } from '../../design-system/utils/cn';
 import { gamificationService, goalService, taskService } from '../../services';
+import { workflowStatsService, type WorkflowStats } from '../../services/workflowStatsService';
+import WorkflowStatsCards from '../workflow/WorkflowStatsCards';
 
 /**
  * @description User interface
@@ -125,6 +127,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     completedGoals: 0,
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [workflowStats, setWorkflowStats] = useState<WorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(() => {
@@ -155,6 +158,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const tasks = taskResponse.tasks;
       const tasksCompleted = tasks.filter(t => t.status === 'done').length;
       const tasksPending = tasks.filter(t => t.status !== 'done').length;
+
+      // Calculate workflow statistics
+      const workflowStatsData = workflowStatsService.calculateWorkflowStats(tasks);
+      setWorkflowStats(workflowStatsData);
 
       // Combine all stats
       setStats({
@@ -467,6 +474,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </button>
         </div>
+
+        {/* Workflow Statistics */}
+        {workflowStats && (
+          <WorkflowStatsCards 
+            stats={workflowStats} 
+            loading={loading}
+          />
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

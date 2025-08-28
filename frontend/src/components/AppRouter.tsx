@@ -10,6 +10,8 @@ import { Dashboard } from './pages/Dashboard';
 import { MyTasksPage } from './pages/MyTasksPage';
 import { TaskHubPage } from './pages/TaskHubPage';
 import { canAccessPage, type NavigationUser } from '../utils/navigation';
+import { NotificationProvider } from '../contexts/NotificationContext';
+import { ToastContainer } from './notifications/ToastContainer';
 
 /**
  * @description Current page type
@@ -179,7 +181,12 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     }
   };
 
-  return renderCurrentPage();
+  return (
+    <NotificationProvider>
+      {renderCurrentPage()}
+      <ToastContainer />
+    </NotificationProvider>
+  );
 };
 
 /**

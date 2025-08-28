@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { REWARD_TYPES } from './TaskForm';
+import { WorkflowStatusBadge, type WorkflowStatus } from '../workflow/WorkflowStatusBadge';
 
 /**
  * @description Task interface
@@ -256,14 +257,10 @@ export const TaskList: React.FC<TaskListProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white">{task.title}</h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          task.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
-                          task.status === 'in_progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' :
-                          task.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' :
-                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}>
-                          {task.status.replace('_', ' ')}
-                        </span>
+                        <WorkflowStatusBadge 
+                          status={task.status as WorkflowStatus} 
+                          compact={true}
+                        />
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
                           {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                         </span>

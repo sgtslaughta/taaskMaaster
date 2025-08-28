@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cn } from '../../design-system/utils/cn';
 import { useTheme } from '../../contexts/ThemeContext';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 /**
  * @description Header component props interface
@@ -316,22 +317,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications */}
           {showNotifications && (
-            <button
-              type="button"
-              onClick={handleNotificationsToggle}
-              className={cn(
-                'p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
-                'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                'transition-all duration-200',
-                'relative'
-              )}
-              aria-label="Toggle notifications"
-            >
-              <BellIcon className="h-5 w-5" />
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell />
           )}
 
           {/* User Menu */}

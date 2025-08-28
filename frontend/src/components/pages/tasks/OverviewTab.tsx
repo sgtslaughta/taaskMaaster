@@ -9,6 +9,8 @@ import React, { useState, useEffect } from 'react';
 import { Task as FrontendTask } from '../../tasks';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
+import { workflowStatsService } from '../../../services/workflowStatsService';
+import WorkflowStatsCards from '../../workflow/WorkflowStatsCards';
 import { 
   LineChart, 
   Line, 
@@ -350,6 +352,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Workflow Statistics */}
+      <WorkflowStatsCards 
+        stats={workflowStatsService.calculateWorkflowStats(tasks)} 
+        loading={loading}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

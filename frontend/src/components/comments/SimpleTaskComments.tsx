@@ -436,25 +436,25 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       <div
         key={comment.id}
         className={cn(
-          "flex gap-3 mb-4",
-          isReply && "ml-8",
+          "flex gap-2 sm:gap-3 mb-3 sm:mb-4",
+          isReply && "ml-4 sm:ml-8",
           isOwnComment ? "flex-row-reverse" : "flex-row"
         )}
       >
         {/* Avatar */}
         <div className="flex-shrink-0">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium">
             {comment.user.username.charAt(0).toUpperCase()}
           </div>
         </div>
 
         {/* Message Content */}
         <div className={cn(
-          "flex-1 max-w-xs md:max-w-md",
+          "flex-1 max-w-xs sm:max-w-sm md:max-w-md",
           isOwnComment && "text-right"
         )}>
           <div className={cn(
-            "rounded-lg px-4 py-2 text-sm",
+            "rounded-lg px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm",
             isOwnComment 
               ? "bg-blue-500 text-white" 
               : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -594,7 +594,7 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
 
       {/* Messages Container */}
       <div 
-        className="flex-1 overflow-y-auto p-4 space-y-2"
+        className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2"
         style={{ maxHeight: `${maxHeight}px` }}
       >
         {comments.length === 0 ? (
@@ -649,8 +649,8 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
 
 
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-600">
-        <div className="flex items-end gap-3">
+      <div className="p-2 sm:p-4 border-t border-gray-200 dark:border-gray-600">
+        <div className="flex items-end gap-2 sm:gap-3">
           <div className="flex-1">
             <textarea
               ref={inputRef}
@@ -658,23 +658,23 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               placeholder="Type a comment..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               rows={2}
               disabled={sending}
             />
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {allowMediaUpload && (
               <div className="relative">
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-2 attach-button"
+                  className="p-1.5 sm:p-2 attach-button"
                   onClick={() => setShowAttachMenu(!showAttachMenu)}
                 >
-                  <PaperClipIcon className="w-4 h-4" />
+                  <PaperClipIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
                 
                 {/* Attach Menu */}
@@ -695,16 +695,16 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="p-2 emoji-button"
+                className="p-1.5 sm:p-2 emoji-button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               >
-                <FaceSmileIcon className="w-4 h-4" />
+                <FaceSmileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Button>
               
               {/* Emoji Picker */}
               {showEmojiPicker && (
-                <div className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 emoji-picker">
-                  <div className="grid grid-cols-6 gap-1 w-48">
+                <div className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-2 sm:p-3 z-50 emoji-picker">
+                  <div className="grid grid-cols-5 sm:grid-cols-6 gap-1 w-40 sm:w-48">
                     {['😀', '😃', '😄', '😁', '😊', '😍', '🤔', '😎', '😢', '😭', '😡', '🤯', '👍', '👎', '❤️', '💯', '🔥', '✨', '🎉', '🚀', '💪', '👏', '🙏', '💡'].map((emoji) => (
                       <button
                         key={emoji}
@@ -721,13 +721,13 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
             <Button
               onClick={handleSendComment}
               disabled={!newComment.trim() || sending}
-              className="p-2"
+              className="p-1.5 sm:p-2"
               size="sm"
             >
               {sending ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <PaperAirplaneIcon className="w-4 h-4" />
+                <PaperAirplaneIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               )}
             </Button>
           </div>

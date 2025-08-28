@@ -15,6 +15,7 @@ import { cn } from '../../design-system/utils/cn';
 import { REWARD_TYPES } from './TaskForm';
 import SimpleTaskComments from '../comments/SimpleTaskComments';
 import { User, UserRole } from '../../types/user';
+import TaskWorkflowControls from '../workflow/TaskWorkflowControls';
 import { 
   PencilIcon, 
   CheckIcon, 
@@ -657,6 +658,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Workflow Controls */}
+          {currentUser && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                Workflow Actions
+              </label>
+              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <TaskWorkflowControls
+                  task={task}
+                  currentUser={currentUser}
+                  onTaskUpdate={(updatedTask) => {
+                    onUpdateTask?.(updatedTask.id, updatedTask);
+                  }}
+                  onError={(error) => {
+                    console.error('Workflow error:', error);
+                  }}
+                  showHistory={true}
+                  compact={false}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Comments Section */}
           {currentUser && (

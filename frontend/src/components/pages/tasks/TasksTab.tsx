@@ -11,6 +11,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Button } from '../../../design-system/components/Button';
 import { Card } from '../../../design-system/components/Card';
 import { cn } from '../../../design-system/utils/cn';
+import { WorkflowStatusBadge, type WorkflowStatus } from '../../workflow/WorkflowStatusBadge';
 import { TaskDetailModal } from '../../tasks/TaskDetailModal';
 import { BulkEditModal } from '../../tasks/BulkEditModal';
 import { TaskExportModal, TaskExportData } from '../../tasks/TaskExportModal';
@@ -664,12 +665,10 @@ const TaskTable: React.FC<TaskTableProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
-                <div className="flex items-center">
-                  {getStatusIcon(task.status)}
-                  <span className="ml-1 text-sm text-gray-900 dark:text-white">
-                    {task.status.replace('_', ' ')}
-                  </span>
-                </div>
+                <WorkflowStatusBadge 
+                  status={task.status as WorkflowStatus} 
+                  compact={true}
+                />
               </div>
               
               <div className="flex items-center justify-between">

@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { cn } from '../../design-system/utils/cn';
+import { WorkflowStatusBadge, type WorkflowStatus } from '../workflow/WorkflowStatusBadge';
 import { FrontendTask } from '../../services/taskService';
 import {
   CheckCircleIcon,
@@ -198,12 +199,10 @@ const MyTasksTable: React.FC<MyTasksTableProps> = ({
 
                 {/* Status Column */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {getStatusIcon(task.status)}
-                    <span className="ml-2 text-sm text-gray-900 dark:text-white capitalize">
-                      {task.status.replace('_', ' ')}
-                    </span>
-                  </div>
+                  <WorkflowStatusBadge 
+                    status={task.status as WorkflowStatus} 
+                    compact={true}
+                  />
                 </td>
 
                 {/* Priority Column */}
