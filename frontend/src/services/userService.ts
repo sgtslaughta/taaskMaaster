@@ -428,6 +428,18 @@ class UserService {
     const response = await apiClient.delete('/api/v1/users/me/avatar');
     return response.data;
   }
+
+  /**
+   * Get users available for task assignment
+   */
+  async getUsersForAssignment(params?: {
+    limit?: number;
+    search?: string;
+    exclude_inactive?: boolean;
+  }): Promise<User[]> {
+    const response = await apiClient.get('/api/v1/users/for-assignment', { params });
+    return response.data.users || response.data;
+  }
 }
 
 export const userService = new UserService();

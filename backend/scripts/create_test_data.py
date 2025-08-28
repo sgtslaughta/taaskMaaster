@@ -30,6 +30,14 @@ from app.models.task import (
     TaskPriority, TaskStatus, RewardType
 )
 from app.models.gamification import Points, PointsType
+from app.models.task_comment import TaskComment, CommentMediaAttachment
+from app.models.direct_message import DirectMessage
+from app.models.conversation import Conversation
+from app.models.comment import (
+    CommentAuditTrail, TaskStatusHistory, UserStatus, TaskChatMessage,
+    MessageReadReceipt, DirectMessageMedia, TaskChatMessageMedia
+)
+from app.models.media import MediaAttachment
 from app.schemas.user import UserCreate
 from app.schemas.task import (
     TaskCreate, TaskCategoryCreate, TaskTemplateCreate, TaskListCreate
@@ -50,6 +58,10 @@ class TestDataGenerator:
         self.templates: List[TaskTemplate] = []
         self.tasks: List[Task] = []
         self.lists: List[TaskList] = []
+        self.conversations: List[Conversation] = []
+        self.task_comments: List[TaskComment] = []
+        self.direct_messages: List[DirectMessage] = []
+        self.media_attachments: List[MediaAttachment] = []
 
     def create_users(self) -> None:
         """Create test users with different roles"""
@@ -59,9 +71,16 @@ class TestDataGenerator:
             {
                 "username": "admin",
                 "email": "admin@taaskmaaster.com",
-                "full_name": "Admin User",
+                "full_name": "Administrator",
                 "is_active": True,
                 "is_superuser": True
+            },
+            {
+                "username": "testuser",
+                "email": "testuser@taaskmaaster.com", 
+                "full_name": "Test User",
+                "is_active": True,
+                "is_superuser": False
             },
             {
                 "username": "john_doe",
@@ -431,6 +450,42 @@ class TestDataGenerator:
                 "reward_description": "New programming book"
             },
             
+            # Workflow status tasks
+            {
+                "title": "Review Marketing Proposal",
+                "description": "Review and approve the new marketing campaign proposal",
+                "status": TaskStatus.ASSIGNED,
+                "priority": TaskPriority.HIGH,
+                "category_name": "Work",
+                "assigned_to": "bob_wilson",
+                "created_by": "admin",
+                "due_date": datetime.now() + timedelta(days=2),
+                "completed_at": None,
+                "estimated_hours": 1.5,
+                "actual_hours": 0,
+                "points": 25,
+                "reward_type": RewardType.POINTS,
+                "reward_value": 25,
+                "reward_description": None
+            },
+            {
+                "title": "Design Website Mockup",
+                "description": "Create mockup designs for the new company website",
+                "status": TaskStatus.SUBMITTED_FOR_APPROVAL,
+                "priority": TaskPriority.MEDIUM,
+                "category_name": "Work",
+                "assigned_to": "alice_brown",
+                "created_by": "admin",
+                "due_date": datetime.now() + timedelta(days=1),
+                "completed_at": None,
+                "estimated_hours": 3.0,
+                "actual_hours": 3.0,
+                "points": 40,
+                "reward_type": RewardType.MONETARY,
+                "reward_value": 75.00,
+                "reward_description": None
+            },
+            
             # Overdue tasks
             {
                 "title": "Fix Broken Fence",
@@ -620,6 +675,281 @@ class TestDataGenerator:
         self.db.commit()
         print("Created tasks from templates")
 
+    def create_conversations(self) -> None:
+        """Create conversations for direct messaging"""
+        print("Creating conversations...")
+        
+        conversation_data = [
+            {
+                "type": "direct",
+                "title": None,
+                "participants": ["admin", "testuser"]
+            },
+            {
+                "type": "direct", 
+                "title": None,
+                "participants": ["john_doe", "jane_smith"]
+            },
+            {
+                "type": "group",
+                "title": "Project Team Chat",
+                "participants": ["admin", "bob_wilson", "alice_brown"]
+            },
+            {
+                "type": "group",
+                "title": "Study Group",
+                "participants": ["john_doe", "jane_smith", "alice_brown"]
+            }
+        ]
+
+        for conv_info in conversation_data:
+            # Find participant users
+            participants = []
+            for username in conv_info["participants"]:
+                user = next((u for u in self.users if u.username == username), None)
+                if user:
+                    participants.append(user)
+            
+            if len(participants) < 2:
+                continue
+                
+            conversation = Conversation(
+                type=conv_info["type"],
+                title=conv_info["title"],
+                creator_id=participants[0].id
+            )
+            self.db.add(conversation)
+            self.db.flush()  # Get the ID
+            
+            # Add participants to the conversation
+            conversation.participants = participants
+            
+            self.conversations.append(conversation)
+            print(f"  Created conversation: {conv_info['type']} - {conv_info.get('title', 'Direct Chat')}")
+
+        self.db.commit()
+        print(f"Created {len(self.conversations)} conversations")
+
+    def create_direct_messages(self) -> None:
+        """Create direct messages between users"""
+        print("Creating direct messages...")
+        
+        if len(self.conversations) < 2:
+            print("  Skipping - not enough conversations")
+            return
+            
+        message_data = [
+            {
+                "conversation_index": 0,  # admin <-> testuser
+                "sender": "admin",
+                "content": "Hi! How are you doing with your tasks?",
+                "created_at": datetime.now() - timedelta(hours=2)
+            },
+            {
+                "conversation_index": 0,
+                "sender": "testuser", 
+                "content": "Going well! I just submitted the website mockup for approval.",
+                "created_at": datetime.now() - timedelta(hours=1, minutes=45)
+            },
+            {
+                "conversation_index": 0,
+                "sender": "admin",
+                "content": "Great! I'll review it shortly and provide feedback.",
+                "created_at": datetime.now() - timedelta(hours=1, minutes=30)
+            },
+            {
+                "conversation_index": 1,  # john_doe <-> jane_smith
+                "sender": "john_doe",
+                "content": "Thanks for assigning me the kitchen cleaning task!",
+                "created_at": datetime.now() - timedelta(hours=3)
+            },
+            {
+                "conversation_index": 1,
+                "sender": "jane_smith",
+                "content": "No problem! Let me know if you need any cleaning supplies.",
+                "created_at": datetime.now() - timedelta(hours=2, minutes=30)
+            }
+        ]
+
+        for msg_info in message_data:
+            if msg_info["conversation_index"] >= len(self.conversations):
+                continue
+                
+            conversation = self.conversations[msg_info["conversation_index"]]
+            sender = next((u for u in self.users if u.username == msg_info["sender"]), None)
+            
+            if not sender:
+                continue
+                
+            message = DirectMessage(
+                conversation_id=conversation.id,
+                sender_id=sender.id,
+                content=msg_info["content"],
+                created_at=msg_info["created_at"],
+                updated_at=msg_info["created_at"]
+            )
+            self.db.add(message)
+            self.direct_messages.append(message)
+            print(f"  Created message from {sender.username}")
+
+        self.db.commit()
+        print(f"Created {len(self.direct_messages)} direct messages")
+
+    def create_task_comments(self) -> None:
+        """Create task comments with threading"""
+        print("Creating task comments...")
+        
+        if len(self.tasks) < 3:
+            print("  Skipping - not enough tasks")
+            return
+            
+        comment_data = [
+            {
+                "task_title": "Write Project Report",
+                "author": "admin",
+                "content": "This looks great! Just need to add the financial summary section.",
+                "created_at": datetime.now() - timedelta(hours=1)
+            },
+            {
+                "task_title": "Write Project Report", 
+                "author": "bob_wilson",
+                "content": "Thanks for the feedback! I'll add that section today.",
+                "parent_content": "This looks great! Just need to add the financial summary section.",
+                "created_at": datetime.now() - timedelta(minutes=45)
+            },
+            {
+                "task_title": "Design Website Mockup",
+                "author": "admin",
+                "content": "The design looks modern and clean. Consider making the call-to-action buttons more prominent.",
+                "created_at": datetime.now() - timedelta(minutes=30)
+            },
+            {
+                "task_title": "Study for Science Test",
+                "author": "alice_brown",
+                "content": "Finished reviewing chapters 5-6. The photosynthesis section is challenging!",
+                "created_at": datetime.now() - timedelta(hours=2)
+            },
+            {
+                "task_title": "Clean Kitchen",
+                "author": "jane_smith",
+                "content": "Great job! The kitchen looks spotless. Thanks for going the extra mile with the stovetop.",
+                "created_at": datetime.now() - timedelta(hours=3)
+            }
+        ]
+
+        for comment_info in comment_data:
+            # Find the task
+            task = next((t for t in self.tasks if t.title == comment_info["task_title"]), None)
+            if not task:
+                continue
+                
+            # Find the author
+            author = next((u for u in self.users if u.username == comment_info["author"]), None)
+            if not author:
+                continue
+            
+            # Find parent comment if this is a reply
+            parent_comment = None
+            if "parent_content" in comment_info:
+                parent_comment = next(
+                    (c for c in self.task_comments 
+                     if c.task_id == task.id and comment_info["parent_content"] in c.content),
+                    None
+                )
+            
+            comment = TaskComment(
+                task_id=task.id,
+                user_id=author.id,
+                content=comment_info["content"],
+                parent_comment_id=parent_comment.id if parent_comment else None,
+                created_at=comment_info["created_at"],
+                updated_at=comment_info["created_at"]
+            )
+            self.db.add(comment)
+            self.task_comments.append(comment)
+            print(f"  Created comment on '{task.title}' by {author.username}")
+
+        self.db.commit()
+        print(f"Created {len(self.task_comments)} task comments")
+
+    def create_user_status_records(self) -> None:
+        """Create user status records for presence indicators"""
+        print("Creating user status records...")
+        
+        for user in self.users[:4]:  # First 4 users
+            status_value = random.choice(["online", "away", "busy", "offline"])
+            user_status = UserStatus(
+                user_id=user.id,
+                status=status_value,
+                last_seen=datetime.now() - timedelta(minutes=random.randint(1, 60)),
+                custom_message=f"{user.full_name} is {status_value}" if status_value != "online" else None
+            )
+            self.db.add(user_status)
+            print(f"  Created status for {user.username}: {status_value}")
+
+        self.db.commit()
+        print("Created user status records")
+
+    def create_task_status_history(self) -> None:
+        """Create task status history for workflow tracking"""
+        print("Creating task status history...")
+        
+        # Create history for tasks with workflow statuses
+        workflow_tasks = [t for t in self.tasks if t.status in [TaskStatus.ASSIGNED, TaskStatus.SUBMITTED_FOR_APPROVAL]]
+        
+        for task in workflow_tasks:
+            # Create initial status change to ASSIGNED
+            if task.status == TaskStatus.ASSIGNED:
+                history = TaskStatusHistory(
+                    task_id=task.id,
+                    changed_by_id=task.created_by_id,
+                    old_status="todo",
+                    new_status="assigned",
+                    changed_at=task.created_at + timedelta(minutes=5),
+                    reason="Task assigned to team member"
+                )
+                self.db.add(history)
+                
+            # Create status change to SUBMITTED_FOR_APPROVAL
+            elif task.status == TaskStatus.SUBMITTED_FOR_APPROVAL:
+                # First: TODO -> ASSIGNED
+                history1 = TaskStatusHistory(
+                    task_id=task.id,
+                    changed_by_id=task.created_by_id,
+                    old_status="todo",
+                    new_status="assigned", 
+                    changed_at=task.created_at + timedelta(minutes=5),
+                    reason="Task assigned to team member"
+                )
+                self.db.add(history1)
+                
+                # Then: ASSIGNED -> IN_PROGRESS
+                history2 = TaskStatusHistory(
+                    task_id=task.id,
+                    changed_by_id=task.assigned_to_id,
+                    old_status="assigned",
+                    new_status="in_progress",
+                    changed_at=task.created_at + timedelta(hours=1),
+                    reason="Started working on task"
+                )
+                self.db.add(history2)
+                
+                # Finally: IN_PROGRESS -> SUBMITTED_FOR_APPROVAL
+                history3 = TaskStatusHistory(
+                    task_id=task.id,
+                    changed_by_id=task.assigned_to_id,
+                    old_status="in_progress",
+                    new_status="submitted_for_approval",
+                    changed_at=task.created_at + timedelta(hours=2),
+                    reason="Work completed, ready for review"
+                )
+                self.db.add(history3)
+                
+            print(f"  Created status history for '{task.title}'")
+
+        self.db.commit()
+        print("Created task status history records")
+
     def generate_all_data(self) -> None:
         """Generate all test data"""
         print("Starting test data generation...")
@@ -633,6 +963,13 @@ class TestDataGenerator:
             self.create_task_lists()
             self.create_tasks_from_templates()
             
+            # New workflow enhancement data
+            self.create_conversations()
+            self.create_direct_messages()
+            self.create_task_comments()
+            self.create_user_status_records()
+            self.create_task_status_history()
+            
             print("=" * 50)
             print("Test data generation completed successfully!")
             print(f"Summary:")
@@ -641,6 +978,10 @@ class TestDataGenerator:
             print(f"  - Templates: {len(self.templates)}")
             print(f"  - Tasks: {len(self.tasks)}")
             print(f"  - Task Lists: {len(self.lists)}")
+            print(f"  - Conversations: {len(self.conversations)}")
+            print(f"  - Direct Messages: {len(self.direct_messages)}")
+            print(f"  - Task Comments: {len(self.task_comments)}")
+            print(f"  - Media Attachments: {len(self.media_attachments)}")
             
         except Exception as e:
             print(f"Error generating test data: {e}")

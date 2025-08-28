@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from app.models.user import UserRole
 
 
 class Token(BaseModel):
@@ -52,6 +53,7 @@ class LoginResponse(BaseModel):
     username: str = Field(..., description="Username")
     email: str = Field(..., description="Email")
     full_name: Optional[str] = Field(None, description="Full name")
+    role: UserRole = Field(..., description="User role")
     is_active: bool = Field(..., description="User active status")
     is_superuser: bool = Field(..., description="Superuser status")
 

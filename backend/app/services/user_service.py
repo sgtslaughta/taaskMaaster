@@ -46,6 +46,7 @@ class UserService:
             full_name=user_data.full_name,
             timezone=user_data.timezone,
             hashed_password=hashed_password,
+            role=user_data.role if user_data.role else None,
         )
 
         self.db.add(user)

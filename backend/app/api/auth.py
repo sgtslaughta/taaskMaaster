@@ -86,6 +86,7 @@ async def login(
         username=user.username,
         email=user.email,
         full_name=user.full_name,
+        role=user.role,
         is_active=user.is_active,
         is_superuser=user.is_superuser,
     )
@@ -201,6 +202,7 @@ async def get_current_user_info(
         "username": current_user.username,
         "email": current_user.email,
         "full_name": current_user.full_name,
+        "role": current_user.role,
         "is_active": current_user.is_active,
         "is_superuser": current_user.is_superuser,
         "timezone": current_user.timezone,

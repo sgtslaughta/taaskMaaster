@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: currentUser.user_id.toString(),
               username: currentUser.username,
               email: currentUser.email,
-              role: currentUser.is_superuser ? 'admin' : 'user',
+              role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
             });
             
             // Update last login time
@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: response.user_id.toString(),
         username: response.username,
         email: response.email,
-        role: response.is_superuser ? 'admin' : 'user',
+        role: response.role || (response.is_superuser ? 'admin' : 'user'),
       };
       
       // Save login state to cookies
