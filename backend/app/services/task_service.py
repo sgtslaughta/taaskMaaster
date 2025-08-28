@@ -1434,7 +1434,7 @@ class TaskService:
         # Add users who have commented on the task
         # This will require importing TaskComment, but we'll do it here to avoid circular imports
         try:
-            from app.models.comment import TaskComment
+            from app.models.task_comment import TaskComment
             commenters = (
                 self.db.query(TaskComment.user_id)
                 .filter(TaskComment.task_id == task_id)

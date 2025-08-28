@@ -12,12 +12,11 @@ from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.logging import get_logger
+from app.models.task_comment import TaskComment, CommentMediaAttachment
+from app.models.direct_message import DirectMessage
 from app.models.comment import (
-    CommentMediaAttachment,
-    DirectMessage,
     MessageReadReceipt,
     TaskChatMessage,
-    TaskComment,
     TaskStatusHistory,
     UserStatus,
 )

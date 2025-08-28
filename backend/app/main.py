@@ -256,9 +256,9 @@ async def startup_event():
     logger.info("TaaskMaaster API starting up")
 
     # Initialize database
-    from app.db.session import create_tables
-
-    create_tables()
+    from app.core.database import init_database
+    
+    init_database()
     logger.info("Database tables created")
 
     # Initialize services here

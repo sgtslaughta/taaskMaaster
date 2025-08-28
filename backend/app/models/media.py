@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.core.database import Base
 
 
 class MediaType(str, Enum):
@@ -75,6 +75,9 @@ class MediaAttachment(Base):
     # Relationships
     task = relationship("Task", back_populates="media_attachments")
     user = relationship("User")
+    comment_attachments = relationship("CommentMediaAttachment", back_populates="media")
+    direct_message_attachments = relationship("DirectMessageMedia", back_populates="media_attachment")
+    task_chat_attachments = relationship("TaskChatMessageMedia", back_populates="media_attachment")
 
     @property
     def file_size_mb(self) -> float:

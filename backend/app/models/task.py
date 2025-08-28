@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.core.database import Base
 
 
 class TaskPriority(str, Enum):

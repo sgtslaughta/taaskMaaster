@@ -12,7 +12,9 @@ from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.models.comment import TaskComment, DirectMessage, TaskChatMessage
+from app.models.task_comment import TaskComment
+from app.models.direct_message import DirectMessage
+from app.models.comment import TaskChatMessage
 from app.models.task import Task
 from app.models.user import User
 from app.services.websocket_service import websocket_manager

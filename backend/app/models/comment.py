@@ -19,57 +19,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.core.database import Base
 
-
-class TaskComment(Base):
-    """
-    Task comments model for rich text comments on tasks.
-    
-    Attributes:
-        id: Primary key
-        task_id: Associated task
-        user_id: User who created the comment
-        content: Rich text content
-        content_type: Content format (markdown, html, text)
-        parent_comment_id: Parent comment for replies/threading
-        is_system_comment: Whether this is a system-generated comment
-        created_at: Creation timestamp
-        updated_at: Last update timestamp
-    """
-    
-    __tablename__ = "task_comments"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    content = Column(Text, nullable=False)
-    content_type = Column(String(50), default="markdown")  # markdown, html, text
-    parent_comment_id = Column(Integer, ForeignKey("task_comments.id"), nullable=True)
-    is_system_comment = Column(Boolean, default=False)  # For workflow changes
-    is_edited = Column(Boolean, default=False)  # Whether comment has been edited
-    edited_at = Column(DateTime, nullable=True)  # When comment was last edited
-    edit_reason = Column(Text, nullable=True)  # Reason for edit
-    is_deleted = Column(Boolean, default=False)  # Soft delete flag
-    deleted_at = Column(DateTime, nullable=True)  # When comment was deleted
-    deletion_reason = Column(Text, nullable=True)  # Reason for deletion
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    task = relationship("Task", back_populates="comments")
-    user = relationship("User")
-    parent_comment = relationship("TaskComment", remote_side=[id])
-    replies = relationship("TaskComment", back_populates="parent_comment")
-    media_attachments = relationship("CommentMediaAttachment", back_populates="comment", cascade="all, delete-orphan")
-    audit_trail = relationship("CommentAuditTrail", back_populates="comment", cascade="all, delete-orphan")
-    
-    def __repr__(self) -> str:
-        """String representation of TaskComment."""
-        return (
-            f"<TaskComment(id={self.id}, task_id={self.task_id}, "
-            f"user_id={self.user_id})>"
-        )
 
 
 class TaskStatusHistory(Base):
@@ -108,76 +59,8 @@ class TaskStatusHistory(Base):
         )
 
 
-class CommentMediaAttachment(Base):
-    """
-    Junction table for comment media attachments.
-    
-    Attributes:
-        id: Primary key
-        comment_id: Associated comment
-        media_attachment_id: Associated media attachment
-        created_at: When attachment was added
-    """
-    
-    __tablename__ = "comment_media_attachments"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    comment_id = Column(Integer, ForeignKey("task_comments.id"), nullable=False)
-    media_attachment_id = Column(Integer, ForeignKey("media_attachments.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    comment = relationship("TaskComment", back_populates="media_attachments")
-    media_attachment = relationship("MediaAttachment")
-    
-    def __repr__(self) -> str:
-        """String representation of CommentMediaAttachment."""
-        return (
-            f"<CommentMediaAttachment(comment_id={self.comment_id}, "
-            f"media_id={self.media_attachment_id})>"
-        )
 
 
-class DirectMessage(Base):
-    """
-    Direct messages between users.
-    
-    Attributes:
-        id: Primary key
-        from_user_id: User sending the message
-        to_user_id: User receiving the message
-        content: Message content
-        content_type: Content format (text, markdown)
-        thread_id: Thread identifier for conversation grouping
-        is_read: Whether message has been read
-        created_at: Creation timestamp
-        updated_at: Last update timestamp
-    """
-    
-    __tablename__ = "direct_messages"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    from_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    to_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    content = Column(Text, nullable=False)
-    content_type = Column(String(50), default="text")  # text, markdown
-    thread_id = Column(String(100), nullable=True, index=True)  # For threaded conversations
-    is_read = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    from_user = relationship("User", foreign_keys=[from_user_id])
-    to_user = relationship("User", foreign_keys=[to_user_id])
-    media_attachments = relationship("DirectMessageMedia", back_populates="message", cascade="all, delete-orphan")
-    read_receipts = relationship("MessageReadReceipt", back_populates="direct_message", cascade="all, delete-orphan")
-    
-    def __repr__(self) -> str:
-        """String representation of DirectMessage."""
-        return (
-            f"<DirectMessage(id={self.id}, from={self.from_user_id}, "
-            f"to={self.to_user_id})>"
-        )
 
 
 class TaskChatMessage(Base):

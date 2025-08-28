@@ -7,7 +7,7 @@ This module contains FastAPI routes for comment-related operations.
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db

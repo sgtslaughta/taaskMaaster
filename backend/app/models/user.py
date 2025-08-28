@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.core.database import Base
 
 
 class UserRole(str, Enum):
@@ -73,6 +73,20 @@ class User(Base):
     achievements = relationship("UserAchievement", back_populates="user")
     points = relationship("Points", back_populates="user")
     created_lists = relationship("TaskList", back_populates="created_by")
+    
+    # Comment relationships
+    comments = relationship("TaskComment", back_populates="user", foreign_keys="TaskComment.user_id")
+    comment_reactions = relationship("CommentReaction", back_populates="user")
+    comment_mentions_received = relationship("CommentMention", back_populates="mentioned_user", foreign_keys="CommentMention.mentioned_user_id")
+    comment_mentions_made = relationship("CommentMention", back_populates="mentioned_by_user", foreign_keys="CommentMention.mentioned_by_user_id")
+    comment_audit_entries = relationship("CommentAuditTrail", back_populates="user")
+    
+    # Messaging relationships
+    sent_messages = relationship("DirectMessage", back_populates="sender", foreign_keys="DirectMessage.sender_id")
+    message_reactions = relationship("MessageReaction", back_populates="user")
+    created_conversations = relationship("Conversation", back_populates="creator", foreign_keys="Conversation.creator_id")
+    conversations = relationship("Conversation", secondary="conversation_participants", back_populates="participants")
+    conversation_settings = relationship("ConversationSettings", back_populates="user")
 
     def __repr__(self) -> str:
         """String representation of User."""

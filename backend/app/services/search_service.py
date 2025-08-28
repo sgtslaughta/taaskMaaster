@@ -13,10 +13,10 @@ from sqlalchemy import and_, desc, func, or_, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.logging import get_logger
+from app.models.task_comment import TaskComment
+from app.models.direct_message import DirectMessage
 from app.models.comment import (
-    DirectMessage,
     TaskChatMessage,
-    TaskComment,
     TaskStatusHistory,
 )
 from app.models.task import Task

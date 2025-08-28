@@ -11,7 +11,9 @@ from typing import List, Optional, Set
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.logging import get_logger
-from app.models.comment import TaskComment, DirectMessage, TaskChatMessage
+from app.models.task_comment import TaskComment
+from app.models.direct_message import DirectMessage
+from app.models.comment import TaskChatMessage
 from app.models.task import Task
 from app.models.user import User
 from app.services.notification_service import NotificationService
