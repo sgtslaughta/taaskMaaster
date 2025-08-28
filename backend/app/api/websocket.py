@@ -164,10 +164,13 @@ async def websocket_messaging_endpoint(
             try:
                 # Receive message from client
                 data = await websocket.receive_text()
+                logger.info(f"Received WebSocket message: {data}")
                 message = json.loads(data)
+                logger.info(f"Parsed WebSocket message: {message}")
                 
                 # Handle client-side messages
                 message_type = message.get("type")
+                logger.info(f"Message type: {message_type}")
                 
                 if message_type == "heartbeat":
                     # Respond to heartbeat

@@ -90,20 +90,19 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          console.log('🔌 WebSocket received message:', message);
           const subscribers = subscribersRef.current.get(message.type);
-          console.log('👥 Subscribers for type', message.type + ':', subscribers ? subscribers.size : 0);
+          
+
           
           if (subscribers) {
             subscribers.forEach(callback => {
               try {
-                callback(message.data);
+                // Pass the entire message object (not just message.data) since backend sends data at root level
+                callback(message.data || message);
               } catch (error) {
                 console.error('Error in WebSocket subscriber:', error);
               }
             });
-          } else {
-            console.log('⚠️ No subscribers for message type:', message.type);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);

@@ -61,8 +61,11 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
+  const lastTypingSentRef = useRef<number>(0);
+  const typingDisplayTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
   
-  // WebSocket for real-time updates (notifications)
+  // WebSocket for notifications (comment updates)
   const notificationWS = useWebSocket({
     url: 'ws://localhost:8000/ws/notifications',
     autoConnect: true
@@ -73,6 +76,10 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     url: 'ws://localhost:8000/ws/messaging',
     autoConnect: true
   });
+
+
+
+
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
@@ -115,47 +122,43 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     if (!notificationWS.subscribe) return;
 
     const unsubscribeNewComment = notificationWS.subscribe('task_comment', (data: any) => {
-      console.log('🔔 Received task_comment notification:', data);
       // The backend sends the full notification structure, extract comment data
       if (data.task_id === taskId) {
-        console.log('✅ Notification is for current task, reloading comments...');
-        // Since we get a notification, we need to reload comments or extract comment from data
-        // For now, let's reload to get the latest comments
+        // Clear typing indicator for the user who just sent a message
+        if (data.user?.username) {
+          const username = data.user.username;
+          // Clear any pending timeout for this user
+          const existingTimeout = typingDisplayTimeouts.current.get(username);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            typingDisplayTimeouts.current.delete(username);
+          }
+          // Immediately remove from typing users since they just sent a message
+          setTypingUsers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(username);
+            return newSet;
+          });
+        }
+
+        // Reload comments when we get a notification for this task
         const loadComments = async () => {
           try {
             const response = await commentService.getTaskComments(taskId, {
               limit: 100,
               include_system: false
             });
-            console.log('📝 Reloaded comments after notification:', response.comments.length, 'comments');
             setComments(response.comments);
           } catch (err) {
             console.error('Failed to reload comments after notification:', err);
           }
         };
         loadComments();
-      } else {
-        console.log('ℹ️ Notification is for different task:', data.task_id, 'vs current:', taskId);
-      }
-    });
-
-    // TODO: Add handlers for comment_updated and comment_deleted when backend implements them
-    const unsubscribeUpdateComment = notificationWS.subscribe('comment_updated', (data: Comment) => {
-      if (data.task_id === taskId) {
-        setComments(prev => prev.map(c => c.id === data.id ? data : c));
-      }
-    });
-
-    const unsubscribeDeleteComment = notificationWS.subscribe('comment_deleted', (data: { id: number; task_id: number }) => {
-      if (data.task_id === taskId) {
-        setComments(prev => prev.filter(c => c.id !== data.id));
       }
     });
 
     return () => {
       unsubscribeNewComment();
-      unsubscribeUpdateComment();
-      unsubscribeDeleteComment();
     };
   }, [taskId, notificationWS.subscribe]);
 
@@ -164,20 +167,34 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     if (!messagingWS.subscribe) return;
 
     const unsubscribeTyping = messagingWS.subscribe('typing_indicator', (data: any) => {
-      console.log('⌨️ Received typing indicator:', data);
-      
       // Check if this typing indicator is for the current task
       if (data.context?.type === 'task_chat' && data.context?.context_id === taskId) {
         const username = data.user?.username;
         if (username && username !== currentUser.username) {
           if (data.is_typing) {
+            // Clear any pending removal timeout for this user
+            const existingTimeout = typingDisplayTimeouts.current.get(username);
+            if (existingTimeout) {
+              clearTimeout(existingTimeout);
+              typingDisplayTimeouts.current.delete(username);
+            }
+            
             setTypingUsers(prev => new Set([...prev, username]));
           } else {
-            setTypingUsers(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(username);
-              return newSet;
-            });
+            // Don't remove immediately - enforce minimum display time of 2 seconds
+            const existingTimeout = typingDisplayTimeouts.current.get(username);
+            if (!existingTimeout) {
+              const timeout = setTimeout(() => {
+                setTypingUsers(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(username);
+                  return newSet;
+                });
+                typingDisplayTimeouts.current.delete(username);
+              }, 2000); // Minimum 2 second display time
+              
+              typingDisplayTimeouts.current.set(username, timeout);
+            }
           }
         }
       }
@@ -185,47 +202,70 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
 
     return () => {
       unsubscribeTyping();
+      // Clean up any pending typing display timeouts
+      typingDisplayTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      typingDisplayTimeouts.current.clear();
     };
   }, [taskId, currentUser.username, messagingWS.subscribe]);
 
-  // Send typing indicator
+  // Send typing indicator with proper debouncing
   const sendTypingIndicator = useCallback((isTyping: boolean) => {
-    if (messagingWS.sendMessage) {
-      messagingWS.sendMessage({
+    if (!messagingWS.sendMessage) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLastSent = now - lastTypingSentRef.current;
+    const previousState = isTypingRef.current;
+    const statusChanged = previousState !== isTyping;
+    
+    // Only send if:
+    // 1. Status actually changed (start/stop), OR
+    // 2. It's been more than 3 seconds since last "start typing" (heartbeat)
+    const shouldSend = statusChanged || 
+                      (isTyping && timeSinceLastSent >= 3000);
+
+    if (shouldSend) {
+      const message = {
         type: 'typing_indicator',
-        data: {
-          context_type: 'task_chat',
-          context_id: taskId,
-          is_typing: isTyping
-        }
-      });
+        context_type: 'task_chat',
+        context_id: taskId,
+        is_typing: isTyping
+      };
+      
+      messagingWS.sendMessage(message);
+      isTypingRef.current = isTyping;
+      lastTypingSentRef.current = now;
+      
+
     }
   }, [messagingWS.sendMessage, taskId]);
+
+
 
   // Handle input change with typing indicators
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setNewComment(value);
 
-    // Send typing indicator when user starts typing
-    if (value.trim() && !sending) {
+    if (sending) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (value.trim()) {
+      // Send typing indicator when user starts typing (debounced internally)
       sendTypingIndicator(true);
       
-      // Clear existing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // Set timeout to stop typing indicator after 2 seconds of inactivity
+      // Set timeout to stop typing indicator after 4 seconds of inactivity
       typingTimeoutRef.current = setTimeout(() => {
         sendTypingIndicator(false);
-      }, 2000);
-    } else if (!value.trim()) {
-      // Stop typing indicator when input is empty
+      }, 4000);
+    } else {
+      // Stop typing indicator immediately when input is empty
       sendTypingIndicator(false);
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
     }
   }, [sending, sendTypingIndicator]);
 
@@ -418,7 +458,7 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
               "w-2 h-2 rounded-full",
               notificationWS.isConnected ? "bg-green-500" : "bg-gray-400"
             )} 
-            title={notificationWS.isConnected ? "Notifications connected" : "Notifications disconnected"}
+            title={notificationWS.isConnected ? "Comments connected" : "Comments disconnected"}
             />
             <div className={cn(
               "w-2 h-2 rounded-full",
@@ -519,6 +559,8 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
           </div>
         </div>
       )}
+
+
 
       {/* Input Area */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-600">
