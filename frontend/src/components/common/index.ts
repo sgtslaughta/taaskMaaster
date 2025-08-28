@@ -7,6 +7,7 @@
 export { default as RichTextEditor } from './RichTextEditor';
 export { default as MediaUploader } from './MediaUploader';
 export { default as MediaViewer } from './MediaViewer';
+export { default as SearchFilterPanel } from './SearchFilterPanel';
 
 // Re-export types for convenience
 export type {

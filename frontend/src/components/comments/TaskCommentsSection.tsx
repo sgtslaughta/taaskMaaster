@@ -47,6 +47,8 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { RichTextEditor } from '../common/RichTextEditor';
 import { MediaUploader } from '../common/MediaUploader';
 import { MediaViewer } from '../common/MediaViewer';
+import { SearchFilterPanel } from '../common/SearchFilterPanel';
+import { useSearch } from '../../hooks/useSearch';
 
 interface TaskCommentsSectionProps {
   taskId: number;
@@ -85,6 +87,14 @@ const TaskCommentsSection: React.FC<TaskCommentsSectionProps> = ({
   const [typingUsers, setTypingUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  
+  // Search functionality
+  const search = useSearch({
+    scope: 'comments',
+    taskId: taskId,
+    pageSize: 20
+  });
   const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -496,10 +506,28 @@ const TaskCommentsSection: React.FC<TaskCommentsSectionProps> = ({
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">
-          Comments ({comments.length})
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">
+            Comments ({showSearch ? search.results.totalCount : comments.length})
+          </Typography>
+          <IconButton onClick={() => setShowSearch(!showSearch)}>
+            <SearchIcon />
+          </IconButton>
+        </Box>
       </Box>
+
+      {/* Search Panel */}
+      {showSearch && (
+        <SearchFilterPanel
+          filters={search.filters}
+          onFiltersChange={search.setFilters}
+          availableUsers={search.filterOptions.users}
+          availableContentTypes={search.filterOptions.contentTypes}
+          availableTags={search.filterOptions.tags}
+          compact
+          searchPlaceholder="Search comments..."
+        />
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -517,19 +545,37 @@ const TaskCommentsSection: React.FC<TaskCommentsSectionProps> = ({
           p: 1
         }}
       >
-        {comments.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="textSecondary">
-              No comments yet. Start the conversation!
-            </Typography>
-          </Box>
-        ) : (
-          comments.map(comment => (
-            <Box key={comment.id}>
-              {renderComment(comment)}
-              {comment.replies?.map(reply => renderComment(reply, true))}
+        {showSearch ? (
+          // Show search results
+          search.results.comments.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="textSecondary">
+                {search.loading ? 'Searching...' : 'No comments found matching your search.'}
+              </Typography>
             </Box>
-          ))
+          ) : (
+            search.results.comments.map(comment => (
+              <Box key={comment.id}>
+                {renderComment(comment)}
+              </Box>
+            ))
+          )
+        ) : (
+          // Show regular comments
+          comments.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="textSecondary">
+                No comments yet. Start the conversation!
+              </Typography>
+            </Box>
+          ) : (
+            comments.map(comment => (
+              <Box key={comment.id}>
+                {renderComment(comment)}
+                {comment.replies?.map(reply => renderComment(reply, true))}
+              </Box>
+            ))
+          )
         )}
 
         {renderTypingIndicators()}

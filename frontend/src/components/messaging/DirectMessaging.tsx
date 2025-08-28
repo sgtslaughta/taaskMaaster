@@ -51,6 +51,7 @@ import { mediaService } from '../../services/mediaService';
 import { userService } from '../../services/userService';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { MediaUploader } from '../common/MediaUploader';
+import { ReadReceiptIndicator } from './ReadReceiptIndicator';
 
 interface DirectMessagingProps {
   currentUser: User;
@@ -81,6 +82,7 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
   const [activeConversation, setActiveConversation] = useState<ConversationWithMessages | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [messageDeliveryStatus, setMessageDeliveryStatus] = useState<Record<number, any>>({});
   const [newMessage, setNewMessage] = useState('');
   const [selectedMedia, setSelectedMedia] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
@@ -434,13 +436,18 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
               {formatMessageTime(message.created_at)}
             </Typography>
             
-            {isOwnMessage && message.read_at && (
-              <Typography 
-                variant="caption" 
-                sx={{ opacity: 0.6, fontSize: '0.65rem' }}
-              >
-                Read
-              </Typography>
+            {isOwnMessage && (
+              <ReadReceiptIndicator
+                deliveryStatus={{
+                  message_id: message.id,
+                  status: message.read_at ? 'read' : 'delivered',
+                  read_by: message.read_at ? [{
+                    user: otherParticipant!,
+                    read_at: message.read_at
+                  }] : undefined
+                }}
+                currentUserId={currentUser.id}
+              />
             )}
           </Box>
         </Paper>

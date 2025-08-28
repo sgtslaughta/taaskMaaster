@@ -6,7 +6,7 @@
  */
 
 import { apiClient } from './apiClient';
-import { DirectMessage, TaskChatMessage, Conversation } from '../types/messaging';
+import { DirectMessage, TaskChatMessage, Conversation, MessageDeliveryStatus } from '../types/messaging';
 import { User } from '../types/user';
 
 export interface CreateConversationRequest {
@@ -443,6 +443,143 @@ class MessagingService {
     }>;
   }> {
     const response = await apiClient.get('/api/v1/messages/scheduled');
+    return response.data;
+  }
+
+  /**
+   * Read receipts and message status
+   */
+  async markMessageAsRead(messageId: number, messageType: 'direct' | 'task_chat'): Promise<{ success: boolean }> {
+    const response = await apiClient.post('/api/v1/messages/mark-read', {
+      message_id: messageId,
+      message_type: messageType
+    });
+    return response.data;
+  }
+
+  async getMessageDeliveryStatus(messageId: number): Promise<MessageDeliveryStatus> {
+    const response = await apiClient.get(`/api/v1/messages/${messageId}/delivery-status`);
+    return response.data;
+  }
+
+  async markMultipleMessagesAsRead(messageIds: number[], messageType: 'direct' | 'task_chat'): Promise<{ 
+    success: boolean;
+    marked_count: number;
+  }> {
+    const response = await apiClient.post('/api/v1/messages/mark-multiple-read', {
+      message_ids: messageIds,
+      message_type: messageType
+    });
+    return response.data;
+  }
+
+  async getUnreadMessageCount(conversationId?: number, taskId?: number): Promise<{
+    unread_count: number;
+    last_read_message_id?: number;
+  }> {
+    const params: any = {};
+    if (conversationId) params.conversation_id = conversationId;
+    if (taskId) params.task_id = taskId;
+    
+    const response = await apiClient.get('/api/v1/messages/unread-count', { params });
+    return response.data;
+  }
+
+  /**
+   * Message delivery tracking
+   */
+  async getMessageReadReceipts(messageId: number): Promise<{
+    read_by: Array<{
+      user: User;
+      read_at: string;
+    }>;
+    delivered_to: User[];
+    total_recipients: number;
+  }> {
+    const response = await apiClient.get(`/api/v1/messages/${messageId}/read-receipts`);
+    return response.data;
+  }
+
+  /**
+   * Advanced search functionality
+   */
+  async searchDirectMessages(params: {
+    query?: string;
+    conversation_id?: number;
+    user_ids?: number[];
+    content_types?: string[];
+    has_attachments?: boolean;
+    has_reactions?: boolean;
+    is_edited?: boolean;
+    tags?: string[];
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+    include_read_receipts?: boolean;
+  }): Promise<{
+    messages: DirectMessage[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/direct/search', { params });
+    return response.data;
+  }
+
+  async searchTaskChatMessages(params: {
+    query?: string;
+    task_id?: number;
+    user_ids?: number[];
+    content_types?: string[];
+    has_attachments?: boolean;
+    has_reactions?: boolean;
+    is_edited?: boolean;
+    tags?: string[];
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+    include_mentions?: boolean;
+  }): Promise<{
+    messages: TaskChatMessage[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/task-chat/search', { params });
+    return response.data;
+  }
+
+  async searchAllMessages(params: {
+    query?: string;
+    user_ids?: number[];
+    content_types?: string[];
+    has_attachments?: boolean;
+    has_reactions?: boolean;
+    is_edited?: boolean;
+    tags?: string[];
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<{
+    direct_messages: DirectMessage[];
+    task_chat_messages: TaskChatMessage[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/search', { params });
     return response.data;
   }
 }

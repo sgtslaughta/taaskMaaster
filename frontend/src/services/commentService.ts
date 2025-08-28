@@ -383,6 +383,63 @@ class CommentService {
     const response = await apiClient.post('/api/v1/comments/templates', template);
     return response.data;
   }
+
+  /**
+   * Advanced search functionality
+   */
+  async searchTaskComments(params: {
+    query?: string;
+    task_id?: number;
+    user_ids?: number[];
+    content_types?: string[];
+    has_attachments?: boolean;
+    has_reactions?: boolean;
+    is_edited?: boolean;
+    tags?: string[];
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+    include_mentions?: boolean;
+    include_reactions?: boolean;
+  }): Promise<{
+    comments: TaskComment[];
+    total: number;
+    page: number;
+    per_page: number;
+    has_more: boolean;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/search', { params });
+    return response.data;
+  }
+
+  async getCommentsByTag(tag: string, params?: {
+    page?: number;
+    per_page?: number;
+    task_id?: number;
+  }): Promise<{
+    comments: TaskComment[];
+    total: number;
+    has_more: boolean;
+  }> {
+    const response = await apiClient.get(`/api/v1/comments/tags/${encodeURIComponent(tag)}`, { params });
+    return response.data;
+  }
+
+  async getPopularTags(params?: {
+    task_id?: number;
+    limit?: number;
+  }): Promise<{
+    tags: Array<{
+      tag: string;
+      count: number;
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/tags/popular', { params });
+    return response.data;
+  }
 }
 
 export const commentService = new CommentService();

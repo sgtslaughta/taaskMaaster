@@ -6,6 +6,7 @@
 
 export { default as DirectMessaging } from './DirectMessaging';
 export { default as TaskChatSection } from './TaskChatSection';
+export { default as ReadReceiptIndicator } from './ReadReceiptIndicator';
 
 // Re-export types for convenience
 export type {
