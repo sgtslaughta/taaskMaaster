@@ -53,6 +53,8 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [editingComment, setEditingComment] = useState<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -268,6 +270,53 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       sendTypingIndicator(false);
     }
   }, [sending, sendTypingIndicator]);
+
+  // Add emoji to comment
+  const addEmoji = useCallback((emoji: string) => {
+    setNewComment(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    // Focus back to textarea
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  // Handle file attachment
+  const handleFileAttach = useCallback(() => {
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.txt';
+    input.multiple = false;
+    
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // For now, just show the filename in the comment
+        // TODO: Implement actual file upload to MinIO
+        setNewComment(prev => prev + `[File: ${file.name}]`);
+      }
+    };
+    
+    input.click();
+    setShowAttachMenu(false);
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.emoji-picker') && !target.closest('.emoji-button')) {
+        setShowEmojiPicker(false);
+      }
+      if (!target.closest('.attach-menu') && !target.closest('.attach-button')) {
+        setShowAttachMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Clean up typing timeout on unmount
   useEffect(() => {
@@ -581,13 +630,57 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             {allowMediaUpload && (
-              <Button variant="ghost" size="sm" className="p-2">
-                <PaperClipIcon className="w-4 h-4" />
-              </Button>
+              <div className="relative">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-2 attach-button"
+                  onClick={() => setShowAttachMenu(!showAttachMenu)}
+                >
+                  <PaperClipIcon className="w-4 h-4" />
+                </Button>
+                
+                {/* Attach Menu */}
+                {showAttachMenu && (
+                  <div className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 attach-menu">
+                    <button
+                      onClick={handleFileAttach}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm"
+                    >
+                      📁 Upload File
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
-            <Button variant="ghost" size="sm" className="p-2">
-              <FaceSmileIcon className="w-4 h-4" />
-            </Button>
+            
+            <div className="relative">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-2 emoji-button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              >
+                <FaceSmileIcon className="w-4 h-4" />
+              </Button>
+              
+              {/* Emoji Picker */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 emoji-picker">
+                  <div className="grid grid-cols-6 gap-1 w-48">
+                    {['😀', '😃', '😄', '😁', '😊', '😍', '🤔', '😎', '😢', '😭', '😡', '🤯', '👍', '👎', '❤️', '💯', '🔥', '✨', '🎉', '🚀', '💪', '👏', '🙏', '💡'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => addEmoji(emoji)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-lg"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <Button
               onClick={handleSendComment}
               disabled={!newComment.trim() || sending}
