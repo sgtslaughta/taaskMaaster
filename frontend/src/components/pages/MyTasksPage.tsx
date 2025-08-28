@@ -214,25 +214,39 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       // Get tasks assigned to current user only
       const currentUserId = parseInt(user.id);
       console.log('My Tasks: Loading tasks for user ID:', currentUserId, 'User:', user.username);
-      const response = await taskService.getTasks({
-        assigned_to_id: currentUserId
-      });
+      // Don't pass any user filter - let the backend handle filtering by created_by OR assigned_to
+      const response = await taskService.getTasks();
       console.log('My Tasks: Received tasks:', response.tasks?.length, 'tasks');
       
       const frontendTasks = response.tasks.map(adaptBackendToFrontendTask);
+      
+      // Debug: Log task details to check created_by vs assigned_to
+      console.log('My Tasks Debug:', frontendTasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        createdById: t.createdById,
+        assignedToId: t.assignedToId,
+        status: t.status,
+        currentUserId: parseInt(user?.id || '0')
+      })));
+      
       setTasks(frontendTasks);
 
       // Update navigation items with task counts
+      // Filter to only tasks for current user, then count those needing attention
+      const userTasks = frontendTasks.filter(task => 
+        task.createdById === currentUserId || task.assignedToId === currentUserId
+      );
+      
       const taskStats = {
-        myTasks: frontendTasks.length,
-        allTasks: frontendTasks.length,
-        pendingTasks: frontendTasks.filter(task => task.status !== 'done').length,
+        myTasks: userTasks.filter(task => task.status !== 'done').length,
+        allTasks: userTasks.length,
+        pendingTasks: userTasks.filter(task => task.status !== 'done').length,
       };
       
-      if (!providedNavigationItems) {
-        const navItems = generateNavigationItems(user as NavigationUser, taskStats);
-        setNavigationItems(navItems);
-      }
+      // Always update navigation items with current task counts, regardless of providedNavigationItems
+      const navItems = generateNavigationItems(user as NavigationUser, taskStats);
+      setNavigationItems(navItems);
     } catch (err) {
       setError('Failed to load your tasks. Please try again.');
       console.error('Error loading my tasks:', err);
@@ -258,8 +272,15 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
    * @description Filter tasks based on active filter and search term
    */
   const filteredTasks = React.useMemo(() => {
-    // First apply search filter
-    let filtered = tasks.filter(task => {
+    const currentUserId = parseInt(user?.id || '0');
+    
+    // First filter to only show tasks created by OR assigned to current user
+    let userTasks = tasks.filter(task => 
+      task.createdById === currentUserId || task.assignedToId === currentUserId
+    );
+    
+    // Then apply search filter
+    let filtered = userTasks.filter(task => {
       if (!searchTerm) return true;
       
       return task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -279,7 +300,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       default:
         return filtered;
     }
-  }, [tasks, activeFilter, searchTerm]);
+  }, [tasks, activeFilter, searchTerm, user?.id]);
 
   /**
    * @description Get enhanced task statistics
@@ -289,32 +310,38 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const pendingTasks = tasks.filter(task => task.status === 'todo');
-    const inProgressTasks = tasks.filter(task => task.status === 'in_progress');
-    const completedTasks = tasks.filter(task => task.status === 'done');
+    // First filter to only tasks for current user
+    const currentUserId = parseInt(user?.id || '0');
+    const userTasks = tasks.filter(task => 
+      task.createdById === currentUserId || task.assignedToId === currentUserId
+    );
+
+    const pendingTasks = userTasks.filter(task => task.status === 'todo');
+    const inProgressTasks = userTasks.filter(task => task.status === 'in_progress');
+    const completedTasks = userTasks.filter(task => task.status === 'done');
     const totalPoints = completedTasks.reduce((sum, task) => sum + (task.points || 0), 0);
 
     // Calculate due dates
-    const overdueTasks = tasks.filter(task => {
+    const overdueTasks = userTasks.filter(task => {
       if (!task.dueDate || task.status === 'done') return false;
       const dueDate = new Date(task.dueDate);
       return dueDate < today;
     });
 
-    const dueTodayTasks = tasks.filter(task => {
+    const dueTodayTasks = userTasks.filter(task => {
       if (!task.dueDate || task.status === 'done') return false;
       const dueDate = new Date(task.dueDate);
       return dueDate.toDateString() === today.toDateString();
     });
 
-    const dueThisWeekTasks = tasks.filter(task => {
+    const dueThisWeekTasks = userTasks.filter(task => {
       if (!task.dueDate || task.status === 'done') return false;
       const dueDate = new Date(task.dueDate);
       return dueDate >= today && dueDate <= nextWeek;
     });
 
     // Calculate high priority tasks
-    const highPriorityTasks = tasks.filter(task => 
+    const highPriorityTasks = userTasks.filter(task => 
       (task.priority === 'high' || task.priority === 'urgent') && task.status !== 'done'
     );
 
@@ -345,7 +372,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       latestCompleted,
       completionRate
     };
-  }, [tasks]);
+  }, [tasks, user?.id]);
 
 
 

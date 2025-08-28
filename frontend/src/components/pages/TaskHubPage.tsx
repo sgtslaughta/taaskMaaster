@@ -272,17 +272,21 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
       const frontendTasks = response.tasks.map(adaptBackendToFrontendTask);
       setTasks(frontendTasks);
 
-      // Update navigation items with task counts
+      // Update navigation items with task counts  
+      // myTasks should represent tasks that need user attention (created by or assigned to them, and not completed)
+      const userId = parseInt(user?.id || '0');
       const taskStats = {
-        myTasks: frontendTasks.filter(task => task.assignedToId === parseInt(user?.id || '0')).length,
+        myTasks: frontendTasks.filter(task => 
+          (task.assignedToId === userId || task.createdById === userId) && 
+          task.status !== 'done'
+        ).length,
         allTasks: frontendTasks.length,
         pendingTasks: frontendTasks.filter(task => task.status !== 'done').length,
       };
       
-      if (providedNavigationItems.length === 0) {
-        const navItems = generateNavigationItems(user as NavigationUser, taskStats);
-        setNavigationItems(navItems);
-      }
+      // Always update navigation items with current task counts, regardless of providedNavigationItems
+      const navItems = generateNavigationItems(user as NavigationUser, taskStats);
+      setNavigationItems(navItems);
     } catch (err) {
       setError('Failed to load tasks. Please try again.');
       console.error('Error loading tasks:', err);

@@ -206,8 +206,7 @@ export const getTaskBadge = (
   switch (itemId) {
     case 'my-tasks':
       return taskCounts.myTasks && taskCounts.myTasks > 0 ? taskCounts.myTasks : undefined;
-    case 'task-hub':
-      return taskCounts.pendingTasks && taskCounts.pendingTasks > 0 ? taskCounts.pendingTasks : undefined;
+    // Removed task-hub badge count as requested
     default:
       return undefined;
   }

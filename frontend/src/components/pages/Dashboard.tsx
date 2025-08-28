@@ -172,8 +172,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       await loadRecentActivity(userId);
 
       // Generate navigation items with task counts
+      // myTasks should represent tasks that need attention (not done)
+      const myTasksCount = tasks.filter(t => t.status !== 'done').length;
+      
       const navItems = generateNavigationItems(user as NavigationUser, {
-        myTasks: tasksPending, // Use pending tasks as "my tasks" count
+        myTasks: myTasksCount, // Tasks that need user attention (created by or assigned to them)
         allTasks: tasks.length,
         pendingTasks: tasksPending,
       });
