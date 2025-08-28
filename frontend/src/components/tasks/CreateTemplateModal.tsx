@@ -206,6 +206,9 @@ export const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={template ? 'Edit Template' : 'Create Template'}
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className={cn('max-w-2xl', className)}
     >
       <form onSubmit={handleSubmit} className="space-y-6">

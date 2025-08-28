@@ -308,6 +308,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Task Details"
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className="dark:bg-gray-800 max-w-4xl mx-auto"
     >
       <div className="max-h-[85vh] overflow-y-auto p-6">

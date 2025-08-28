@@ -168,6 +168,9 @@ export const BulkEditModal: React.FC<BulkEditModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={`Bulk Edit ${selectedTasks.length} Tasks`}
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className="dark:bg-gray-800 max-w-2xl mx-auto"
     >
       <div className="max-h-[85vh] overflow-y-auto p-6">

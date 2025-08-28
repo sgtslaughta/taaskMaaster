@@ -25,6 +25,7 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { commentService, Comment } from '../../services/commentService';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { getLoginState } from '../../utils/cookies';
 
 // Comment interface is now imported from commentService
 
@@ -70,13 +71,13 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
   // WebSocket for notifications (comment updates)
   const notificationWS = useWebSocket({
     url: 'ws://localhost:8000/ws/notifications',
-    autoConnect: true
+    autoConnect: false // Don't auto-connect, we'll connect manually when ready
   });
 
   // WebSocket for messaging (typing indicators)
   const messagingWS = useWebSocket({
     url: 'ws://localhost:8000/ws/messaging',
-    autoConnect: true
+    autoConnect: false // Don't auto-connect, we'll connect manually when ready
   });
 
 
@@ -90,28 +91,64 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     }
   }, [autoScrollToBottom]);
 
-  // Load comments on mount
+  // Load comments and initialize WebSocket connections when ready
   useEffect(() => {
-    const loadComments = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const initializeComponent = async () => {
+      // First, load comments
+      const loadComments = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          
+          const response = await commentService.getTaskComments(taskId, {
+            limit: 100,
+            include_system: false
+          });
+          
+          setComments(response.comments);
+        } catch (err: any) {
+          console.error('Failed to load comments:', err);
+          setError(err.detail || 'Failed to load comments');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      await loadComments();
+
+      // Then, connect WebSockets after ensuring user is authenticated and backend is ready
+      const connectWebSockets = async () => {
+        // Wait a bit to ensure the backend is fully ready
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        const response = await commentService.getTaskComments(taskId, {
-          limit: 100,
-          include_system: false
-        });
-        
-        setComments(response.comments);
-      } catch (err: any) {
-        console.error('Failed to load comments:', err);
-        setError(err.detail || 'Failed to load comments');
-      } finally {
-        setLoading(false);
-      }
+        // Check if user is still authenticated before connecting
+        const loginState = getLoginState();
+        if (loginState && loginState.userId) {
+          console.log('Connecting WebSockets for authenticated user:', loginState.username);
+          try {
+            notificationWS.connect();
+            messagingWS.connect();
+          } catch (error) {
+            console.error('Failed to connect WebSockets:', error);
+          }
+        } else {
+          console.warn('User not authenticated, skipping WebSocket connection');
+        }
+      };
+      
+      connectWebSockets();
     };
 
-    loadComments();
+    if (taskId) {
+      initializeComponent();
+    }
+
+    // Cleanup function
+    return () => {
+      // Disconnect WebSockets when component unmounts or taskId changes
+      notificationWS.disconnect();
+      messagingWS.disconnect();
+    };
   }, [taskId]);
 
   // Scroll to bottom when comments change

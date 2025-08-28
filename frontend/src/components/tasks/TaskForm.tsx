@@ -418,6 +418,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={task ? 'Edit Task' : 'Create New Task'}
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className="dark:bg-gray-800 max-w-4xl mx-auto"
     >
       <div className="max-h-[85vh] overflow-y-auto p-6">

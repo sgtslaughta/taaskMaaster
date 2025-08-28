@@ -81,7 +81,14 @@ const ListModal: React.FC<ListModalProps> = ({ isOpen, onClose, onSave, list, mo
   const colorVariants = ListService.getColorVariants();
 
   return (
-         <Modal isOpen={isOpen} onClose={onClose} title={mode === 'create' ? 'Create New List' : 'Edit List'}>
+         <Modal 
+           isOpen={isOpen} 
+           onClose={onClose} 
+           title={mode === 'create' ? 'Create New List' : 'Edit List'}
+           showCloseButton={true}
+           closeOnBackdropClick={true}
+           closeOnEscape={true}
+         >
        <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -300,7 +307,14 @@ const ListDetailView: React.FC<ListDetailViewProps> = ({ list, onClose, onAddTas
   if (!list) return null;
 
      return (
-     <Modal isOpen={!!list} onClose={onClose} title={`${list.name} - ${list.task_count} tasks`}>
+     <Modal 
+       isOpen={!!list} 
+       onClose={onClose} 
+       title={`${list.name} - ${list.task_count} tasks`}
+       showCloseButton={true}
+       closeOnBackdropClick={true}
+       closeOnEscape={true}
+     >
        <div className="space-y-4 text-gray-900 dark:text-white">
         {list.description && (
           <p className="text-gray-600 dark:text-gray-400">{list.description}</p>
@@ -722,6 +736,9 @@ export const ListsTab: React.FC<ListsTabProps> = ({ className }) => {
         onClose={handleTaskSelectionCancel}
         title="Add Tasks to List"
         subtitle={currentListForTask ? `Select tasks to add to "${currentListForTask.name}"` : ''}
+        showCloseButton={true}
+        closeOnBackdropClick={true}
+        closeOnEscape={true}
       >
         <div className="space-y-4">
           {taskSelectionLoading ? (

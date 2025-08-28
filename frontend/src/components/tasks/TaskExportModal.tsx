@@ -145,6 +145,9 @@ export const TaskExportModal: React.FC<TaskExportModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Export Tasks"
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className="dark:bg-gray-800 max-w-2xl mx-auto"
     >
       <div className="max-h-[85vh] overflow-y-auto p-6">

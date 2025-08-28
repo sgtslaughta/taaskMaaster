@@ -62,9 +62,10 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     try {
       // Get user data for WebSocket authentication
       const loginState = getLoginState();
-      if (!loginState) {
+      if (!loginState || !loginState.userId) {
         setError('User not authenticated');
         setIsConnecting(false);
+        console.warn('WebSocket connection aborted: User not authenticated');
         return;
       }
 
@@ -80,7 +81,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected to:', url);
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
@@ -128,8 +129,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('WebSocket connection error');
+        console.error('WebSocket error for', url, ':', error);
+        setError(`WebSocket connection error: ${url}`);
         setIsConnecting(false);
       };
 
