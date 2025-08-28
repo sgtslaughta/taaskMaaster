@@ -1,353 +1,450 @@
 /**
- * @fileoverview Messaging Service for TaaskMaaster
- * @description Service for handling messaging operations with the backend API
- * @author TaaskMaaster Team
- * @version 1.0.0
+ * Messaging Service
+ * 
+ * Handles all messaging-related API calls including direct messages,
+ * task chat, conversations, and real-time messaging features.
  */
 
-import { apiGet, apiPost } from './api';
+import { apiClient } from './apiClient';
+import { DirectMessage, TaskChatMessage, Conversation } from '../types/messaging';
+import { User } from '../types/user';
 
-/**
- * @description User interface
- */
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
+export interface CreateConversationRequest {
+  participant_ids: number[];
+  type: 'direct' | 'group';
+  title?: string;
 }
 
-/**
- * @description Media attachment interface
- */
-export interface MediaAttachment {
-  id: number;
-  filename: string;
-  file_path: string;
-  file_size: number;
-  mime_type: string;
-  created_at: string;
-}
-
-/**
- * @description Direct message interface
- */
-export interface DirectMessage {
-  id: number;
-  from_user_id: number;
-  to_user_id: number;
+export interface SendDirectMessageRequest {
+  conversation_id: number;
   content: string;
-  content_type: string;
-  thread_id?: string;
-  is_read: boolean;
-  created_at: string;
-  updated_at: string;
-  from_user?: User;
-  to_user?: User;
-  media_attachments?: MediaAttachment[];
+  media_attachments?: number[];
+  reply_to_message_id?: number;
 }
 
-/**
- * @description Task chat message interface
- */
-export interface TaskChatMessage {
-  id: number;
-  task_id: number;
-  from_user_id: number;
-  content: string;
-  content_type: string;
-  parent_message_id?: number;
-  created_at: string;
-  updated_at: string;
-  from_user?: User;
-  media_attachments?: MediaAttachment[];
-}
-
-/**
- * @description Conversation interface
- */
-export interface Conversation {
-  other_user?: User;
-  latest_message: DirectMessage;
-  unread_count: number;
-}
-
-/**
- * @description User status interface
- */
-export interface UserStatus {
-  id: number;
-  user_id: number;
-  status: string;
-  custom_message?: string;
-  last_seen: string;
-  updated_at: string;
-  user?: User;
-}
-
-/**
- * @description Direct message creation request
- */
-export interface DirectMessageCreateRequest {
-  to_user_id: number;
-  content: string;
-  content_type?: string;
-  thread_id?: string;
-  media_attachment_ids?: number[];
-}
-
-/**
- * @description Task chat message creation request
- */
-export interface TaskChatMessageCreateRequest {
+export interface SendTaskChatMessageRequest {
   task_id: number;
   content: string;
-  content_type?: string;
-  parent_message_id?: number;
-  media_attachment_ids?: number[];
+  media_attachments?: number[];
+  reply_to_message_id?: number;
+  mentioned_user_ids?: number[];
 }
 
-/**
- * @description User status update request
- */
-export interface UserStatusUpdateRequest {
-  status: string;
-  custom_message?: string;
+export interface UpdateMessageRequest {
+  content: string;
 }
 
-/**
- * @description Typing indicator request
- */
-export interface TypingIndicatorRequest {
-  context_type: string;
-  context_id: number;
-  is_typing: boolean;
-}
-
-/**
- * @description Message list response
- */
-export interface MessageListResponse<T> {
-  messages: T[];
-  total: number;
-  skip: number;
-  limit: number;
-}
-
-/**
- * @description Conversation list response
- */
-export interface ConversationListResponse {
+export interface ConversationsResponse {
   conversations: Conversation[];
-  total: number;
+  total_count: number;
 }
 
-/**
- * @description Online users response
- */
-export interface OnlineUsersResponse {
-  online_users: UserStatus[];
-  total: number;
+export interface ConversationMessagesResponse {
+  messages: DirectMessage[];
+  total_count: number;
+  has_more: boolean;
 }
 
-/**
- * @description Messaging Service Class
- * @class MessagingService
- */
-export class MessagingService {
+export interface TaskChatMessagesResponse {
+  messages: TaskChatMessage[];
+  total_count: number;
+  has_more: boolean;
+}
+
+export interface TaskChatParticipantsResponse {
+  participants: User[];
+  total_count: number;
+}
+
+export interface MessageResponse {
+  message: DirectMessage | TaskChatMessage;
+  success: boolean;
+}
+
+export interface ConversationResponse {
+  conversation: Conversation;
+  success: boolean;
+}
+
+class MessagingService {
+  /**
+   * Get user's conversations
+   */
+  async getConversations(params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    type?: 'direct' | 'group';
+  }): Promise<ConversationsResponse> {
+    const response = await apiClient.get('/api/v1/messages/conversations', { params });
+    return response.data;
+  }
+
+  /**
+   * Create a new conversation
+   */
+  async createConversation(request: CreateConversationRequest): Promise<ConversationResponse> {
+    const response = await apiClient.post('/api/v1/messages/conversations', request);
+    return response.data;
+  }
+
+  /**
+   * Get messages for a specific conversation
+   */
+  async getConversationMessages(
+    conversationId: number,
+    params?: {
+      limit?: number;
+      offset?: number;
+      before_message_id?: number;
+      after_message_id?: number;
+    }
+  ): Promise<ConversationMessagesResponse> {
+    const response = await apiClient.get(
+      `/api/v1/messages/conversations/${conversationId}/messages`,
+      { params }
+    );
+    return response.data;
+  }
+
   /**
    * Send a direct message
-   * @param messageData - Direct message creation data
-   * @returns Promise<DirectMessage>
    */
-  static async sendDirectMessage(
-    messageData: DirectMessageCreateRequest
-  ): Promise<DirectMessage> {
-    try {
-      const response = await apiPost('/api/v1/messages/direct', messageData);
-      return response.data;
-    } catch (error) {
-      console.error('Error sending direct message:', error);
-      throw error;
-    }
+  async sendDirectMessage(request: SendDirectMessageRequest): Promise<MessageResponse> {
+    const response = await apiClient.post('/api/v1/messages/direct', request);
+    return response.data;
   }
 
   /**
-   * Get direct messages with another user
-   * @param otherUserId - Other user ID
-   * @param skip - Number of messages to skip
-   * @param limit - Maximum number of messages to return
-   * @returns Promise<MessageListResponse<DirectMessage>>
+   * Update a direct message
    */
-  static async getDirectMessages(
-    otherUserId: number,
-    skip: number = 0,
-    limit: number = 50
-  ): Promise<MessageListResponse<DirectMessage>> {
-    try {
-      const params = new URLSearchParams({
-        skip: skip.toString(),
-        limit: limit.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/messages/direct/${otherUserId}?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching direct messages:', error);
-      throw error;
-    }
+  async updateDirectMessage(messageId: number, request: UpdateMessageRequest): Promise<MessageResponse> {
+    const response = await apiClient.put(`/api/v1/messages/direct/${messageId}`, request);
+    return response.data;
   }
 
   /**
-   * Get user conversations
-   * @param skip - Number of conversations to skip
-   * @param limit - Maximum number of conversations to return
-   * @returns Promise<ConversationListResponse>
+   * Delete a direct message
    */
-  static async getConversations(
-    skip: number = 0,
-    limit: number = 20
-  ): Promise<ConversationListResponse> {
-    try {
-      const params = new URLSearchParams({
-        skip: skip.toString(),
-        limit: limit.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/messages/conversations?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      throw error;
-    }
+  async deleteDirectMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/messages/direct/${messageId}`);
+    return response.data;
   }
 
   /**
-   * Send a task chat message
-   * @param messageData - Task chat message creation data
-   * @returns Promise<TaskChatMessage>
+   * Mark conversation as read
    */
-  static async sendTaskChatMessage(
-    messageData: TaskChatMessageCreateRequest
-  ): Promise<TaskChatMessage> {
-    try {
-      const response = await apiPost('/api/v1/messages/task-chat', messageData);
-      return response.data;
-    } catch (error) {
-      console.error('Error sending task chat message:', error);
-      throw error;
-    }
+  async markConversationAsRead(conversationId: number): Promise<{ success: boolean }> {
+    const response = await apiClient.post(`/api/v1/messages/conversations/${conversationId}/read`);
+    return response.data;
   }
 
   /**
    * Get task chat messages
-   * @param taskId - Task ID
-   * @param skip - Number of messages to skip
-   * @param limit - Maximum number of messages to return
-   * @returns Promise<MessageListResponse<TaskChatMessage>>
    */
-  static async getTaskChatMessages(
+  async getTaskChatMessages(
     taskId: number,
-    skip: number = 0,
-    limit: number = 50
-  ): Promise<MessageListResponse<TaskChatMessage>> {
-    try {
-      const params = new URLSearchParams({
-        skip: skip.toString(),
-        limit: limit.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/messages/task-chat/${taskId}?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching task chat messages:', error);
-      throw error;
+    params?: {
+      limit?: number;
+      offset?: number;
+      include_media?: boolean;
+      include_mentions?: boolean;
+      sort_by?: string;
+      sort_order?: 'asc' | 'desc';
     }
+  ): Promise<TaskChatMessagesResponse> {
+    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}`, { params });
+    return response.data;
   }
 
   /**
-   * Mark messages as read
-   * @param messageIds - Array of message IDs to mark as read
-   * @returns Promise<any>
+   * Send a task chat message
    */
-  static async markMessagesAsRead(messageIds: number[]): Promise<any> {
-    try {
-      const response = await apiPost('/api/v1/messages/mark-read', {
-        message_ids: messageIds,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-      throw error;
-    }
+  async sendTaskChatMessage(request: SendTaskChatMessageRequest): Promise<MessageResponse> {
+    const response = await apiClient.post('/api/v1/messages/task-chat', request);
+    return response.data;
   }
 
   /**
-   * Update user status
-   * @param statusData - User status update data
-   * @returns Promise<UserStatus>
+   * Update a task chat message
    */
-  static async updateUserStatus(
-    statusData: UserStatusUpdateRequest
-  ): Promise<UserStatus> {
-    try {
-      const response = await apiPost('/api/v1/messages/users/status', statusData);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating user status:', error);
-      throw error;
-    }
+  async updateTaskChatMessage(messageId: number, request: UpdateMessageRequest): Promise<MessageResponse> {
+    const response = await apiClient.put(`/api/v1/messages/task-chat/${messageId}`, request);
+    return response.data;
   }
 
   /**
-   * Get user status
-   * @param userId - User ID
-   * @returns Promise<UserStatus>
+   * Delete a task chat message
    */
-  static async getUserStatus(userId: number): Promise<UserStatus> {
-    try {
-      const response = await apiGet(`/api/v1/messages/users/status/${userId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user status:', error);
-      throw error;
-    }
+  async deleteTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/messages/task-chat/${messageId}`);
+    return response.data;
+  }
+
+  /**
+   * Pin a task chat message
+   */
+  async pinTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post(`/api/v1/messages/task-chat/${messageId}/pin`);
+    return response.data;
+  }
+
+  /**
+   * Unpin a task chat message
+   */
+  async unpinTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/messages/task-chat/${messageId}/pin`);
+    return response.data;
+  }
+
+  /**
+   * Get task chat participants
+   */
+  async getTaskChatParticipants(taskId: number): Promise<TaskChatParticipantsResponse> {
+    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}/participants`);
+    return response.data;
+  }
+
+  /**
+   * Add participant to task chat
+   */
+  async addTaskChatParticipant(taskId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post(`/api/v1/messages/task-chat/${taskId}/participants`, {
+      user_id: userId
+    });
+    return response.data;
+  }
+
+  /**
+   * Remove participant from task chat
+   */
+  async removeTaskChatParticipant(taskId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/messages/task-chat/${taskId}/participants/${userId}`);
+    return response.data;
+  }
+
+  /**
+   * Search messages
+   */
+  async searchMessages(params: {
+    query: string;
+    conversation_id?: number;
+    task_id?: number;
+    message_type?: 'direct' | 'task_chat';
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    direct_messages: DirectMessage[];
+    task_chat_messages: TaskChatMessage[];
+    total_count: number;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/search', { params });
+    return response.data;
+  }
+
+  /**
+   * Get message thread/replies
+   */
+  async getMessageThread(messageId: number, messageType: 'direct' | 'task_chat'): Promise<{
+    parent_message: DirectMessage | TaskChatMessage;
+    replies: (DirectMessage | TaskChatMessage)[];
+  }> {
+    const response = await apiClient.get(`/api/v1/messages/${messageType}/${messageId}/thread`);
+    return response.data;
+  }
+
+  /**
+   * React to a message
+   */
+  async reactToMessage(
+    messageId: number,
+    messageType: 'direct' | 'task_chat',
+    reaction: string
+  ): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post(`/api/v1/messages/${messageType}/${messageId}/react`, {
+      reaction
+    });
+    return response.data;
+  }
+
+  /**
+   * Remove reaction from message
+   */
+  async removeMessageReaction(
+    messageId: number,
+    messageType: 'direct' | 'task_chat',
+    reaction: string
+  ): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(
+      `/api/v1/messages/${messageType}/${messageId}/react/${reaction}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get user's message statistics
+   */
+  async getMessageStats(params?: {
+    date_from?: string;
+    date_to?: string;
+    conversation_id?: number;
+    task_id?: number;
+  }): Promise<{
+    total_messages_sent: number;
+    total_messages_received: number;
+    direct_messages_count: number;
+    task_chat_messages_count: number;
+    most_active_conversations: Array<{
+      conversation: Conversation;
+      message_count: number;
+    }>;
+    daily_activity: Array<{
+      date: string;
+      messages_sent: number;
+      messages_received: number;
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/stats', { params });
+    return response.data;
+  }
+
+  /**
+   * Export conversation/chat history
+   */
+  async exportMessages(params: {
+    conversation_id?: number;
+    task_id?: number;
+    format: 'json' | 'csv' | 'pdf';
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{ download_url: string; expires_at: string }> {
+    const response = await apiClient.post('/api/v1/messages/export', params);
+    return response.data;
+  }
+
+  /**
+   * Get typing indicators for conversation
+   */
+  async getTypingUsers(conversationId: number): Promise<{ typing_users: User[] }> {
+    const response = await apiClient.get(`/api/v1/messages/conversations/${conversationId}/typing`);
+    return response.data;
+  }
+
+  /**
+   * Get typing indicators for task chat
+   */
+  async getTaskChatTypingUsers(taskId: number): Promise<{ typing_users: User[] }> {
+    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}/typing`);
+    return response.data;
+  }
+
+  /**
+   * Update user's online status
+   */
+  async updateOnlineStatus(isOnline: boolean): Promise<{ success: boolean }> {
+    const response = await apiClient.post('/api/v1/messages/status', {
+      is_online: isOnline
+    });
+    return response.data;
   }
 
   /**
    * Get online users
-   * @param limit - Maximum number of users to return
-   * @returns Promise<OnlineUsersResponse>
    */
-  static async getOnlineUsers(limit: number = 100): Promise<OnlineUsersResponse> {
-    try {
-      const params = new URLSearchParams({
-        limit: limit.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/messages/users/online?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching online users:', error);
-      throw error;
-    }
+  async getOnlineUsers(): Promise<{ online_users: User[] }> {
+    const response = await apiClient.get('/api/v1/messages/online-users');
+    return response.data;
   }
 
   /**
-   * Send typing indicator
-   * @param typingData - Typing indicator request data
-   * @returns Promise<any>
+   * Bulk operations
    */
-  static async sendTypingIndicator(
-    typingData: TypingIndicatorRequest
-  ): Promise<any> {
-    try {
-      const response = await apiPost('/api/v1/messages/typing', typingData);
-      return response.data;
-    } catch (error) {
-      console.error('Error sending typing indicator:', error);
-      throw error;
-    }
+  async bulkDeleteMessages(messageIds: number[], messageType: 'direct' | 'task_chat'): Promise<{
+    success: boolean;
+    deleted_count: number;
+    failed_count: number;
+    errors: string[];
+  }> {
+    const response = await apiClient.post('/api/v1/messages/bulk-delete', {
+      message_ids: messageIds,
+      message_type: messageType
+    });
+    return response.data;
+  }
+
+  async bulkMarkAsRead(conversationIds: number[]): Promise<{
+    success: boolean;
+    marked_count: number;
+    failed_count: number;
+    errors: string[];
+  }> {
+    const response = await apiClient.post('/api/v1/messages/bulk-mark-read', {
+      conversation_ids: conversationIds
+    });
+    return response.data;
+  }
+
+  /**
+   * Message templates
+   */
+  async getMessageTemplates(): Promise<{
+    templates: Array<{
+      id: number;
+      name: string;
+      content: string;
+      category: string;
+      is_public: boolean;
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/templates');
+    return response.data;
+  }
+
+  async createMessageTemplate(template: {
+    name: string;
+    content: string;
+    category: string;
+    is_public?: boolean;
+  }): Promise<{ success: boolean; template_id: number }> {
+    const response = await apiClient.post('/api/v1/messages/templates', template);
+    return response.data;
+  }
+
+  /**
+   * Message scheduling
+   */
+  async scheduleMessage(params: {
+    conversation_id?: number;
+    task_id?: number;
+    content: string;
+    scheduled_at: string;
+    media_attachments?: number[];
+  }): Promise<{
+    success: boolean;
+    scheduled_message_id: number;
+  }> {
+    const response = await apiClient.post('/api/v1/messages/schedule', params);
+    return response.data;
+  }
+
+  async cancelScheduledMessage(scheduledMessageId: number): Promise<{ success: boolean }> {
+    const response = await apiClient.delete(`/api/v1/messages/scheduled/${scheduledMessageId}`);
+    return response.data;
+  }
+
+  async getScheduledMessages(): Promise<{
+    scheduled_messages: Array<{
+      id: number;
+      content: string;
+      scheduled_at: string;
+      conversation_id?: number;
+      task_id?: number;
+      status: 'pending' | 'sent' | 'cancelled';
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/messages/scheduled');
+    return response.data;
   }
 }
+
+export const messagingService = new MessagingService();

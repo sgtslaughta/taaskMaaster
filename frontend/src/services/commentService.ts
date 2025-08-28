@@ -1,229 +1,388 @@
 /**
- * @fileoverview Comment Service for TaaskMaaster
- * @description Service for handling comment operations with the backend API
- * @author TaaskMaaster Team
- * @version 1.0.0
+ * Comment Service
+ * 
+ * Handles all comment-related API calls including CRUD operations,
+ * threading, reactions, and search functionality.
  */
 
-import { apiGet, apiPost, apiPut, apiDelete } from './api';
+import { apiClient } from './apiClient';
+import { TaskComment, CommentThread, CommentSearchResult } from '../types/comment';
+import { User } from '../types/user';
 
-/**
- * @description Comment interface
- */
-export interface Comment {
-  id: number;
+export interface CreateCommentRequest {
   task_id: number;
-  user_id: number;
   content: string;
-  content_type: string;
   parent_comment_id?: number;
-  is_system_comment: boolean;
-  created_at: string;
-  updated_at: string;
-  user?: {
-    id: number;
-    username: string;
-    email: string;
-    first_name?: string;
-    last_name?: string;
-  };
-  media_attachments?: MediaAttachment[];
-  replies?: Comment[];
+  media_attachments?: number[];
+  mentioned_user_ids?: number[];
 }
 
-/**
- * @description Media attachment interface
- */
-export interface MediaAttachment {
-  id: number;
-  filename: string;
-  file_path: string;
-  file_size: number;
-  mime_type: string;
-  created_at: string;
-}
-
-/**
- * @description Comment creation request
- */
-export interface CommentCreateRequest {
-  task_id: number;
+export interface UpdateCommentRequest {
   content: string;
-  content_type?: string;
+  media_attachments?: number[];
+}
+
+export interface CommentFilters {
+  user_id?: number;
+  date_from?: string;
+  date_to?: string;
+  has_media?: boolean;
+  is_system_generated?: boolean;
   parent_comment_id?: number;
-  media_attachment_ids?: number[];
+  mentioned_user_id?: number;
 }
 
-/**
- * @description Comment update request
- */
-export interface CommentUpdateRequest {
-  content: string;
-  content_type?: string;
+export interface CommentQueryParams extends CommentFilters {
+  limit?: number;
+  offset?: number;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  include_replies?: boolean;
+  include_media?: boolean;
+  include_reactions?: boolean;
+  include_mentions?: boolean;
 }
 
-/**
- * @description Comment list response
- */
-export interface CommentListResponse {
-  comments: Comment[];
-  total: number;
-  skip: number;
-  limit: number;
+export interface CommentsResponse {
+  comments: TaskComment[];
+  total_count: number;
+  has_more: boolean;
 }
 
-/**
- * @description Task status history entry
- */
-export interface TaskStatusHistory {
-  id: number;
-  task_id: number;
-  user_id: number;
-  previous_status?: string;
-  new_status: string;
-  comment?: string;
-  created_at: string;
-  user?: {
-    id: number;
-    username: string;
-    email: string;
-  };
+export interface CommentResponse {
+  comment: TaskComment;
+  success: boolean;
+  message?: string;
 }
 
-/**
- * @description Task status history list response
- */
-export interface TaskStatusHistoryListResponse {
-  history: TaskStatusHistory[];
-  total: number;
-  skip: number;
-  limit: number;
+export interface CommentThreadResponse {
+  thread: CommentThread;
+  success: boolean;
 }
 
-/**
- * @description Comment Service Class
- * @class CommentService
- */
-export class CommentService {
+class CommentService {
   /**
-   * Create a new comment
-   * @param commentData - Comment creation data
-   * @returns Promise<Comment>
+   * Get comments for a specific task
    */
-  static async createComment(commentData: CommentCreateRequest): Promise<Comment> {
-    try {
-      const response = await apiPost('/api/v1/comments/', commentData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating comment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get comments for a task
-   * @param taskId - Task ID
-   * @param skip - Number of comments to skip
-   * @param limit - Maximum number of comments to return
-   * @param includeSystem - Whether to include system comments
-   * @returns Promise<CommentListResponse>
-   */
-  static async getTaskComments(
-    taskId: number,
-    skip: number = 0,
-    limit: number = 100,
-    includeSystem: boolean = true
-  ): Promise<CommentListResponse> {
-    try {
-      const params = new URLSearchParams({
-        skip: skip.toString(),
-        limit: limit.toString(),
-        include_system: includeSystem.toString(),
-      });
-      
-      const response = await apiGet(`/api/v1/comments/task/${taskId}?${params}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching task comments:', error);
-      throw error;
-    }
+  async getTaskComments(taskId: number, params?: CommentQueryParams): Promise<CommentsResponse> {
+    const response = await apiClient.get(`/api/v1/comments/task/${taskId}`, { params });
+    return response.data;
   }
 
   /**
    * Get a specific comment by ID
-   * @param commentId - Comment ID
-   * @returns Promise<Comment>
    */
-  static async getComment(commentId: number): Promise<Comment> {
-    try {
-      const response = await apiGet(`/api/v1/comments/${commentId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching comment:', error);
-      throw error;
-    }
+  async getComment(commentId: number, params?: {
+    include_replies?: boolean;
+    include_media?: boolean;
+    include_reactions?: boolean;
+  }): Promise<CommentResponse> {
+    const response = await apiClient.get(`/api/v1/comments/${commentId}`, { params });
+    return response.data;
   }
 
   /**
-   * Update a comment
-   * @param commentId - Comment ID
-   * @param updateData - Comment update data
-   * @returns Promise<Comment>
+   * Create a new task comment
    */
-  static async updateComment(
-    commentId: number,
-    updateData: CommentUpdateRequest
-  ): Promise<Comment> {
-    try {
-      const response = await apiPut(`/api/v1/comments/${commentId}`, updateData);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating comment:', error);
-      throw error;
-    }
+  async createTaskComment(request: CreateCommentRequest): Promise<CommentResponse> {
+    const response = await apiClient.post('/api/v1/comments', request);
+    return response.data;
+  }
+
+  /**
+   * Update an existing comment
+   */
+  async updateTaskComment(commentId: number, request: UpdateCommentRequest): Promise<CommentResponse> {
+    const response = await apiClient.put(`/api/v1/comments/${commentId}`, request);
+    return response.data;
   }
 
   /**
    * Delete a comment
-   * @param commentId - Comment ID
-   * @returns Promise<void>
    */
-  static async deleteComment(commentId: number): Promise<void> {
-    try {
-      await apiDelete(`/api/v1/comments/${commentId}`);
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      throw error;
-    }
+  async deleteTaskComment(commentId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/comments/${commentId}`);
+    return response.data;
   }
 
   /**
-   * Add media attachment to a comment
-   * @param commentId - Comment ID
-   * @param mediaId - Media attachment ID
-   * @returns Promise<void>
+   * Get comment thread (parent comment with all replies)
    */
-  static async addCommentMedia(commentId: number, mediaId: number): Promise<void> {
-    try {
-      await apiPost(`/api/v1/comments/${commentId}/media/${mediaId}`, {});
-    } catch (error) {
-      console.error('Error adding comment media:', error);
-      throw error;
-    }
+  async getCommentThread(commentId: number, params?: {
+    limit?: number;
+    offset?: number;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<CommentThreadResponse> {
+    const response = await apiClient.get(`/api/v1/comments/${commentId}/thread`, { params });
+    return response.data;
   }
 
   /**
-   * Remove media attachment from a comment
-   * @param commentId - Comment ID
-   * @param mediaId - Media attachment ID
-   * @returns Promise<void>
+   * Pin a comment
    */
-  static async removeCommentMedia(commentId: number, mediaId: number): Promise<void> {
-    try {
-      await apiDelete(`/api/v1/comments/${commentId}/media/${mediaId}`);
-    } catch (error) {
-      console.error('Error removing comment media:', error);
-      throw error;
-    }
+  async pinComment(commentId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post(`/api/v1/comments/${commentId}/pin`);
+    return response.data;
+  }
+
+  /**
+   * Unpin a comment
+   */
+  async unpinComment(commentId: number): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/comments/${commentId}/pin`);
+    return response.data;
+  }
+
+  /**
+   * Add reaction to comment
+   */
+  async addReaction(commentId: number, reaction: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.post(`/api/v1/comments/${commentId}/reactions`, {
+      reaction
+    });
+    return response.data;
+  }
+
+  /**
+   * Remove reaction from comment
+   */
+  async removeReaction(commentId: number, reaction: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/v1/comments/${commentId}/reactions/${reaction}`);
+    return response.data;
+  }
+
+  /**
+   * Get comment reactions
+   */
+  async getCommentReactions(commentId: number): Promise<{
+    reactions: Array<{
+      reaction: string;
+      count: number;
+      users: User[];
+      user_reacted: boolean;
+    }>;
+  }> {
+    const response = await apiClient.get(`/api/v1/comments/${commentId}/reactions`);
+    return response.data;
+  }
+
+  /**
+   * Search comments
+   */
+  async searchComments(params: {
+    query: string;
+    task_id?: number;
+    user_id?: number;
+    date_from?: string;
+    date_to?: string;
+    has_media?: boolean;
+    mentioned_user_id?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    results: CommentSearchResult[];
+    total_count: number;
+    search_time_ms: number;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/search', { params });
+    return response.data;
+  }
+
+  /**
+   * Get comments by user
+   */
+  async getUserComments(userId: number, params?: {
+    limit?: number;
+    offset?: number;
+    task_id?: number;
+    date_from?: string;
+    date_to?: string;
+    include_replies?: boolean;
+  }): Promise<CommentsResponse> {
+    const response = await apiClient.get(`/api/v1/comments/user/${userId}`, { params });
+    return response.data;
+  }
+
+  /**
+   * Get comment mentions for user
+   */
+  async getCommentMentions(params?: {
+    limit?: number;
+    offset?: number;
+    is_read?: boolean;
+    task_id?: number;
+  }): Promise<{
+    mentions: Array<{
+      id: number;
+      comment: TaskComment;
+      mentioned_by_user: User;
+      is_read: boolean;
+      created_at: string;
+    }>;
+    total_count: number;
+    unread_count: number;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/mentions', { params });
+    return response.data;
+  }
+
+  /**
+   * Mark comment mention as read
+   */
+  async markMentionAsRead(mentionId: number): Promise<{ success: boolean }> {
+    const response = await apiClient.post(`/api/v1/comments/mentions/${mentionId}/read`);
+    return response.data;
+  }
+
+  /**
+   * Get comment statistics
+   */
+  async getCommentStats(params?: {
+    task_id?: number;
+    user_id?: number;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{
+    total_comments: number;
+    comments_by_user: Array<{
+      user: User;
+      comment_count: number;
+    }>;
+    comments_by_task: Array<{
+      task_id: number;
+      task_title: string;
+      comment_count: number;
+    }>;
+    daily_activity: Array<{
+      date: string;
+      comment_count: number;
+    }>;
+    reaction_summary: Array<{
+      reaction: string;
+      count: number;
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/stats', { params });
+    return response.data;
+  }
+
+  /**
+   * Bulk operations
+   */
+  async bulkDeleteComments(commentIds: number[]): Promise<{
+    success: boolean;
+    deleted_count: number;
+    failed_count: number;
+    errors: string[];
+  }> {
+    const response = await apiClient.post('/api/v1/comments/bulk-delete', {
+      comment_ids: commentIds
+    });
+    return response.data;
+  }
+
+  async bulkUpdateComments(updates: Array<{
+    comment_id: number;
+    content?: string;
+    is_pinned?: boolean;
+  }>): Promise<{
+    success: boolean;
+    updated_count: number;
+    failed_count: number;
+    errors: string[];
+  }> {
+    const response = await apiClient.post('/api/v1/comments/bulk-update', {
+      updates
+    });
+    return response.data;
+  }
+
+  async bulkCreateComments(comments: CreateCommentRequest[]): Promise<{
+    success: boolean;
+    created_count: number;
+    failed_count: number;
+    created_comments: TaskComment[];
+    errors: string[];
+  }> {
+    const response = await apiClient.post('/api/v1/comments/bulk-create', {
+      comments
+    });
+    return response.data;
+  }
+
+  /**
+   * Export comments
+   */
+  async exportComments(params: {
+    task_id?: number;
+    format: 'json' | 'csv' | 'pdf';
+    date_from?: string;
+    date_to?: string;
+    include_replies?: boolean;
+    include_media?: boolean;
+  }): Promise<{ download_url: string; expires_at: string }> {
+    const response = await apiClient.post('/api/v1/comments/export', params);
+    return response.data;
+  }
+
+  /**
+   * Comment drafts
+   */
+  async saveCommentDraft(draft: {
+    task_id: number;
+    content: string;
+    parent_comment_id?: number;
+    media_attachments?: number[];
+  }): Promise<{ success: boolean; draft_id: number }> {
+    const response = await apiClient.post('/api/v1/comments/drafts', draft);
+    return response.data;
+  }
+
+  async getCommentDrafts(taskId?: number): Promise<{
+    drafts: Array<{
+      id: number;
+      task_id: number;
+      content: string;
+      parent_comment_id?: number;
+      created_at: string;
+      updated_at: string;
+    }>;
+  }> {
+    const params = taskId ? { task_id: taskId } : {};
+    const response = await apiClient.get('/api/v1/comments/drafts', { params });
+    return response.data;
+  }
+
+  async deleteCommentDraft(draftId: number): Promise<{ success: boolean }> {
+    const response = await apiClient.delete(`/api/v1/comments/drafts/${draftId}`);
+    return response.data;
+  }
+
+  /**
+   * Comment templates
+   */
+  async getCommentTemplates(): Promise<{
+    templates: Array<{
+      id: number;
+      name: string;
+      content: string;
+      category: string;
+      is_public: boolean;
+    }>;
+  }> {
+    const response = await apiClient.get('/api/v1/comments/templates');
+    return response.data;
+  }
+
+  async createCommentTemplate(template: {
+    name: string;
+    content: string;
+    category: string;
+    is_public?: boolean;
+  }): Promise<{ success: boolean; template_id: number }> {
+    const response = await apiClient.post('/api/v1/comments/templates', template);
+    return response.data;
   }
 }
+
+export const commentService = new CommentService();
