@@ -10,10 +10,6 @@ import { cn } from '../../design-system/utils/cn';
 import { WorkflowStatusBadge, type WorkflowStatus } from '../workflow/WorkflowStatusBadge';
 import { FrontendTask } from '../../services/taskService';
 import {
-  CheckCircleIcon,
-  ClockIcon,
-  PlayIcon,
-  ExclamationTriangleIcon,
   CalendarIcon,
   UserIcon,
   TagIcon,
@@ -37,18 +33,7 @@ export interface MyTasksTableProps {
 /**
  * @description Get status icon for task
  */
-const getStatusIcon = (status: FrontendTask['status']) => {
-  switch (status) {
-    case 'done':
-      return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
-    case 'in_progress':
-      return <PlayIcon className="w-4 h-4 text-blue-500" />;
-    case 'cancelled':
-      return <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />;
-    default:
-      return <ClockIcon className="w-4 h-4 text-gray-500" />;
-  }
-};
+
 
 /**
  * @description Get priority color classes
@@ -260,7 +245,11 @@ const MyTasksTable: React.FC<MyTasksTableProps> = ({
                 </p>
               </div>
               <div className="flex items-center ml-2">
-                {getStatusIcon(task.status)}
+                <WorkflowStatusBadge 
+                  status={task.status as WorkflowStatus} 
+                  compact={true}
+                  showIcon={false}
+                />
               </div>
             </div>
 

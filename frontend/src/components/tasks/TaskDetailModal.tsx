@@ -669,8 +669,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <TaskWorkflowControls
                   task={task}
                   currentUser={currentUser}
-                  onTaskUpdate={(updatedTask) => {
-                    onUpdateTask?.(updatedTask.id, updatedTask);
+                  onTaskUpdate={(taskId, updates) => {
+                    onUpdateTask?.(taskId, updates);
                   }}
                   onError={(error) => {
                     console.error('Workflow error:', error);

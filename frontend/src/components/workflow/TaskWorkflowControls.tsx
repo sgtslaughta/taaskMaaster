@@ -22,13 +22,12 @@ import {
 
 import { Task } from '../tasks/TaskList';
 import { User } from '../../types/user';
-// import { workflowService } from '../../services/workflowService';
-// import { useWebSocket } from '../../hooks/useWebSocket';
+import { taskService } from '../../services/taskService';
 
 interface TaskWorkflowControlsProps {
   task: Task;
   currentUser: User;
-  onTaskUpdate: (updatedTask: Task) => void;
+  onTaskUpdate: (taskId: number, updates: { status: Task['status'] }) => void;
   onError: (error: string) => void;
   showHistory?: boolean;
   compact?: boolean;
@@ -204,24 +203,21 @@ const TaskWorkflowControls: React.FC<TaskWorkflowControlsProps> = ({
 
     setLoading(true);
     try {
-      // TODO: Implement actual workflow service calls
-      console.log('Workflow action:', {
-        type: dialog.type,
-        targetStatus: dialog.targetStatus,
-        reason: dialog.reason,
-        comment: dialog.comment,
-        taskId: task.id
-      });
-
-      // For now, just simulate the status change
+      let newStatus: Task['status'];
+      
       if (dialog.type === 'transition' && dialog.targetStatus) {
-        const updatedTask = { ...task, status: dialog.targetStatus };
-        onTaskUpdate(updatedTask);
+        newStatus = dialog.targetStatus;
       } else if (dialog.type === 'approve') {
-        const updatedTask = { ...task, status: 'done' as Task['status'] };
-        onTaskUpdate(updatedTask);
+        newStatus = 'done';
+      } else if (dialog.type === 'reject') {
+        newStatus = 'in_progress'; // Return to in_progress after rejection
+      } else {
+        throw new Error('Invalid workflow action type');
       }
 
+      // Call the parent component's update handler - let it handle the API call
+      onTaskUpdate(task.id, { status: newStatus });
+      
       handleDialogClose();
     } catch (error: any) {
       console.error('Workflow action failed:', error);
