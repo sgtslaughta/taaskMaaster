@@ -105,6 +105,40 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     loadUsers();
   }, []);
 
+  // Periodic message polling for synchronization
+  useEffect(() => {
+    if (!activeConversation) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const messages = await loadConversationMessages(activeConversation.id);
+        
+        // Update messages, avoiding duplicates
+        setActiveConversation(prev => {
+          if (!prev) return null;
+          
+          // Create a map of existing message IDs for deduplication
+          const existingIds = new Set((prev.messages || []).map(msg => msg.id));
+          const newMessages = messages.filter(msg => !existingIds.has(msg.id));
+          
+          // Only update if there are new messages
+          if (newMessages.length > 0) {
+            return {
+              ...prev,
+              messages: [...(prev.messages || []), ...newMessages]
+            };
+          }
+          
+          return prev;
+        });
+      } catch (err) {
+        console.warn('Failed to poll messages:', err);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [activeConversation?.id]);
+
   // Set initial conversation
   useEffect(() => {
     if (initialConversationId && conversations.length > 0) {
@@ -263,6 +297,9 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
   const handleSendMessage = async () => {
     if (!activeConversation || (!newMessage.trim() && selectedMedia.length === 0)) return;
 
+    const messageContent = newMessage.trim();
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
     try {
       let mediaAttachments: MediaAttachment[] = [];
       
@@ -275,17 +312,44 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
         mediaAttachments = uploadResults.map(result => result.media);
       }
 
+      // Create optimistic message for immediate UI update
+      const optimisticMessage: DirectMessage = {
+        id: tempId,
+        conversation_id: activeConversation.id,
+        sender_id: currentUser.id,
+        sender: currentUser,
+        content: messageContent,
+        media_attachments: mediaAttachments,
+        is_edited: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Immediately add message to UI for instant feedback
+      setActiveConversation(prev => prev ? {
+        ...prev,
+        messages: [...(prev.messages || []), optimisticMessage]
+      } : null);
+
+      // Clear form immediately for better UX
+      setNewMessage('');
+      setSelectedMedia([]);
+
       const messageData = {
         conversation_id: activeConversation.id,
-        content: newMessage.trim(),
+        content: messageContent,
         media_attachments: mediaAttachments.map(media => media.id)
       };
 
-      await messagingService.sendDirectMessage(messageData);
+      const sentMessage = await messagingService.sendDirectMessage(messageData);
       
-      // Clear form
-      setNewMessage('');
-      setSelectedMedia([]);
+      // Replace optimistic message with real message from server
+      setActiveConversation(prev => prev ? {
+        ...prev,
+        messages: (prev.messages || []).map(msg => 
+          msg.id === tempId ? sentMessage : msg
+        )
+      } : null);
       
       // Send typing stopped event
       send({
@@ -295,6 +359,14 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
       });
 
     } catch (err) {
+      // Remove failed message from UI
+      setActiveConversation(prev => prev ? {
+        ...prev,
+        messages: (prev.messages || []).filter(msg => msg.id !== tempId)
+      } : null);
+      
+      // Restore form content on failure
+      setNewMessage(messageContent);
       setError('Failed to send message');
     }
   };

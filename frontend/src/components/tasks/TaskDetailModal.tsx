@@ -14,8 +14,10 @@ import { Task } from './TaskList';
 import { cn } from '../../design-system/utils/cn';
 import { REWARD_TYPES } from './TaskForm';
 import SimpleTaskComments from '../comments/SimpleTaskComments';
+
 import { User, UserRole } from '../../types/user';
 import TaskWorkflowControls from '../workflow/TaskWorkflowControls';
+import { commentService } from '../../services/commentService';
 import { 
   PencilIcon, 
   CheckIcon, 
@@ -28,7 +30,9 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   PlayIcon,
-  StopIcon
+  StopIcon,
+  ChatBubbleLeftRightIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -191,6 +195,38 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
+  const [activeTab, setActiveTab] = useState<'details' | 'messages'>('details');
+  const [messageCount, setMessageCount] = useState<number>(0);
+  const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
+  const [newMessageCount, setNewMessageCount] = useState<number>(0);
+
+  // Load message count for badge when modal opens
+  useEffect(() => {
+    if (task && isOpen) {
+      const loadMessageCount = async () => {
+        try {
+          const response = await commentService.getTaskComments(task.id, {
+            limit: 1,
+            include_system: false
+          });
+          setMessageCount(response.total_count || 0);
+          // For now, assume all messages are "new" if we haven't loaded them yet
+          if (!hasLoadedMessages) {
+            setNewMessageCount(response.total_count || 0);
+          }
+        } catch (error) {
+          console.warn('Failed to load message count:', error);
+        }
+      };
+      loadMessageCount();
+    } else if (!isOpen) {
+      // Reset tab states when modal is closed
+      setActiveTab('details');
+      setHasLoadedMessages(false);
+      setNewMessageCount(0);
+      setMessageCount(0);
+    }
+  }, [task, isOpen, hasLoadedMessages]);
 
   if (!task) {
     return null;
@@ -312,10 +348,59 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       showCloseButton={true}
       closeOnBackdropClick={true}
       closeOnEscape={true}
-      className="dark:bg-gray-800 max-w-4xl mx-auto"
+      className="dark:bg-gray-800 w-[75vw] max-w-none mx-auto"
     >
-      <div className="max-h-[85vh] overflow-y-auto p-6">
-        <div className="space-y-6">
+      <div className="max-h-[85vh] flex flex-col">
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200 dark:border-gray-600 px-6 pt-6">
+          <nav className="flex space-x-8" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={cn(
+                "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2",
+                activeTab === 'details'
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300"
+              )}
+            >
+              <InformationCircleIcon className="w-4 h-4" />
+              <span>Details</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('messages');
+                if (!hasLoadedMessages) {
+                  setHasLoadedMessages(true);
+                  setNewMessageCount(0); // Clear new message indicator when tab is opened
+                }
+              }}
+              className={cn(
+                "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2",
+                activeTab === 'messages'
+                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300"
+              )}
+            >
+              <ChatBubbleLeftRightIcon className="w-4 h-4" />
+              <span>Messages</span>
+              {newMessageCount > 0 && (
+                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                  {newMessageCount > 99 ? '99+' : newMessageCount}
+                </span>
+              )}
+              {messageCount > 0 && newMessageCount === 0 && (
+                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium leading-none text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 rounded-full">
+                  {messageCount > 99 ? '99+' : messageCount}
+                </span>
+              )}
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'details' && (
+            <div className="space-y-6">
           {/* Header with Status and Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -682,13 +767,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
-          {/* Comments Section */}
-          {currentUser && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                Discussion
-              </label>
-              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+            </div>
+          )}
+
+          {activeTab === 'messages' && currentUser && hasLoadedMessages && (
+            <div className="h-full flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Task Discussion
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Collaborate with team members on this task
+                </p>
+              </div>
+              <div className="flex-1 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
                 <SimpleTaskComments
                   taskId={task.id}
                   currentUser={{
@@ -705,12 +797,40 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                   }}
-                  maxHeight={300}
+                  maxHeight={400}
                   allowRichText={true}
                   allowMediaUpload={true}
                   showTypingIndicators={true}
                   autoScrollToBottom={true}
                 />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'messages' && currentUser && !hasLoadedMessages && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                  Messages will load when you first view this tab
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Click the Messages tab to start the discussion
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'messages' && !currentUser && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                  Authentication Required
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  You must be logged in to view messages
+                </p>
               </div>
             </div>
           )}

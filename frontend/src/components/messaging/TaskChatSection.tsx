@@ -113,6 +113,38 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     loadParticipants();
   }, [task.id]);
 
+  // Periodic message polling for synchronization
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await messagingService.getTaskChatMessages(task.id, {
+          include_media: true,
+          include_mentions: true,
+          sort_by: 'created_at',
+          sort_order: 'asc'
+        });
+        
+        // Update messages, avoiding duplicates
+        setMessages(prev => {
+          // Create a map of existing message IDs for deduplication
+          const existingIds = new Set(prev.map(msg => msg.id));
+          const newMessages = response.messages.filter(msg => !existingIds.has(msg.id));
+          
+          // Only update if there are new messages
+          if (newMessages.length > 0) {
+            return [...prev, ...newMessages];
+          }
+          
+          return prev;
+        });
+      } catch (err) {
+        console.warn('Failed to poll task chat messages:', err);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [task.id]);
+
   // WebSocket event subscriptions
   useEffect(() => {
     const handleNewMessage = (data: any) => {
@@ -207,6 +239,9 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
   const handleSendMessage = async () => {
     if (!newMessage.trim() && selectedMedia.length === 0) return;
 
+    const messageContent = newMessage.trim();
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
     try {
       let mediaAttachments: MediaAttachment[] = [];
       
@@ -223,28 +258,52 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
       const mentionRegex = /@(\w+)/g;
       const mentions = [];
       let match;
-      while ((match = mentionRegex.exec(newMessage)) !== null) {
+      while ((match = mentionRegex.exec(messageContent)) !== null) {
         const mentionedUser = participants.find(p => p.username === match[1]);
         if (mentionedUser) {
           mentions.push(mentionedUser.id);
         }
       }
 
+      // Create optimistic message for immediate UI update
+      const optimisticMessage: ChatMessageWithActions = {
+        id: tempId,
+        task_id: task.id,
+        sender_id: currentUser.id,
+        sender: currentUser,
+        content: messageContent,
+        media_attachments: mediaAttachments,
+        reply_to_message_id: replyingTo,
+        mentioned_users: mentions.map(id => participants.find(p => p.id === id)).filter(Boolean) as User[],
+        is_pinned: false,
+        is_edited: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Immediately add message to UI for instant feedback
+      setMessages(prev => [...prev, optimisticMessage]);
+
+      // Clear form immediately for better UX
+      setNewMessage('');
+      setSelectedMedia([]);
+      setReplyingTo(null);
+      setShowMentions(false);
+
       const messageData = {
         task_id: task.id,
-        content: newMessage.trim(),
+        content: messageContent,
         reply_to_message_id: replyingTo,
         media_attachments: mediaAttachments.map(media => media.id),
         mentioned_user_ids: mentions
       };
 
-      await messagingService.sendTaskChatMessage(messageData);
+      const sentMessage = await messagingService.sendTaskChatMessage(messageData);
       
-      // Clear form
-      setNewMessage('');
-      setSelectedMedia([]);
-      setReplyingTo(null);
-      setShowMentions(false);
+      // Replace optimistic message with real message from server
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempId ? sentMessage : msg
+      ));
       
       // Send typing stopped event
       send({
@@ -254,6 +313,11 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
       });
 
     } catch (err) {
+      // Remove failed message from UI
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      
+      // Restore form content on failure
+      setNewMessage(messageContent);
       setError(err instanceof Error ? err.message : 'Failed to send message');
     }
   };

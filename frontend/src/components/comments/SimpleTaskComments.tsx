@@ -93,27 +93,27 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
 
   // Load comments and initialize WebSocket connections when ready
   useEffect(() => {
+    const loadComments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await commentService.getTaskComments(taskId, {
+          limit: 100,
+          include_system: false
+        });
+        
+        setComments(response.comments);
+      } catch (err: any) {
+        console.error('Failed to load comments:', err);
+        setError(err.detail || 'Failed to load comments');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const initializeComponent = async () => {
       // First, load comments
-      const loadComments = async () => {
-        try {
-          setLoading(true);
-          setError(null);
-          
-          const response = await commentService.getTaskComments(taskId, {
-            limit: 100,
-            include_system: false
-          });
-          
-          setComments(response.comments);
-        } catch (err: any) {
-          console.error('Failed to load comments:', err);
-          setError(err.detail || 'Failed to load comments');
-        } finally {
-          setLoading(false);
-        }
-      };
-
       await loadComments();
 
       // Then, connect WebSockets after ensuring user is authenticated and backend is ready
@@ -149,6 +149,36 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       notificationWS.disconnect();
       messagingWS.disconnect();
     };
+  }, [taskId]);
+
+  // Periodic comment polling for synchronization
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await commentService.getTaskComments(taskId, {
+          limit: 100,
+          include_system: false
+        });
+        
+        // Update comments, avoiding duplicates
+        setComments(prev => {
+          // Create a map of existing comment IDs for deduplication
+          const existingIds = new Set(prev.map(comment => comment.id));
+          const newComments = response.comments.filter(comment => !existingIds.has(comment.id));
+          
+          // Only update if there are new comments
+          if (newComments.length > 0) {
+            return [...prev, ...newComments];
+          }
+          
+          return prev;
+        });
+      } catch (err) {
+        console.warn('Failed to poll comments:', err);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
   }, [taskId]);
 
   // Scroll to bottom when comments change
@@ -388,12 +418,14 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       
       const createdComment = await commentService.createComment(commentData);
       
-      // Don't add to local state immediately - let WebSocket handle it
-      // This prevents duplicate comments when real-time updates work
-      if (!notificationWS.isConnected) {
-        // Only add locally if WebSocket is not connected
-        setComments(prev => [...prev, createdComment]);
-      }
+      // Always add comment to local state for immediate feedback
+      // WebSocket deduplication will handle any duplicates if they occur
+      setComments(prev => {
+        // Check if comment already exists to prevent duplicates
+        const exists = prev.some(comment => comment.id === createdComment.id);
+        if (exists) return prev;
+        return [...prev, createdComment];
+      });
       
       setNewComment('');
       setReplyingTo(null);
