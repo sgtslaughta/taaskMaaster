@@ -71,23 +71,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // WebSocket connection for real-time notifications
   const notificationWS = useWebSocket({
     url: 'ws://localhost:8000/ws/notifications',
-    autoConnect: false,
-    onMessage: handleWebSocketMessage,
-    onOpen: () => {
-      console.log('Notification WebSocket connected');
-    },
-    onClose: () => {
-      console.log('Notification WebSocket disconnected');
-    },
-    onError: (error) => {
-      console.error('Notification WebSocket error:', error);
-      showToast({
-        type: 'error',
-        title: 'Connection Error',
-        message: 'Lost connection to notification service. Trying to reconnect...',
-        duration: 5000
-      });
-    }
+    autoConnect: false
   });
 
   /**
@@ -378,10 +362,33 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Subscribe to WebSocket messages
+  useEffect(() => {
+    if (!notificationWS.isConnected) return;
+
+    console.log('Setting up WebSocket subscriptions for notifications');
+    
+    // Subscribe to all notification types
+    const unsubscribers = [
+      notificationWS.subscribe('task_comment', handleWebSocketMessage),
+      notificationWS.subscribe('task_assigned', handleWebSocketMessage),
+      notificationWS.subscribe('task_completed', handleWebSocketMessage),
+      notificationWS.subscribe('workflow_transition', handleWebSocketMessage),
+      notificationWS.subscribe('approval_request', handleWebSocketMessage),
+      notificationWS.subscribe('message', handleWebSocketMessage),
+      notificationWS.subscribe('mention', handleWebSocketMessage)
+    ];
+
+    return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+    };
+  }, [notificationWS.isConnected]);
+
   // Initialize WebSocket connection when user is authenticated
   useEffect(() => {
     const loginState = getLoginState();
     if (loginState && loginState.userId) {
+      console.log('Connecting to notification WebSocket...');
       // Add a small delay to ensure backend is ready
       const timer = setTimeout(() => {
         notificationWS.connect();

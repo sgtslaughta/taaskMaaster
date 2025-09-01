@@ -189,6 +189,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
  */
 export const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
@@ -219,6 +220,23 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Recalculate position on window resize or scroll
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleReposition = () => {
+      calculateDropdownPosition();
+    };
+
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition);
+
+    return () => {
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition);
+    };
+  }, [isOpen]);
+
   /**
    * @description Handle navigation to notification URL
    */
@@ -229,9 +247,28 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
   };
 
   /**
+   * @description Calculate dropdown position relative to button
+   */
+  const calculateDropdownPosition = () => {
+    if (buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const scrollY = window.scrollY;
+      const scrollX = window.scrollX;
+      
+      setDropdownPosition({
+        top: buttonRect.bottom + scrollY + 8, // 8px gap below button
+        right: window.innerWidth - buttonRect.right - scrollX // Align right edge with button
+      });
+    }
+  };
+
+  /**
    * @description Toggle dropdown
    */
   const toggleDropdown = () => {
+    if (!isOpen) {
+      calculateDropdownPosition();
+    }
     setIsOpen(!isOpen);
   };
 
@@ -263,11 +300,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
         )}
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown - Fixed positioning to break out of header container */}
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+          className="fixed w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[99999]"
+          style={{ 
+            zIndex: 99999,
+            top: dropdownPosition.top,
+            right: dropdownPosition.right
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">

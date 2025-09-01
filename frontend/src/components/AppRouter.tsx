@@ -10,7 +10,6 @@ import { Dashboard } from './pages/Dashboard';
 import { MyTasksPage } from './pages/MyTasksPage';
 import { TaskHubPage } from './pages/TaskHubPage';
 import { canAccessPage, type NavigationUser } from '../utils/navigation';
-import { NotificationProvider } from '../contexts/NotificationContext';
 import { ToastContainer } from './notifications/ToastContainer';
 
 /**
@@ -182,10 +181,10 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   };
 
   return (
-    <NotificationProvider>
+    <>
       {renderCurrentPage()}
       <ToastContainer />
-    </NotificationProvider>
+    </>
   );
 };
 

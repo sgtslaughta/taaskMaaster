@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   showSearch = true,
   onSearch,
-  showNotifications: initialShowNotifications = false,
+  showNotifications: initialShowNotifications = !!user, // Show notifications when user is logged in
   onNotificationsToggle,
   sidebarOpen = false,
   onSidebarToggle,

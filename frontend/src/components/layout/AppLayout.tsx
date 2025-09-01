@@ -88,7 +88,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onLogout,
   showSearch = true,
   onSearch,
-  showNotifications = false,
+  showNotifications = true, // Enable notifications by default when user is present
   onNotificationsToggle,
   className,
   children,
