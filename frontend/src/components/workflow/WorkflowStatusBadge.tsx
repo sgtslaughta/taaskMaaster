@@ -103,7 +103,7 @@ export const WorkflowStatusBadge: React.FC<WorkflowStatusBadgeProps> = ({
         title={config.label}
       >
         {showIcon && (
-          <span className="mr-1">{config.emoji}</span>
+          <IconComponent className="w-3 h-3 mr-1" />
         )}
         {config.label}
       </span>

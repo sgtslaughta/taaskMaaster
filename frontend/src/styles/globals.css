@@ -148,3 +148,9 @@
     transform: translateY(0);
   }
 }
+
+/* Workflow step indicator animations */
+@keyframes fillAndReset {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}

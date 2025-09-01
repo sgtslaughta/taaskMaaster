@@ -16,7 +16,7 @@ import { REWARD_TYPES } from './TaskForm';
 import SimpleTaskComments from '../comments/SimpleTaskComments';
 
 import { User, UserRole } from '../../types/user';
-import TaskWorkflowControls from '../workflow/TaskWorkflowControls';
+import TaskStepIndicator from '../workflow/TaskStepIndicator';
 import { commentService } from '../../services/commentService';
 import { 
   PencilIcon, 
@@ -401,6 +401,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'details' && (
             <div className="space-y-6">
+          {/* Task Workflow Step Indicator */}
+          {currentUser && (
+            <TaskStepIndicator
+              task={task}
+              currentUser={currentUser}
+              onTaskUpdate={(taskId, updates) => {
+                onUpdateTask?.(taskId, updates);
+              }}
+              onError={(error) => {
+                console.error('Workflow error:', error);
+              }}
+            />
+          )}
+
           {/* Header with Status and Actions */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -744,28 +758,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Workflow Controls */}
-          {currentUser && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                Workflow Actions
-              </label>
-              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                <TaskWorkflowControls
-                  task={task}
-                  currentUser={currentUser}
-                  onTaskUpdate={(taskId, updates) => {
-                    onUpdateTask?.(taskId, updates);
-                  }}
-                  onError={(error) => {
-                    console.error('Workflow error:', error);
-                  }}
-                  showHistory={true}
-                  compact={false}
-                />
-              </div>
-            </div>
-          )}
+
 
             </div>
           )}
