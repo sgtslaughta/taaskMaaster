@@ -92,6 +92,16 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+      {/* Logo */}
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3">
+          <img 
+            src="/favicon-32x32.png" 
+            alt="TaaskMaaster Logo" 
+            className="w-6 h-6"
+          />
+        </div>
+      </div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Login</h2>
       
       {error && (

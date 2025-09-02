@@ -119,12 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNotificationNavigation,
   className,
 }) => {
-  console.log('📊 Dashboard: Component rendered with onNotificationNavigation:', !!onNotificationNavigation, 'Props:', {
-    hasUser: !!user,
-    hasOnLogout: !!onLogout,
-    hasOnNavigation: !!onNavigation,
-    hasOnNotificationNavigation: !!onNotificationNavigation
-  });
+
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
     currentLevel: 1,

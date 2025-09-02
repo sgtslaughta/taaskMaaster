@@ -81,7 +81,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected to:', url);
+  
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
@@ -111,7 +111,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+
         setIsConnected(false);
         setIsConnecting(false);
 

@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastLogin: Date.now(),
             });
             
-            console.log('User authenticated from saved session');
+      
           } catch (error) {
             console.error('Failed to get current user from saved session:', error);
             // Clear invalid login state

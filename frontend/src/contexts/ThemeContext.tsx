@@ -129,7 +129,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark');
     }
     
-    console.log('Theme applied:', isDarkMode ? 'dark' : 'light');
+
   }, [isDarkMode, isInitialized]);
 
   /**

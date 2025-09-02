@@ -209,7 +209,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
  * @description Notification Bell Component
  */
 export const NotificationBell: React.FC<NotificationBellProps> = ({ className, onNavigation }) => {
-  console.log('🔔 NotificationBell: Component rendered with onNavigation:', !!onNavigation);
+
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);

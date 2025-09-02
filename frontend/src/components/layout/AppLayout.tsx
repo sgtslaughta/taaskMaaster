@@ -96,7 +96,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   className,
   children,
 }) => {
-  console.log('🏗️ AppLayout: Component rendered with onNotificationNavigation:', !!onNotificationNavigation);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -109,7 +109,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     try {
       const savedSidebarState = getSidebarState();
       setSidebarCollapsed(savedSidebarState);
-      console.log('Sidebar state initialized:', savedSidebarState ? 'collapsed' : 'expanded');
+
     } catch (error) {
       console.error('Failed to initialize sidebar state:', error);
     } finally {
@@ -134,7 +134,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     // Save to cookies
     try {
       saveSidebarState(newCollapsedState);
-      console.log('Sidebar state saved:', newCollapsedState ? 'collapsed' : 'expanded');
+
     } catch (error) {
       console.error('Failed to save sidebar state:', error);
     }

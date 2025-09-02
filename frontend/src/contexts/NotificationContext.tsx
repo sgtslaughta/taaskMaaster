@@ -133,7 +133,7 @@ export const NotificationProvider: React.FC<{
         role: loginState.role || 'user' // Use actual role from login state or default to 'user'
       };
 
-      console.log('🔔 Fetching stored notifications for user:', user.id);
+
       const response = await notificationService.getNotifications(user, {
         skip: 0,
         limit: 100, // Get recent notifications
@@ -153,7 +153,7 @@ export const NotificationProvider: React.FC<{
         );
       });
 
-      console.log('🔔 Loaded', storedNotifications.length, 'stored notifications');
+
     } catch (error) {
       console.error('Error fetching stored notifications:', error);
     }
@@ -654,7 +654,7 @@ export const NotificationProvider: React.FC<{
   useEffect(() => {
     if (!notificationWS.isConnected) return;
 
-    console.log('Setting up WebSocket subscriptions for notifications');
+
     
     // Subscribe to all notification types
     const unsubscribers = [
@@ -676,7 +676,7 @@ export const NotificationProvider: React.FC<{
   useEffect(() => {
     const loginState = getLoginState();
     if (loginState && loginState.userId) {
-      console.log('🔌 Initializing notifications for user:', loginState.userId);
+
       
       // Load stored notifications first
       refreshStoredNotifications();
@@ -688,7 +688,7 @@ export const NotificationProvider: React.FC<{
       
       return () => clearTimeout(timer);
     } else {
-      console.log('🔌 No authenticated user found, skipping notification initialization');
+      
     }
   }, [refreshStoredNotifications]);
 

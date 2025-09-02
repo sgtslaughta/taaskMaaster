@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSidebarToggle,
   className,
 }) => {
-  console.log('🏠 Header: Component rendered with onNavigation:', !!onNavigation, 'User:', user?.username);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(initialShowNotifications);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -136,9 +136,9 @@ export const Header: React.FC<HeaderProps> = ({
    * @description Handle user menu toggle
    */
   const handleUserMenuToggle = () => {
-    console.log('User menu toggle clicked, current state:', showUserMenu);
+
     setShowUserMenu(!showUserMenu);
-    console.log('New state will be:', !showUserMenu);
+
   };
 
   /**
@@ -267,8 +267,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Logo */}
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg mr-3">
-              <span className="text-white font-bold text-sm">T</span>
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3">
+              <img 
+                src="/favicon-16x16.png" 
+                alt="TaaskMaaster Logo" 
+                className="w-4 h-4"
+              />
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               TaaskMaaster
