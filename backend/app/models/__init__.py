@@ -17,6 +17,7 @@ from .comment import (
 from .gamification import Achievement, Leaderboard, Points, UserAchievement
 from .goal import Goal, GoalProgress
 from .media import MediaAttachment
+from .notification import Notification
 from .task import Task, TaskCategory, TaskDependency, TaskTag, TaskTemplate
 from .user import User
 
@@ -35,6 +36,7 @@ __all__ = [
     "Points",
     "Leaderboard",
     "MediaAttachment",
+    "Notification",
     # Comment and messaging models
     "TaskComment",
     "CommentReaction",

@@ -30,6 +30,7 @@ from app.api import (
     websocket_router,
     workflow_router,
 )
+from app.api.notifications import router as notifications_router
 from app.core.logging import configure_logging, get_logger
 from app.core.monitoring import (
     MetricsMiddleware,
@@ -125,6 +126,7 @@ fastapi_app.include_router(workflow_router, prefix="/api/v1/workflow", tags=["wo
 fastapi_app.include_router(messaging_router, prefix="/api/v1/messages", tags=["messaging"])
 fastapi_app.include_router(mentions_router, prefix="/api/v1/mentions", tags=["mentions"])
 fastapi_app.include_router(presence_router, prefix="/api/v1/presence", tags=["presence"])
+fastapi_app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
 fastapi_app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
 # Create the final app with ASGI middleware

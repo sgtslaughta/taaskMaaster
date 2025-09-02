@@ -18,6 +18,7 @@ from app.models.comment import TaskChatMessage
 from app.models.task import Task
 from app.models.user import User
 from app.services.websocket_service import websocket_manager
+from app.services.notification_persistence_service import NotificationPersistenceService
 
 logger = get_logger(__name__)
 
@@ -53,6 +54,63 @@ class NotificationService:
     def __init__(self, db: Session):
         """Initialize notification service with database session."""
         self.db = db
+        self.persistence_service = NotificationPersistenceService(db)
+
+    async def _send_notification(
+        self,
+        recipients: List[int],
+        notification_type: str,
+        title: str,
+        message: str,
+        action_url: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Send notification via both WebSocket (real-time) and database (persistence).
+        
+        Args:
+            recipients: List of user IDs to notify
+            notification_type: Type of notification
+            title: Notification title
+            message: Notification message
+            action_url: Optional URL for notification action
+            data: Optional additional data
+        """
+        try:
+            # Create the notification payload for WebSocket
+            websocket_notification = {
+                "type": notification_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "notification_type": notification_type,
+                "title": title,
+                "message": message,
+                "action_url": action_url,
+                "data": data,
+            }
+            
+            # Send via WebSocket for real-time delivery
+            await websocket_manager.broadcast_notifications(recipients, websocket_notification)
+            
+            # Store in database for offline users
+            for user_id in recipients:
+                try:
+                    self.persistence_service.create_notification(
+                        user_id=user_id,
+                        notification_type=notification_type,
+                        title=title,
+                        message=message,
+                        action_url=action_url,
+                        data=data
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to store notification for user {user_id}: {e}")
+                    # Continue with other users even if one fails
+                    
+            logger.info(f"Sent {notification_type} notification to {len(recipients)} users (WebSocket + DB)")
+            
+        except Exception as e:
+            logger.error(f"Error in _send_notification: {e}")
+            raise
 
     async def notify_task_comment(
         self,
@@ -81,15 +139,14 @@ class NotificationService:
             participants = task_service.get_task_participants(comment.task_id)
             recipients = [p for p in participants if p != comment.user_id]
 
-            # Create notification message
-            notification = {
-                "type": NotificationType.TASK_COMMENT,
-                "timestamp": datetime.utcnow().isoformat(),
-                "notification_type": "task_comment",
-                "title": f"New comment on {task.title}",
-                "message": f"{user.username} commented on task: {comment.content[:100]}{'...' if len(comment.content) > 100 else ''}",
-                "action_url": f"/tasks/{task.id}",
-                "data": {
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_COMMENT,
+                title=f"New comment on {task.title}",
+                message=f"{user.username} commented on task: {comment.content[:100]}{'...' if len(comment.content) > 100 else ''}",
+                action_url=f"/tasks/{task.id}",
+                data={
                     "task_id": task.id,
                     "task_title": task.title,
                     "comment_id": comment.id,
@@ -101,18 +158,13 @@ class NotificationService:
                     "comment_content": comment.content,
                     "is_system_generated": comment.is_system_generated,
                 }
-            }
-
-            # Send to task participants
-            await websocket_manager.broadcast_notifications(recipients, notification)
+            )
 
             # Handle mentions separately
             if mentioned_users:
                 await self._notify_mentioned_users(
                     mentioned_users, comment, task, user
                 )
-
-            logger.info(f"Sent task comment notification for comment {comment.id} to {len(recipients)} users")
 
         except Exception as e:
             logger.error(f"Error sending task comment notification: {e}")
@@ -148,15 +200,14 @@ class NotificationService:
             participants = task_service.get_task_participants(task.id)
             recipients = [p for p in participants if p != changed_by_user_id]
 
-            # Create notification message
-            notification = {
-                "type": NotificationType.TASK_STATUS_CHANGED,
-                "timestamp": datetime.utcnow().isoformat(),
-                "notification_type": "task_status_changed",
-                "title": f"Task status changed: {task.title}",
-                "message": f"{user.username} changed task status from {previous_status} to {new_status}",
-                "action_url": f"/tasks/{task.id}",
-                "data": {
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_STATUS_CHANGED,
+                title=f"Task status changed: {task.title}",
+                message=f"{user.username} changed task status from {previous_status} to {new_status}",
+                action_url=f"/tasks/{task.id}",
+                data={
                     "task_id": task.id,
                     "task_title": task.title,
                     "previous_status": previous_status,
@@ -168,12 +219,7 @@ class NotificationService:
                     },
                     "comment": comment,
                 }
-            }
-
-            # Send to task participants
-            await websocket_manager.broadcast_notifications(recipients, notification)
-
-            logger.info(f"Sent status change notification for task {task.id} to {len(recipients)} users")
+            )
 
         except Exception as e:
             logger.error(f"Error sending task status change notification: {e}")
@@ -203,15 +249,14 @@ class NotificationService:
             if not recipients:
                 return
 
-            # Create notification message
-            notification = {
-                "type": NotificationType.TASK_APPROVAL_REQUEST,
-                "timestamp": datetime.utcnow().isoformat(),
-                "notification_type": "task_approval_request",
-                "title": f"Task approval requested: {task.title}",
-                "message": f"{user.username} submitted task '{task.title}' for your approval",
-                "action_url": f"/tasks/{task.id}",
-                "data": {
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_APPROVAL_REQUEST,
+                title=f"Task approval requested: {task.title}",
+                message=f"{user.username} submitted task '{task.title}' for your approval",
+                action_url=f"/tasks/{task.id}",
+                data={
                     "task_id": task.id,
                     "task_title": task.title,
                     "submitted_by": {
@@ -221,12 +266,7 @@ class NotificationService:
                     },
                     "requires_action": True,
                 }
-            }
-
-            # Send to task creator
-            await websocket_manager.broadcast_notifications(recipients, notification)
-
-            logger.info(f"Sent approval request notification for task {task.id} to task creator")
+            )
 
         except Exception as e:
             logger.error(f"Error sending approval request notification: {e}")

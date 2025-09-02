@@ -87,6 +87,9 @@ class User(Base):
     created_conversations = relationship("Conversation", back_populates="creator", foreign_keys="Conversation.creator_id")
     conversations = relationship("Conversation", secondary="conversation_participants", back_populates="participants")
     conversation_settings = relationship("ConversationSettings", back_populates="user")
+    
+    # Notification relationships
+    notifications = relationship("Notification", back_populates="user")
 
     def __repr__(self) -> str:
         """String representation of User."""
