@@ -14,12 +14,19 @@ import {
   CheckIcon,
   TrashIcon,
   EyeIcon,
-  ClockIcon,
   UserIcon,
   ChatBubbleLeftIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  PlusCircleIcon,
+  PencilSquareIcon,
+  XCircleIcon,
+  ClockIcon,
+  ExclamationCircleIcon,
+  CheckCircleIcon,
+  UserPlusIcon,
+  ArrowRightCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface NotificationBellProps {
@@ -50,40 +57,163 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
    */
   const getIcon = () => {
     switch (notification.type) {
+      // Task lifecycle notifications
+      case 'task_created':
+        return <PlusCircleIcon className="w-4 h-4 text-green-500" />;
+      case 'task_assigned':
+        return <UserPlusIcon className="w-4 h-4 text-blue-500" />;
+      case 'task_reassigned':
+        return <ArrowRightCircleIcon className="w-4 h-4 text-amber-500" />;
+      case 'task_updated':
+        return <PencilSquareIcon className="w-4 h-4 text-purple-500" />;
+      case 'task_completed':
+        return <CheckCircleIcon className="w-4 h-4 text-green-600" />;
+      case 'task_deleted':
+        return <XCircleIcon className="w-4 h-4 text-red-500" />;
+      
+      // Task workflow notifications
+      case 'task_status_changed':
+        return <ArrowPathIcon className="w-4 h-4 text-indigo-500" />;
+      case 'task_approval_request':
+        return <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />;
+      case 'task_approved':
+        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
+      case 'task_rejected':
+        return <XCircleIcon className="w-4 h-4 text-red-600" />;
+      
+      // Time-based notifications
+      case 'task_due_soon':
+        return <ClockIcon className="w-4 h-4 text-yellow-500" />;
+      case 'task_overdue':
+        return <ExclamationCircleIcon className="w-4 h-4 text-red-600" />;
+      
+      // Communication notifications
       case 'task_comment':
         return <ChatBubbleLeftIcon className="w-4 h-4 text-blue-500" />;
-      case 'task_assigned':
-        return <UserIcon className="w-4 h-4 text-green-500" />;
-      case 'task_completed':
-        return <CheckIcon className="w-4 h-4 text-green-500" />;
+      case 'direct_message':
+        return <ChatBubbleLeftIcon className="w-4 h-4 text-indigo-500" />;
+      case 'task_chat_message':
+        return <ChatBubbleLeftIcon className="w-4 h-4 text-purple-500" />;
+      case 'user_mentioned':
+        return <UserIcon className="w-4 h-4 text-yellow-500" />;
+      
+      // Legacy/backward compatibility
       case 'workflow_transition':
-        return <DocumentTextIcon className="w-4 h-4 text-purple-500" />;
+        return <ArrowPathIcon className="w-4 h-4 text-indigo-500" />;
       case 'approval_request':
         return <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />;
       case 'message':
         return <ChatBubbleLeftIcon className="w-4 h-4 text-indigo-500" />;
       case 'mention':
         return <UserIcon className="w-4 h-4 text-yellow-500" />;
+      
+      // System notifications
+      case 'media_attached':
+        return <DocumentTextIcon className="w-4 h-4 text-gray-500" />;
+      case 'system_announcement':
+        return <BellIcon className="w-4 h-4 text-blue-500" />;
+      
       default:
         return <BellIcon className="w-4 h-4 text-gray-500" />;
     }
   };
 
   /**
-   * @description Get priority color
+   * @description Get notification category for styling
+   */
+  const getNotificationCategory = () => {
+    switch (notification.type) {
+      case 'task_created':
+      case 'task_assigned':
+      case 'task_reassigned':
+        return 'assignment';
+      case 'task_updated':
+      case 'task_status_changed':
+        return 'update';
+      case 'task_completed':
+      case 'task_approved':
+        return 'success';
+      case 'task_deleted':
+      case 'task_rejected':
+        return 'danger';
+      case 'task_approval_request':
+        return 'approval';
+      case 'task_due_soon':
+      case 'task_overdue':
+        return 'warning';
+      case 'task_comment':
+      case 'direct_message':
+      case 'task_chat_message':
+      case 'user_mentioned':
+        return 'communication';
+      default:
+        return 'default';
+    }
+  };
+
+  /**
+   * @description Get priority color based on category and priority
    */
   const getPriorityColor = () => {
-    switch (notification.priority) {
-      case 'urgent':
-        return 'border-l-red-500';
-      case 'high':
-        return 'border-l-orange-500';
-      case 'medium':
+    const category = getNotificationCategory();
+    
+    // Priority-based colors (if priority exists)
+    if (notification.priority) {
+      switch (notification.priority) {
+        case 'urgent':
+          return 'border-l-red-500';
+        case 'high':
+          return 'border-l-orange-500';
+        case 'medium':
+          return 'border-l-blue-500';
+        case 'low':
+          return 'border-l-gray-500';
+      }
+    }
+    
+    // Category-based colors (fallback)
+    switch (category) {
+      case 'assignment':
         return 'border-l-blue-500';
-      case 'low':
-        return 'border-l-gray-500';
+      case 'update':
+        return 'border-l-purple-500';
+      case 'success':
+        return 'border-l-green-500';
+      case 'danger':
+        return 'border-l-red-500';
+      case 'approval':
+        return 'border-l-orange-500';
+      case 'warning':
+        return 'border-l-yellow-500';
+      case 'communication':
+        return 'border-l-indigo-500';
       default:
         return 'border-l-gray-500';
+    }
+  };
+
+  /**
+   * @description Get human-readable category label
+   */
+  const getCategoryLabel = () => {
+    const category = getNotificationCategory();
+    switch (category) {
+      case 'assignment':
+        return 'Task Assignment';
+      case 'update':
+        return 'Task Update';
+      case 'success':
+        return 'Completed';
+      case 'danger':
+        return 'Important';
+      case 'approval':
+        return 'Approval Required';
+      case 'warning':
+        return 'Deadline Alert';
+      case 'communication':
+        return 'Message';
+      default:
+        return 'Notification';
     }
   };
 
@@ -142,6 +272,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between">
           <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {getCategoryLabel()}
+              </span>
+            </div>
             <h4 className={cn(
               "text-sm font-medium text-gray-900 dark:text-white",
               !notification.read && "font-semibold"

@@ -33,6 +33,13 @@ class NotificationType(str, Enum):
     TASK_APPROVED = "task_approved"
     TASK_REJECTED = "task_rejected"
     TASK_ASSIGNED = "task_assigned"
+    TASK_REASSIGNED = "task_reassigned"
+    TASK_CREATED = "task_created"
+    TASK_UPDATED = "task_updated"
+    TASK_DELETED = "task_deleted"
+    TASK_DUE_SOON = "task_due_soon"
+    TASK_OVERDUE = "task_overdue"
+    TASK_COMPLETED = "task_completed"
     
     # User interaction notifications
     USER_MENTIONED = "user_mentioned"
@@ -740,3 +747,335 @@ class NotificationService:
 
         except Exception as e:
             logger.error(f"Error sending task chat mention notification: {e}")
+
+    async def notify_task_assigned(
+        self,
+        task: Task,
+        assigned_to_user_id: int,
+        assigned_by_user_id: int
+    ) -> None:
+        """
+        Send notification for task assignment.
+
+        Args:
+            task: The task that was assigned
+            assigned_to_user_id: User who received the assignment
+            assigned_by_user_id: User who made the assignment
+        """
+        try:
+            # Get user info
+            assigned_by_user = self.db.query(User).filter(User.id == assigned_by_user_id).first()
+            if not assigned_by_user:
+                logger.warning(f"User not found for task assignment notification: {assigned_by_user_id}")
+                return
+
+            # Don't notify if user assigned task to themselves
+            if assigned_to_user_id == assigned_by_user_id:
+                return
+
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=[assigned_to_user_id],
+                notification_type=NotificationType.TASK_ASSIGNED,
+                title=f"New task assigned: {task.title}",
+                message=f"{assigned_by_user.username} assigned you the task '{task.title}'",
+                action_url=f"/tasks/{task.id}",
+                data={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "task_priority": task.priority.value if task.priority else None,
+                    "task_due_date": task.due_date.isoformat() if task.due_date else None,
+                    "assigned_by": {
+                        "id": assigned_by_user.id,
+                        "username": assigned_by_user.username,
+                        "full_name": assigned_by_user.full_name,
+                    },
+                    "requires_action": True,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error sending task assignment notification: {e}")
+
+    async def notify_task_reassigned(
+        self,
+        task: Task,
+        old_assigned_to_id: int,
+        new_assigned_to_id: int,
+        reassigned_by_user_id: int
+    ) -> None:
+        """
+        Send notification for task reassignment.
+
+        Args:
+            task: The task that was reassigned
+            old_assigned_to_id: Previous assignee
+            new_assigned_to_id: New assignee
+            reassigned_by_user_id: User who made the reassignment
+        """
+        try:
+            # Get user info
+            reassigned_by_user = self.db.query(User).filter(User.id == reassigned_by_user_id).first()
+            if not reassigned_by_user:
+                logger.warning(f"User not found for task reassignment notification: {reassigned_by_user_id}")
+                return
+
+            # Notify old assignee (if different from reassigner)
+            if old_assigned_to_id and old_assigned_to_id != reassigned_by_user_id:
+                await self._send_notification(
+                    recipients=[old_assigned_to_id],
+                    notification_type=NotificationType.TASK_REASSIGNED,
+                    title=f"Task reassigned: {task.title}",
+                    message=f"{reassigned_by_user.username} reassigned task '{task.title}' to someone else",
+                    action_url=f"/tasks/{task.id}",
+                    data={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "reassigned_by": {
+                            "id": reassigned_by_user.id,
+                            "username": reassigned_by_user.username,
+                            "full_name": reassigned_by_user.full_name,
+                        },
+                        "context": "removed_assignment",
+                    }
+                )
+
+            # Notify new assignee (if different from reassigner)
+            if new_assigned_to_id and new_assigned_to_id != reassigned_by_user_id:
+                await self._send_notification(
+                    recipients=[new_assigned_to_id],
+                    notification_type=NotificationType.TASK_ASSIGNED,
+                    title=f"New task assigned: {task.title}",
+                    message=f"{reassigned_by_user.username} assigned you the task '{task.title}'",
+                    action_url=f"/tasks/{task.id}",
+                    data={
+                        "task_id": task.id,
+                        "task_title": task.title,
+                        "task_priority": task.priority.value if task.priority else None,
+                        "task_due_date": task.due_date.isoformat() if task.due_date else None,
+                        "assigned_by": {
+                            "id": reassigned_by_user.id,
+                            "username": reassigned_by_user.username,
+                            "full_name": reassigned_by_user.full_name,
+                        },
+                        "context": "reassignment",
+                        "requires_action": True,
+                    }
+                )
+
+        except Exception as e:
+            logger.error(f"Error sending task reassignment notification: {e}")
+
+    async def notify_task_created(
+        self,
+        task: Task,
+        created_by_user_id: int
+    ) -> None:
+        """
+        Send notification for task creation (to assignee if different from creator).
+
+        Args:
+            task: The task that was created
+            created_by_user_id: User who created the task
+        """
+        try:
+            # Only notify if task is assigned to someone other than the creator
+            if not task.assigned_to_id or task.assigned_to_id == created_by_user_id:
+                return
+
+            # Get creator info
+            creator = self.db.query(User).filter(User.id == created_by_user_id).first()
+            if not creator:
+                logger.warning(f"Creator not found for task creation notification: {created_by_user_id}")
+                return
+
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=[task.assigned_to_id],
+                notification_type=NotificationType.TASK_CREATED,
+                title=f"New task created: {task.title}",
+                message=f"{creator.username} created and assigned you a new task '{task.title}'",
+                action_url=f"/tasks/{task.id}",
+                data={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "task_priority": task.priority.value if task.priority else None,
+                    "task_due_date": task.due_date.isoformat() if task.due_date else None,
+                    "created_by": {
+                        "id": creator.id,
+                        "username": creator.username,
+                        "full_name": creator.full_name,
+                    },
+                    "requires_action": True,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error sending task creation notification: {e}")
+
+    async def notify_task_updated(
+        self,
+        task: Task,
+        updated_by_user_id: int,
+        changed_fields: List[str]
+    ) -> None:
+        """
+        Send notification for task updates (to relevant participants).
+
+        Args:
+            task: The updated task
+            updated_by_user_id: User who made the update
+            changed_fields: List of fields that were changed
+        """
+        try:
+            # Get updater info
+            updater = self.db.query(User).filter(User.id == updated_by_user_id).first()
+            if not updater:
+                logger.warning(f"Updater not found for task update notification: {updated_by_user_id}")
+                return
+
+            # Get task participants (excluding the updater)
+            from app.services.task_service import TaskService
+            task_service = TaskService(self.db)
+            participants = task_service.get_task_participants(task.id)
+            recipients = [p for p in participants if p != updated_by_user_id]
+
+            if not recipients:
+                return
+
+            # Create human-readable change summary
+            field_names = {
+                'title': 'title',
+                'description': 'description',
+                'priority': 'priority',
+                'due_date': 'due date',
+                'estimated_hours': 'estimated hours',
+                'points': 'points',
+            }
+            
+            changed_display = [field_names.get(field, field) for field in changed_fields if field in field_names]
+            change_summary = ', '.join(changed_display) if changed_display else 'task details'
+
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_UPDATED,
+                title=f"Task updated: {task.title}",
+                message=f"{updater.username} updated {change_summary} for task '{task.title}'",
+                action_url=f"/tasks/{task.id}",
+                data={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "updated_by": {
+                        "id": updater.id,
+                        "username": updater.username,
+                        "full_name": updater.full_name,
+                    },
+                    "changed_fields": changed_fields,
+                    "change_summary": change_summary,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error sending task update notification: {e}")
+
+    async def notify_task_completed(
+        self,
+        task: Task,
+        completed_by_user_id: int
+    ) -> None:
+        """
+        Send notification for task completion.
+
+        Args:
+            task: The completed task
+            completed_by_user_id: User who completed the task
+        """
+        try:
+            # Get completer info
+            completer = self.db.query(User).filter(User.id == completed_by_user_id).first()
+            if not completer:
+                logger.warning(f"Completer not found for task completion notification: {completed_by_user_id}")
+                return
+
+            # Get task participants (excluding the completer)
+            from app.services.task_service import TaskService
+            task_service = TaskService(self.db)
+            participants = task_service.get_task_participants(task.id)
+            recipients = [p for p in participants if p != completed_by_user_id]
+
+            if not recipients:
+                return
+
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_COMPLETED,
+                title=f"Task completed: {task.title}",
+                message=f"{completer.username} completed task '{task.title}'",
+                action_url=f"/tasks/{task.id}",
+                data={
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "completed_by": {
+                        "id": completer.id,
+                        "username": completer.username,
+                        "full_name": completer.full_name,
+                    },
+                    "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error sending task completion notification: {e}")
+
+    async def notify_task_deleted(
+        self,
+        task_title: str,
+        task_id: int,
+        deleted_by_user_id: int,
+        participants: List[int]
+    ) -> None:
+        """
+        Send notification for task deletion.
+
+        Args:
+            task_title: Title of the deleted task
+            task_id: ID of the deleted task
+            deleted_by_user_id: User who deleted the task
+            participants: List of user IDs who were involved with the task
+        """
+        try:
+            # Get deleter info
+            deleter = self.db.query(User).filter(User.id == deleted_by_user_id).first()
+            if not deleter:
+                logger.warning(f"Deleter not found for task deletion notification: {deleted_by_user_id}")
+                return
+
+            # Notify participants (excluding the deleter)
+            recipients = [p for p in participants if p != deleted_by_user_id]
+
+            if not recipients:
+                return
+
+            # Send notification via both WebSocket and database
+            await self._send_notification(
+                recipients=recipients,
+                notification_type=NotificationType.TASK_DELETED,
+                title=f"Task deleted: {task_title}",
+                message=f"{deleter.username} deleted task '{task_title}'",
+                action_url=None,  # No action URL since task is deleted
+                data={
+                    "task_id": task_id,
+                    "task_title": task_title,
+                    "deleted_by": {
+                        "id": deleter.id,
+                        "username": deleter.username,
+                        "full_name": deleter.full_name,
+                    },
+                    "deleted_at": datetime.utcnow().isoformat(),
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error sending task deletion notification: {e}")

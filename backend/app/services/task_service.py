@@ -48,7 +48,7 @@ class TaskService:
         """Initialize task service with database session."""
         self.db = db
 
-    def create_task(self, task_data: TaskCreate, created_by_id: int) -> Task:
+    async def create_task(self, task_data: TaskCreate, created_by_id: int) -> Task:
         """
         Create a new task with advanced features.
 
@@ -95,6 +95,18 @@ class TaskService:
             redis_service.invalidate_task_cache(task.assigned_to_id, task.id)
 
         logger.info(f"Created task {task.id} by user {created_by_id}")
+        
+        # Send notifications for task creation
+        try:
+            from app.services.notification_service import NotificationService
+            notification_service = NotificationService(self.db)
+            
+            # Notify assignee if task is assigned to someone else
+            if task.assigned_to_id and task.assigned_to_id != created_by_id:
+                await notification_service.notify_task_created(task, created_by_id)
+        except Exception as e:
+            logger.error(f"Error sending task creation notification: {e}")
+        
         return task
 
     def bulk_update_tasks(self, bulk_update_data: TaskBulkUpdate, user_id: int) -> List[Task]:
@@ -414,7 +426,7 @@ class TaskService:
 
         return tasks, total
 
-    def update_task(
+    async def update_task(
         self, task_id: int, task_data: Dict[str, Any], user_id: int
     ) -> Optional[Task]:
         """
@@ -462,8 +474,16 @@ class TaskService:
         if not task:
             return None
 
-        # Store the old assigned_to_id to invalidate cache later
+        # Store the old assigned_to_id to invalidate cache later and for notifications
         old_assigned_to_id = task.assigned_to_id
+        old_task_data = {
+            'title': task.title,
+            'description': task.description,
+            'priority': task.priority.value if task.priority else None,
+            'due_date': task.due_date.isoformat() if task.due_date else None,
+            'estimated_hours': task.estimated_hours,
+            'points': task.points,
+        }
 
         # Handle tags separately
         tag_names = task_data.pop("tag_names", None)
@@ -531,9 +551,52 @@ class TaskService:
             redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
 
         logger.info(f"Updated task {task_id} by user {user_id}")
+        
+        # Send notifications for task updates
+        try:
+            from app.services.notification_service import NotificationService
+            notification_service = NotificationService(self.db)
+            
+            # Detect changed fields
+            changed_fields = []
+            current_task_data = {
+                'title': task.title,
+                'description': task.description,
+                'priority': task.priority.value if task.priority else None,
+                'due_date': task.due_date.isoformat() if task.due_date else None,
+                'estimated_hours': task.estimated_hours,
+                'points': task.points,
+            }
+            
+            for field, old_value in old_task_data.items():
+                if current_task_data[field] != old_value:
+                    changed_fields.append(field)
+            
+            # Handle assignment changes
+            if old_assigned_to_id != task.assigned_to_id:
+                if old_assigned_to_id and task.assigned_to_id:
+                    # Reassignment
+                    await notification_service.notify_task_reassigned(
+                        task, old_assigned_to_id, task.assigned_to_id, user_id
+                    )
+                elif task.assigned_to_id and not old_assigned_to_id:
+                    # New assignment
+                    await notification_service.notify_task_assigned(
+                        task, task.assigned_to_id, user_id
+                    )
+                # Note: We don't notify for unassignment (old_assigned_to_id and not task.assigned_to_id)
+                # as it's usually part of a reassignment or intentional removal
+            
+            # Notify about other field changes (if any)
+            if changed_fields:
+                await notification_service.notify_task_updated(task, user_id, changed_fields)
+                
+        except Exception as e:
+            logger.error(f"Error sending task update notifications: {e}")
+        
         return task
 
-    def delete_task(self, task_id: int, user_id: int) -> bool:
+    async def delete_task(self, task_id: int, user_id: int) -> bool:
         """
         Delete a task.
 
@@ -567,6 +630,10 @@ class TaskService:
         if not task:
             return False
 
+        # Store task info for notifications before deletion
+        task_title = task.title
+        participants = self.get_task_participants(task_id)
+
         # Delete task associations first
         self.db.query(TaskTagAssociation).filter(
             TaskTagAssociation.task_id == task_id
@@ -581,10 +648,20 @@ class TaskService:
         if task.assigned_to_id and task.assigned_to_id != user_id:
             redis_service.invalidate_task_cache(task.assigned_to_id, task_id)
 
+        # Send deletion notifications
+        try:
+            from app.services.notification_service import NotificationService
+            notification_service = NotificationService(self.db)
+            await notification_service.notify_task_deleted(
+                task_title, task_id, user_id, participants
+            )
+        except Exception as e:
+            logger.error(f"Error sending task deletion notification: {e}")
+
         logger.info(f"Deleted task {task_id} by user {user_id}")
         return True
 
-    def complete_task(
+    async def complete_task(
         self, task_id: int, user_id: int, actual_hours: Optional[float] = None
     ) -> Optional[Task]:
         """
@@ -642,6 +719,14 @@ class TaskService:
             .filter(Task.id == task_id)
             .first()
         )
+
+        # Send completion notifications
+        try:
+            from app.services.notification_service import NotificationService
+            notification_service = NotificationService(self.db)
+            await notification_service.notify_task_completed(task, user_id)
+        except Exception as e:
+            logger.error(f"Error sending task completion notification: {e}")
 
         logger.info(f"Completed task {task_id} by user {user_id}")
         return task
@@ -765,7 +850,7 @@ class TaskService:
             
             return [self.to_task_template_response(template) for template in templates]
 
-    def create_task_from_template(
+    async def create_task_from_template(
         self, template_id: int, user_id: int, **kwargs
     ) -> Optional[Task]:
         """
@@ -811,7 +896,7 @@ class TaskService:
         # Create task data from template
         task_data = TaskCreate(**task_params)
 
-        return self.create_task(task_data, user_id)
+        return await self.create_task(task_data, user_id)
 
     def create_category(
         self, category_data: TaskCategoryCreate, created_by_id: int

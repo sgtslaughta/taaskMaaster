@@ -115,7 +115,7 @@ async def create_task(
     - tag_names: List of tag names (optional)
     """
     task_service = TaskService(db)
-    task = task_service.create_task(task_data, current_user.id)
+    task = await task_service.create_task(task_data, current_user.id)
     return task_service.to_task_response(task)
 
 
@@ -307,7 +307,7 @@ async def create_task_from_template(
 ):
     """Create a task from a template using JSON request body."""
     task_service = TaskService(db)
-    task = task_service.create_task_from_template(
+    task = await task_service.create_task_from_template(
         request.template_id,
         current_user.id,
         title=request.title,
@@ -401,7 +401,7 @@ async def complete_task_json(
     - Updated task details with completed status
     """
     task_service = TaskService(db)
-    task = task_service.complete_task(request.task_id, current_user.id, request.actual_hours)
+    task = await task_service.complete_task(request.task_id, current_user.id, request.actual_hours)
 
     if not task:
         raise HTTPException(
@@ -419,7 +419,7 @@ async def delete_task_json(
 ):
     """Delete a task using JSON request body."""
     task_service = TaskService(db)
-    success = task_service.delete_task(request.task_id, current_user.id)
+    success = await task_service.delete_task(request.task_id, current_user.id)
 
     if not success:
         raise HTTPException(
@@ -454,7 +454,7 @@ async def update_task_json(
     """Update a task using JSON request body."""
     task_service = TaskService(db)
     try:
-        task = task_service.update_task(request.task_id, request.updates, current_user.id)
+        task = await task_service.update_task(request.task_id, request.updates, current_user.id)
 
         if not task:
             raise HTTPException(

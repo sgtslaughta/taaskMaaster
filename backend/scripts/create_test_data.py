@@ -303,7 +303,7 @@ class TestDataGenerator:
         self.db.commit()
         print(f"Created {len(self.templates)} templates")
 
-    def create_tasks(self) -> None:
+    async def create_tasks(self) -> None:
         """Create tasks with various statuses, priorities, and reward types"""
         print("Creating tasks...")
         
@@ -547,7 +547,7 @@ class TestDataGenerator:
                 reward_description=task_info["reward_description"]
             )
             
-            task = self.task_service.create_task(task_create, created_user.id if created_user else self.users[0].id)
+            task = await self.task_service.create_task(task_create, created_user.id if created_user else self.users[0].id)
             
             # Set completion time if task is done
             if task_info["status"] == TaskStatus.DONE and task_info["completed_at"]:
@@ -950,7 +950,7 @@ class TestDataGenerator:
         self.db.commit()
         print("Created task status history records")
 
-    def generate_all_data(self) -> None:
+    async def generate_all_data(self) -> None:
         """Generate all test data"""
         print("Starting test data generation...")
         print("=" * 50)
@@ -959,7 +959,7 @@ class TestDataGenerator:
             self.create_users()
             self.create_categories()
             self.create_templates()
-            self.create_tasks()
+            await self.create_tasks()
             self.create_task_lists()
             self.create_tasks_from_templates()
             
@@ -1002,7 +1002,8 @@ def main():
         generator = TestDataGenerator(db)
         
         # Generate all data
-        generator.generate_all_data()
+        import asyncio
+        asyncio.run(generator.generate_all_data())
         
     except Exception as e:
         print(f"Failed to generate test data: {e}")
