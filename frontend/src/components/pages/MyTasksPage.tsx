@@ -55,6 +55,14 @@ export interface MyTasksPageProps {
    */
   onNavigation?: (item: any) => void;
   /**
+   * @description Function to handle notification navigation
+   */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
+  /**
+   * @description Task ID to auto-open (from notification navigation)
+   */
+  initialTaskId?: number;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -190,6 +198,8 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   navigationItems: providedNavigationItems,
   onLogout,
   onNavigation,
+  onNotificationNavigation,
+  initialTaskId,
   className,
 }) => {
   const [tasks, setTasks] = useState<FrontendTask[]>([]);
@@ -210,6 +220,23 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
     loadMyTasks();
     loadUsers();
   }, []);
+
+  // Handle auto-opening task modal from notification navigation
+  useEffect(() => {
+    console.log('MyTasksPage: Auto-open effect triggered. initialTaskId:', initialTaskId, 'tasks.length:', tasks.length);
+    if (initialTaskId && tasks.length > 0) {
+      const taskToOpen = tasks.find(task => task.id === initialTaskId);
+      if (taskToOpen) {
+        console.log('MyTasksPage: Auto-opening task from notification:', initialTaskId);
+        setSelectedTask(taskToOpen);
+        setIsDetailModalOpen(true);
+      } else {
+        console.warn('MyTasksPage: Task not found for auto-open:', initialTaskId, 'Available task IDs:', tasks.map(t => t.id));
+      }
+    } else if (initialTaskId) {
+      console.log('MyTasksPage: initialTaskId provided but no tasks loaded yet:', initialTaskId);
+    }
+  }, [initialTaskId, tasks]);
 
   /**
    * @description Load user's tasks from API
@@ -506,6 +533,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       navigationItems={navigationItems}
       onLogout={onLogout}
       onNavigation={handleNavigation}
+      onNotificationNavigation={onNotificationNavigation}
       className={className}
     >
       <div className="flex-1 flex flex-col min-h-0">

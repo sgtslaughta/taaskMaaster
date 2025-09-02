@@ -54,6 +54,8 @@ export interface AppLayoutProps {
   navigationItems?: NavigationItem[];
   /** Function called when a navigation item is clicked */
   onNavigation?: (item: NavigationItem) => void;
+  /** Function called when navigating from notifications (includes task navigation) */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
   /** Function called when logout is requested */
   onLogout?: () => void;
   /** Whether to show the search functionality */
@@ -85,6 +87,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   title,
   navigationItems = [],
   onNavigation,
+  onNotificationNavigation,
   onLogout,
   showSearch = true,
   onSearch,
@@ -93,6 +96,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   className,
   children,
 }) => {
+  console.log('🏗️ AppLayout: Component rendered with onNotificationNavigation:', !!onNotificationNavigation);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -164,6 +168,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onSearch={onSearch}
           showNotifications={showNotifications}
           onNotificationsToggle={onNotificationsToggle}
+          onNavigation={onNotificationNavigation}
           sidebarOpen={sidebarOpen}
           onSidebarToggle={handleSidebarToggle}
         />

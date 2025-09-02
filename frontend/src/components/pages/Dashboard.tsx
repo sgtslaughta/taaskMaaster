@@ -76,6 +76,8 @@ export interface DashboardProps {
   onLogout?: () => void;
   /** Function called when navigation is requested */
   onNavigation?: (view: string) => void;
+  /** Function called when navigating from notifications */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
   /** Additional CSS classes */
   className?: string;
 }
@@ -114,8 +116,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onQuickAction,
   onLogout,
   onNavigation,
+  onNotificationNavigation,
   className,
 }) => {
+  console.log('📊 Dashboard: Component rendered with onNotificationNavigation:', !!onNotificationNavigation, 'Props:', {
+    hasUser: !!user,
+    hasOnLogout: !!onLogout,
+    hasOnNavigation: !!onNavigation,
+    hasOnNotificationNavigation: !!onNotificationNavigation
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
     currentLevel: 1,
@@ -337,6 +346,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
+        onNotificationNavigation={onNotificationNavigation}
         className={className}
       >
         <div className="flex items-center justify-center h-64">
@@ -355,6 +365,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
+        onNotificationNavigation={onNotificationNavigation}
         className={className}
       >
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">

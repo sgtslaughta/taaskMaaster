@@ -208,6 +208,14 @@ export interface TaskHubPageProps {
    */
   onNavigation?: (item: NavigationItem) => void;
   /**
+   * @description Function to handle notification navigation
+   */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
+  /**
+   * @description Task ID to auto-open (from notification navigation)
+   */
+  initialTaskId?: number;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -223,6 +231,8 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
   navigationItems: providedNavigationItems = [],
   onLogout,
   onNavigation,
+  onNotificationNavigation,
+  initialTaskId,
   className,
 }) => {
   const [tasks, setTasks] = useState<FrontendTask[]>([]);
@@ -268,6 +278,16 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
     loadCategories();
     loadUsers();
   }, []);
+
+  // Handle auto-opening task modal from notification navigation
+  useEffect(() => {
+    if (initialTaskId && tasks.length > 0) {
+      console.log('TaskHubPage: Auto-opening task from notification:', initialTaskId);
+      // For now, just switch to tasks tab - the TasksTab component will handle the modal
+      setActiveTab('tasks');
+      // TODO: Pass initialTaskId to TasksTab component to auto-open modal
+    }
+  }, [initialTaskId, tasks]);
 
   /**
    * @description Load tasks from API
@@ -652,6 +672,7 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
       navigationItems={navigationItems}
       onLogout={onLogout}
       onNavigation={handleNavigation}
+      onNotificationNavigation={onNotificationNavigation}
       className={className}
     >
       <div className="flex-1 flex flex-col min-h-0">

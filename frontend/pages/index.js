@@ -1,7 +1,8 @@
 import Head from 'next/head'
 import { useState, useEffect } from 'react'
-import { TasksPage, Dashboard, LoginPage, MyTasksPage, TaskHubPage } from '../src/components'
+import { TasksPage, Dashboard, LoginPage, MyTasksPage, TaskHubPage, AppRouter } from '../src/components'
 import { useAuth } from '../src/contexts/AuthContext'
+import { NotificationProvider } from '../src/contexts/NotificationContext'
 import { 
   HomeIcon,
   CheckCircleIcon,
@@ -70,6 +71,16 @@ export default function Home() {
       // For other navigation items, default to dashboard for now
       setCurrentView('dashboard')
     }
+  }
+
+  const [currentTaskId, setCurrentTaskId] = useState(null)
+
+  const handleNotificationNavigation = (pageId, taskId) => {
+    console.log('📱 Main App: handleNotificationNavigation called with:', pageId, taskId)
+    console.log('📱 Main App: Current view before change:', currentView)
+    setCurrentView(pageId)
+    setCurrentTaskId(taskId)
+    console.log('📱 Main App: Setting currentView to:', pageId, 'and currentTaskId to:', taskId)
   }
 
   const navigationItems = [
@@ -195,47 +206,16 @@ export default function Home() {
           onForgotPasswordClick={() => console.log('Forgot password clicked')}
           onSocialLogin={(provider) => console.log('Social login:', provider)}
         />
-      ) : currentView === 'tasks' ? (
-        <TasksPage
-          user={user}
-          onLogout={handleLogout}
-          onNavigation={handleNavigation}
-        />
-      ) : currentView === 'my-tasks' ? (
-        <MyTasksPage
-          user={user}
-          onLogout={handleLogout}
-          onNavigation={handleNavigation}
-        />
-      ) : currentView === 'task-hub' ? (
-        <TaskHubPage
-          user={user}
-          onLogout={handleLogout}
-          onNavigation={handleNavigation}
-        />
       ) : (
-        <Dashboard
-          user={user}
-          onQuickAction={(action) => {
-            console.log('Quick action:', action)
-            if (action === 'tasks') {
-              setCurrentView('tasks')
-            }
-          }}
-          onLogout={handleLogout}
-          onNavigation={(view) => {
-            console.log('Navigation:', view)
-            if (view === 'tasks') {
-              setCurrentView('tasks')
-            } else if (view === 'my-tasks') {
-              setCurrentView('my-tasks')
-            } else if (view === 'task-hub') {
-              setCurrentView('task-hub')
-            } else if (view === 'dashboard') {
-              setCurrentView('dashboard')
-            }
-          }}
-        />
+        <NotificationProvider onNavigation={handleNotificationNavigation}>
+          <AppRouter
+            user={user}
+            onLogout={handleLogout}
+            initialPage={currentView}
+            initialTaskId={currentTaskId}
+            onNotificationNavigation={handleNotificationNavigation}
+          />
+        </NotificationProvider>
       )}
     </>
   )

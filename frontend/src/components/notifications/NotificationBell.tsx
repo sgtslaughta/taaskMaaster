@@ -23,6 +23,7 @@ import {
 
 interface NotificationBellProps {
   className?: string;
+  onNavigation?: (pageId: string, taskId?: number) => void;
 }
 
 interface NotificationItemProps {
@@ -105,11 +106,18 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
    * @description Handle notification click
    */
   const handleClick = () => {
+    console.log('🔔 NotificationItem: handleClick called for notification:', notification.id);
+    console.log('🔔 NotificationItem: onNavigate function available:', !!onNavigate);
     if (!notification.read) {
       onMarkAsRead(notification.id);
     }
     if (notification.actionUrl) {
+      console.log('🔔 NotificationItem: Calling onNavigate with:', notification.actionUrl);
+      console.log('🔔 NotificationItem: About to call onNavigate...');
       onNavigate(notification.actionUrl);
+      console.log('🔔 NotificationItem: onNavigate call completed');
+    } else {
+      console.log('🔔 NotificationItem: No actionUrl available');
     }
   };
 
@@ -187,7 +195,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
 /**
  * @description Notification Bell Component
  */
-export const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ className, onNavigation }) => {
+  console.log('🔔 NotificationBell: Component rendered with onNavigation:', !!onNavigation);
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -200,7 +209,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
     markAllAsRead,
     clearNotification,
     clearAllNotifications,
-    isConnected
+    isConnected,
+    navigateFromNotification
   } = useNotifications();
 
   // Close dropdown when clicking outside
@@ -239,9 +249,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
    * @description Handle navigation to notification URL
    */
   const handleNavigate = (url: string) => {
+    console.log('🔔 NotificationBell: handleNavigate called with URL:', url);
+    console.log('🔔 NotificationBell: Using context navigation function');
     setIsOpen(false);
-    // Use React Router navigation if available, otherwise fallback to window.location
-    window.location.href = url;
+    
+    // Use navigation function from context instead of props
+    navigateFromNotification(url);
   };
 
   /**

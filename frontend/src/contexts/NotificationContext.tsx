@@ -53,6 +53,9 @@ interface NotificationContextValue {
   isConnected: boolean;
   connectionError: string | null;
   
+  // Navigation
+  navigateFromNotification: (actionUrl: string) => void;
+  
   // Real-time updates
   onNotificationReceived?: (notification: NotificationData) => void;
   setOnNotificationReceived: (callback: (notification: NotificationData) => void) => void;
@@ -63,10 +66,48 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 /**
  * @description Notification Provider Component
  */
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const NotificationProvider: React.FC<{ 
+  children: React.ReactNode;
+  onNavigation?: (pageId: string, taskId?: number) => void;
+}> = ({ children, onNavigation }) => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [onNotificationReceived, setOnNotificationReceived] = useState<((notification: NotificationData) => void) | undefined>();
+  
+  /**
+   * @description Handle navigation from notification action URL
+   */
+  const handleNotificationNavigation = (actionUrl: string) => {
+    console.log('🔔 NotificationContext: handleNotificationNavigation called with:', actionUrl);
+    console.log('🔔 NotificationContext: onNavigation function available:', !!onNavigation);
+    
+    if (!onNavigation) {
+      // Fallback to direct navigation if no handler provided
+      console.log('🔔 NotificationContext: No navigation handler, using window.location');
+      window.location.href = actionUrl;
+      return;
+    }
+
+    // Parse task URLs for SPA navigation
+    const taskMatch = actionUrl.match(/\/tasks\/(\d+)/);
+    if (taskMatch) {
+      const taskId = parseInt(taskMatch[1], 10);
+      console.log('🔔 NotificationContext: Calling onNavigation with:', 'my-tasks', taskId);
+      onNavigation('my-tasks', taskId);
+      return;
+    }
+
+    // Handle other URL patterns
+    const pathMatch = actionUrl.match(/\/(.+)/);
+    if (pathMatch) {
+      const pageId = pathMatch[1];
+      console.log('🔔 NotificationContext: Calling onNavigation with:', pageId);
+      onNavigation(pageId);
+    } else {
+      console.log('🔔 NotificationContext: Calling onNavigation with: dashboard');
+      onNavigation('dashboard');
+    }
+  };
   
   // WebSocket connection for real-time notifications
   const notificationWS = useWebSocket({
@@ -79,31 +120,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
    */
   function handleWebSocketMessage(data: any) {
     try {
+      console.log('📡 WebSocket message received:', data);
+      
       // Handle different types of real-time updates
       switch (data.type) {
         case 'task_comment':
+          console.log('📡 Processing task_comment notification');
           handleTaskCommentNotification(data);
           break;
         case 'task_assigned':
+          console.log('📡 Processing task_assigned notification');
           handleTaskAssignedNotification(data);
           break;
         case 'task_completed':
+          console.log('📡 Processing task_completed notification');
           handleTaskCompletedNotification(data);
           break;
         case 'workflow_transition':
+          console.log('📡 Processing workflow_transition notification');
           handleWorkflowTransitionNotification(data);
           break;
         case 'approval_request':
+          console.log('📡 Processing approval_request notification');
           handleApprovalRequestNotification(data);
           break;
         case 'message':
+          console.log('📡 Processing message notification');
           handleMessageNotification(data);
           break;
         case 'mention':
+          console.log('📡 Processing mention notification');
           handleMentionNotification(data);
           break;
         default:
-          console.log('Unknown notification type:', data.type);
+          console.log('📡 Unknown notification type:', data.type, data);
       }
     } catch (error) {
       console.error('Error handling WebSocket message:', error);
@@ -114,21 +164,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * @description Handle task comment notifications
    */
   function handleTaskCommentNotification(data: any) {
+    console.log('🔔 Received task comment notification:', data);
+    
+    // Extract the actual data from the notification object
+    const notificationData = data.data || data;
+    
     const notification: NotificationData = {
-      id: `comment_${data.comment_id}_${Date.now()}`,
+      id: `comment_${notificationData.comment_id}_${Date.now()}`,
       type: 'task_comment',
-      title: 'New Comment',
-      message: `${data.user?.username || 'Someone'} commented on "${data.task_title || 'a task'}"`,
-      timestamp: new Date().toISOString(),
+      title: data.title || 'New Comment',
+      message: data.message || `${notificationData.user?.username || 'Someone'} commented on "${notificationData.task_title || 'a task'}"`,
+      timestamp: data.timestamp || new Date().toISOString(),
       read: false,
       priority: 'medium',
-      data: data,
-      actionUrl: `/tasks/${data.task_id}`
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
     };
 
+    console.log('🔔 Adding notification to bell:', notification);
     addNotification(notification);
     
     // Show toast for immediate feedback
+    console.log('🔔 Showing toast for comment notification');
     showToast({
       type: 'info',
       title: 'New Comment',
@@ -137,8 +194,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       actions: [{
         label: 'View',
         onClick: () => {
-          // Navigate to task
-          window.location.href = notification.actionUrl!;
+          // Navigate to task using SPA navigation
+          console.log('🍞 Toast: View button clicked for:', notification.actionUrl);
+          handleNotificationNavigation(notification.actionUrl!);
         }
       }]
     });
@@ -170,7 +228,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       actions: [{
         label: 'View Task',
         onClick: () => {
-          window.location.href = notification.actionUrl!;
+          handleNotificationNavigation(notification.actionUrl!);
         }
       }]
     });
@@ -180,18 +238,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
    * @description Handle workflow transition notifications
    */
   function handleWorkflowTransitionNotification(data: any) {
+    console.log('🔔 Received workflow transition notification:', data);
+    
+    // Extract the actual data from the notification object
+    const notificationData = data.data || data;
+    
     const notification: NotificationData = {
-      id: `workflow_${data.task_id}_${Date.now()}`,
+      id: `workflow_${notificationData.task_id}_${Date.now()}`,
       type: 'workflow_transition',
-      title: 'Task Status Changed',
-      message: `"${data.task_title || 'A task'}" moved to ${data.new_status?.replace('_', ' ')}`,
-      timestamp: new Date().toISOString(),
+      title: data.title || 'Task Status Changed',
+      message: data.message || `"${notificationData.task_title || 'A task'}" moved to ${notificationData.new_status?.replace('_', ' ')}`,
+      timestamp: data.timestamp || new Date().toISOString(),
       read: false,
       priority: 'medium',
-      data: data,
-      actionUrl: `/tasks/${data.task_id}`
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
     };
 
+    console.log('🔔 Adding workflow notification to bell:', notification);
     addNotification(notification);
   }
 
@@ -221,7 +285,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       actions: [{
         label: 'Review',
         onClick: () => {
-          window.location.href = notification.actionUrl!;
+          handleNotificationNavigation(notification.actionUrl!);
         },
         variant: 'primary'
       }]
@@ -280,7 +344,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       actions: [{
         label: 'View',
         onClick: () => {
-          window.location.href = notification.actionUrl!;
+          handleNotificationNavigation(notification.actionUrl!);
         }
       }]
     });
@@ -388,13 +452,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const loginState = getLoginState();
     if (loginState && loginState.userId) {
-      console.log('Connecting to notification WebSocket...');
+      console.log('🔌 Connecting to notification WebSocket for user:', loginState.userId);
       // Add a small delay to ensure backend is ready
       const timer = setTimeout(() => {
         notificationWS.connect();
       }, 1000);
       
       return () => clearTimeout(timer);
+    } else {
+      console.log('🔌 No authenticated user found, skipping WebSocket connection');
     }
   }, []);
 
@@ -417,6 +483,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     dismissToast,
     isConnected: notificationWS.isConnected,
     connectionError: notificationWS.error,
+    navigateFromNotification: handleNotificationNavigation,
     onNotificationReceived,
     setOnNotificationReceived
   };

@@ -41,6 +41,14 @@ export interface AppRouterProps {
    */
   initialPage?: CurrentPage;
   /**
+   * @description Initial task ID to open
+   */
+  initialTaskId?: number | null;
+  /**
+   * @description Function called when navigating from notifications
+   */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -55,9 +63,30 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   user,
   onLogout,
   initialPage = 'dashboard',
+  initialTaskId,
+  onNotificationNavigation,
   className,
 }) => {
   const [currentPage, setCurrentPage] = useState<CurrentPage>(initialPage);
+  const [currentTaskId, setCurrentTaskId] = useState<number | undefined>(undefined);
+
+  // Sync with initialPage prop changes
+  useEffect(() => {
+    console.log('🧭 AppRouter: initialPage prop changed to:', initialPage, 'currentPage:', currentPage);
+    if (currentPage !== initialPage) {
+      console.log('🧭 AppRouter: Updating currentPage from', currentPage, 'to', initialPage);
+      setCurrentPage(initialPage);
+    }
+  }, [initialPage, currentPage]);
+
+  // Sync with initialTaskId prop changes
+  useEffect(() => {
+    console.log('🧭 AppRouter: initialTaskId prop changed to:', initialTaskId, 'currentTaskId:', currentTaskId);
+    if (currentTaskId !== (initialTaskId || undefined)) {
+      console.log('🧭 AppRouter: Updating currentTaskId from', currentTaskId, 'to', initialTaskId);
+      setCurrentTaskId(initialTaskId || undefined);
+    }
+  }, [initialTaskId, currentTaskId]);
 
   /**
    * @description Handle navigation between pages
@@ -72,12 +101,54 @@ export const AppRouter: React.FC<AppRouterProps> = ({
       return;
     }
 
+    // Clear task ID when navigating normally
+    setCurrentTaskId(undefined);
+    
     // Update current page
     setCurrentPage(page);
     
     // Update browser URL (optional, for better UX)
     if (typeof window !== 'undefined') {
       window.history.pushState({}, '', `/${page === 'dashboard' ? '' : page}`);
+    }
+  };
+
+  /**
+   * @description Handle navigation from notifications (with optional task ID)
+   * @param pageId - Page identifier
+   * @param taskId - Optional task ID to open
+   */
+  const handleNotificationNavigation = (pageId: string, taskId?: number) => {
+    console.log('🧭 AppRouter: handleNotificationNavigation called with:', pageId, taskId);
+    const page = pageId as CurrentPage;
+    
+    // Check if user has access to the requested page
+    if (!canAccessPage(user as NavigationUser | null, page)) {
+      console.warn(`User does not have access to page: ${page}`);
+      return;
+    }
+
+    console.log('🧭 AppRouter: Setting currentPage to:', page, 'and currentTaskId to:', taskId);
+    // Set both page and task ID - force update even if page is the same
+    setCurrentPage(page);
+    setCurrentTaskId(taskId);
+    
+    // Force a re-render by updating the page state even if it's the same
+    // This ensures the task modal opens even when navigating to the same page
+    if (taskId) {
+      console.log('🧭 AppRouter: Forcing page re-render for task modal');
+      setCurrentPage('dashboard'); // Temporarily set to different page
+      setTimeout(() => {
+        setCurrentPage(page); // Then set back to target page
+        setCurrentTaskId(taskId);
+      }, 0);
+    }
+    
+    // Update browser URL (optional, for better UX)
+    if (typeof window !== 'undefined') {
+      const url = `/${page === 'dashboard' ? '' : page}${taskId ? `?task=${taskId}` : ''}`;
+      console.log('🧭 AppRouter: Updating browser URL to:', url);
+      window.history.pushState({}, '', url);
     }
   };
 
@@ -106,6 +177,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
    * @description Render the current page component
    */
   const renderCurrentPage = () => {
+    console.log('🧭 AppRouter: renderCurrentPage called, currentPage:', currentPage, 'initialPage prop:', initialPage, 'currentTaskId:', currentTaskId);
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -113,6 +185,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             user={user}
             onLogout={onLogout}
             onNavigation={handleNavigation}
+            onNotificationNavigation={handleNotificationNavigation}
             className={className}
           />
         );
@@ -123,6 +196,8 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             user={user}
             onLogout={onLogout}
             onNavigation={handleNavigation}
+            onNotificationNavigation={handleNotificationNavigation}
+            initialTaskId={currentTaskId}
             className={className}
           />
         );
@@ -137,6 +212,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
               user={user}
               onLogout={onLogout}
               onNavigation={handleNavigation}
+              onNotificationNavigation={handleNotificationNavigation}
               className={className}
             />
           );
@@ -146,6 +222,8 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             user={user}
             onLogout={onLogout}
             onNavigation={handleNavigation}
+            onNotificationNavigation={handleNotificationNavigation}
+            initialTaskId={currentTaskId}
             className={className}
           />
         );

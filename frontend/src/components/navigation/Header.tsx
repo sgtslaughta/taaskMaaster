@@ -46,6 +46,8 @@ export interface HeaderProps {
   showNotifications?: boolean;
   /** Function called when notifications are toggled */
   onNotificationsToggle?: () => void;
+  /** Function called when navigating from notifications */
+  onNavigation?: (pageId: string, taskId?: number) => void;
   /** Whether the sidebar is open (for mobile) */
   sidebarOpen?: boolean;
   /** Function to toggle sidebar */
@@ -72,10 +74,12 @@ export const Header: React.FC<HeaderProps> = ({
   onSearch,
   showNotifications: initialShowNotifications = !!user, // Show notifications when user is logged in
   onNotificationsToggle,
+  onNavigation,
   sidebarOpen = false,
   onSidebarToggle,
   className,
 }) => {
+  console.log('🏠 Header: Component rendered with onNavigation:', !!onNavigation, 'User:', user?.username);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(initialShowNotifications);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -317,7 +321,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications */}
           {showNotifications && (
-            <NotificationBell />
+            <NotificationBell onNavigation={onNavigation} />
           )}
 
           {/* User Menu */}

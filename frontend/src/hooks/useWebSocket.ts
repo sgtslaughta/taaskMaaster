@@ -98,8 +98,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
           if (subscribers) {
             subscribers.forEach(callback => {
               try {
-                // Pass the entire message object (not just message.data) since backend sends data at root level
-                callback(message.data || message);
+                // Pass the entire message object with type field for proper routing
+                callback(message);
               } catch (error) {
                 console.error('Error in WebSocket subscriber:', error);
               }
