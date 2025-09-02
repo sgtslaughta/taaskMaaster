@@ -57,33 +57,33 @@ interface WorkflowStep {
 const WORKFLOW_STEPS: WorkflowStep[] = [
   {
     id: 'todo',
-    label: 'To Do',
+    label: 'Assigned',
     status: 'todo',
-    icon: ClockIcon,
-    iconSolid: ClockIconSolid,
-    description: 'Task is created and ready to be started',
-    color: 'text-gray-500 border-gray-300',
-    activeColor: 'text-gray-700 border-gray-500 bg-gray-50'
-  },
-  {
-    id: 'in_progress',
-    label: 'In Progress',
-    status: 'in_progress',
-    icon: PlayIcon,
-    iconSolid: PlayIconSolid,
-    description: 'Task is currently being worked on',
+    icon: UserIcon,
+    iconSolid: UserIconSolid,
+    description: 'Task has been assigned and is ready to be started',
     color: 'text-blue-500 border-blue-300',
     activeColor: 'text-blue-700 border-blue-500 bg-blue-50'
   },
   {
+    id: 'in_progress',
+    label: 'Begin Task',
+    status: 'in_progress',
+    icon: PlayIcon,
+    iconSolid: PlayIconSolid,
+    description: 'Start working on this task',
+    color: 'text-yellow-500 border-yellow-300',
+    activeColor: 'text-yellow-700 border-yellow-500 bg-yellow-50'
+  },
+  {
     id: 'review',
-    label: 'Review',
+    label: 'Submit for Review',
     status: 'submitted_for_approval',
-    icon: EyeIcon,
-    iconSolid: EyeIconSolid,
-    description: 'Task is submitted for approval',
-    color: 'text-orange-500 border-orange-300',
-    activeColor: 'text-orange-700 border-orange-500 bg-orange-50'
+    icon: PaperAirplaneIcon,
+    iconSolid: PaperAirplaneIconSolid,
+    description: 'Submit task for approval',
+    color: 'text-purple-500 border-purple-300',
+    activeColor: 'text-purple-700 border-purple-500 bg-purple-50'
   },
   {
     id: 'done',
@@ -91,11 +91,25 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
     status: 'done',
     icon: CheckCircleIcon,
     iconSolid: CheckCircleIconSolid,
-    description: 'Task is completed',
+    description: 'Task is completed and approved',
     color: 'text-green-500 border-green-300',
     activeColor: 'text-green-700 border-green-500 bg-green-50'
   }
 ];
+
+/**
+ * @description Get dynamic step label based on current task status
+ */
+const getStepLabel = (step: WorkflowStep, currentStatus: Task['status']): string => {
+  switch (step.id) {
+    case 'in_progress':
+      return currentStatus === 'in_progress' ? 'In Progress' : 'Begin Task';
+    case 'review':
+      return currentStatus === 'submitted_for_approval' ? 'Pending Approval' : 'Submit for Review';
+    default:
+      return step.label;
+  }
+};
 
 const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
   task,
@@ -132,13 +146,21 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
     
     switch (step.status) {
       case 'todo':
-        return state === 'current' ? 'Task is ready to begin' : 'Start this task';
+        return state === 'current' ? 'Task is assigned and ready to begin' : 'View assigned task';
       case 'in_progress':
-        return state === 'current' ? 'Task is in progress' : 'Begin task';
+        if (task.status === 'in_progress') {
+          return state === 'current' ? 'Task is in progress' : 'Continue working on task';
+        } else {
+          return state === 'current' ? 'Ready to start' : 'Begin working on task';
+        }
       case 'submitted_for_approval':
-        return state === 'current' ? 'Task is submitted for approval' : 'Submit task for review';
+        if (task.status === 'submitted_for_approval') {
+          return state === 'current' ? 'Task is pending approval' : 'Awaiting approval';
+        } else {
+          return state === 'current' ? 'Ready to submit' : 'Submit task for review';
+        }
       case 'done':
-        return state === 'current' ? 'Task is completed' : 'Mark task as complete';
+        return state === 'current' ? 'Task is completed and approved' : 'Complete and approve task';
       default:
         return step.description;
     }
@@ -230,8 +252,10 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
             disabled={!isClickable || loading}
             className={cn(
               "relative flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 bg-white dark:bg-gray-800",
-              state === 'completed' && "border-gray-400 text-gray-600",
-              state === 'current' && "border-blue-500 text-blue-600 shadow-lg",
+              state === 'completed' && step.status === 'done' && "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20",
+              state === 'completed' && step.status !== 'done' && "border-gray-400 text-gray-600",
+              state === 'current' && step.status === 'done' && "border-green-500 text-green-600 shadow-lg bg-green-50 dark:bg-green-900/20",
+              state === 'current' && step.status !== 'done' && "border-blue-500 text-blue-600 shadow-lg",
               state === 'pending' && "border-gray-300 text-gray-400",
               isClickable && "hover:scale-105 cursor-pointer hover:shadow-md",
               !isClickable && "cursor-default",
@@ -241,7 +265,10 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
           >
             <IconComponent className="w-6 h-6" />
             {state === 'current' && (
-              <div className="absolute -inset-1 rounded-full border-2 border-blue-400 animate-pulse opacity-75" />
+              <div className={cn(
+                "absolute -inset-1 rounded-full border-2 animate-pulse opacity-75",
+                step.status === 'done' ? "border-green-400" : "border-blue-400"
+              )} />
             )}
           </button>
           
@@ -249,11 +276,13 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
           <div className="mt-3 text-center">
             <div className={cn(
               "text-sm font-medium transition-colors whitespace-nowrap",
-              state === 'completed' && "text-gray-500",
-              state === 'current' && "text-blue-600 font-semibold",
+              state === 'completed' && step.status === 'done' && "text-green-600 font-semibold",
+              state === 'completed' && step.status !== 'done' && "text-gray-500",
+              state === 'current' && step.status === 'done' && "text-green-600 font-semibold",
+              state === 'current' && step.status !== 'done' && "text-blue-600 font-semibold",
               state === 'pending' && "text-gray-400"
             )}>
-              {step.label}
+              {getStepLabel(step, task.status)}
             </div>
           </div>
         </div>

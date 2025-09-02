@@ -53,7 +53,7 @@ interface WorkflowStep {
 
 const WORKFLOW_STEPS = [
   {
-    status: TaskStatus.ASSIGNED,
+    status: TaskStatus.TODO,
     label: 'Assigned',
     description: 'Task has been assigned to a team member',
     icon: <AssignedIcon />,
@@ -68,17 +68,10 @@ const WORKFLOW_STEPS = [
   },
   {
     status: TaskStatus.SUBMITTED_FOR_APPROVAL,
-    label: 'Submitted',
+    label: 'Pending Approval',
     description: 'Task has been submitted for approval',
     icon: <SubmittedIcon />,
     color: '#9c27b0'
-  },
-  {
-    status: TaskStatus.REVIEW,
-    label: 'Review',
-    description: 'Task is under review by stakeholders',
-    icon: <ReviewIcon />,
-    color: '#673ab7'
   },
   {
     status: TaskStatus.DONE,

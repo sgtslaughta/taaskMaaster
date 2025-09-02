@@ -35,10 +35,10 @@ interface WorkflowStatusBadgeProps {
 
 const STATUS_CONFIG = {
   todo: {
-    label: 'To Do',
-    icon: ClockIcon,
-    color: 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300',
-    emoji: '📝'
+    label: 'Assigned',
+    icon: UserIcon,
+    color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400',
+    emoji: '👤'
   },
   assigned: {
     label: 'Assigned',
