@@ -103,11 +103,16 @@ const mapBackendStatusToFrontend = (backendStatus: TaskStatus): FrontendTask['st
       return 'todo';
     case TaskStatus.IN_PROGRESS:
       return 'in_progress';
+    case TaskStatus.SUBMITTED_FOR_APPROVAL:
+      return 'submitted_for_approval';
+    case TaskStatus.REVIEW:
+      return 'submitted_for_approval'; // Map legacy review to submitted_for_approval
     case TaskStatus.DONE:
       return 'done';
     case TaskStatus.CANCELLED:
       return 'cancelled';
     default:
+      console.warn('Unknown backend status:', backendStatus);
       return 'todo';
   }
 };
@@ -118,11 +123,14 @@ const mapFrontendStatusToBackend = (frontendStatus: FrontendTask['status']): Tas
       return TaskStatus.TODO;
     case 'in_progress':
       return TaskStatus.IN_PROGRESS;
+    case 'submitted_for_approval':
+      return TaskStatus.SUBMITTED_FOR_APPROVAL;
     case 'done':
       return TaskStatus.DONE;
     case 'cancelled':
       return TaskStatus.CANCELLED;
     default:
+      console.warn('Unknown frontend status:', frontendStatus);
       return TaskStatus.TODO;
   }
 };

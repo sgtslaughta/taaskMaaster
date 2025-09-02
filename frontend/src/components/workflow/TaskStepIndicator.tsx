@@ -32,13 +32,14 @@ import {
 
 import { Task } from '../tasks/TaskList';
 import { User } from '../../types/user';
-import { taskService } from '../../services/taskService';
+import { workflowService, WorkflowUser } from '../../services/workflowService';
 
 interface TaskStepIndicatorProps {
   task: Task;
   currentUser: User;
   onTaskUpdate: (taskId: number, updates: { status: Task['status'] }) => void;
   onError: (error: string) => void;
+  onRefreshTask?: (taskId: number) => void; // Optional callback to refresh task data
   className?: string;
 }
 
@@ -84,10 +85,10 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
   {
     id: 'review',
     label: 'Review',
-    status: 'review',
+    status: 'submitted_for_approval',
     icon: EyeIcon,
     iconSolid: EyeIconSolid,
-    description: 'Task is under review',
+    description: 'Task is submitted for approval',
     color: 'text-orange-500 border-orange-300',
     activeColor: 'text-orange-700 border-orange-500 bg-orange-50'
   },
@@ -108,6 +109,7 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
   currentUser,
   onTaskUpdate,
   onError,
+  onRefreshTask,
   className
 }) => {
   const [loading, setLoading] = useState(false);
@@ -146,8 +148,8 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
         return state === 'current' ? 'Task is ready to begin' : 'Start this task';
       case 'in_progress':
         return state === 'current' ? 'Task is in progress' : 'Begin task';
-      case 'review':
-        return state === 'current' ? 'Task is under review' : 'Submit task for review';
+      case 'submitted_for_approval':
+        return state === 'current' ? 'Task is submitted for approval' : 'Submit task for review';
       case 'done':
         return state === 'current' ? 'Task is completed' : 'Mark task as complete';
       default:
@@ -161,8 +163,14 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
       return;
     }
 
+    // Check if task is already in the target status
+    if (task.status === targetStatus) {
+      console.log('TaskStepIndicator: Task is already in target status:', targetStatus);
+      return;
+    }
+
     // For sensitive transitions, show dialog
-    if (targetStatus === 'done' || targetStatus === 'review') {
+    if (targetStatus === 'done' || targetStatus === 'submitted_for_approval') {
       setDialog({
         open: true,
         targetStatus,
@@ -180,15 +188,42 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
     try {
       setLoading(true);
       
-      await taskService.updateTask(task.id, {
-        status: targetStatus,
-        transition_reason: reason,
-        transition_comment: comment
+      console.log('TaskStepIndicator: Attempting transition:', {
+        taskId: task.id,
+        currentStatus: task.status,
+        targetStatus,
+        reason,
+        comment
       });
+      
+      // Convert User to WorkflowUser
+      const workflowUser: WorkflowUser = {
+        id: currentUser.id,
+        username: currentUser.username,
+        role: currentUser.role || 'user'
+      };
+      
+      // Use workflow service for proper notifications
+      const response = await workflowService.transitionTaskStatus({
+        task_id: task.id,
+        new_status: targetStatus,
+        comment: reason ? `${reason}${comment ? ` - ${comment}` : ''}` : comment
+      }, workflowUser);
 
-      onTaskUpdate(task.id, { status: targetStatus });
+      console.log('TaskStepIndicator: Transition successful:', response.message);
+      
+      // Always update with the actual status from the backend response
+      // This ensures we sync with the real backend state
+      onTaskUpdate(task.id, { status: response.new_status as Task['status'] });
+      
+      // If we have a refresh callback, also trigger a full refresh for good measure
+      if (onRefreshTask) {
+        console.log('TaskStepIndicator: Also triggering full task refresh');
+        setTimeout(() => onRefreshTask(task.id), 100); // Small delay to avoid race conditions
+      }
       setDialog({ open: false, targetStatus: 'todo', reason: '', comment: '' });
     } catch (error: any) {
+      console.error('TaskStepIndicator: Transition failed:', error);
       onError(error.message || 'Failed to update task status');
     } finally {
       setLoading(false);

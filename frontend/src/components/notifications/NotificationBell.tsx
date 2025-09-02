@@ -220,7 +220,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Recalculate position on window resize or scroll
+  // Recalculate position on window resize (no need to reposition on scroll with fixed positioning)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -229,11 +229,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
     };
 
     window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition);
 
     return () => {
       window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition);
     };
   }, [isOpen]);
 
@@ -247,18 +245,35 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
   };
 
   /**
-   * @description Calculate dropdown position relative to button
+   * @description Calculate dropdown position relative to viewport (for fixed positioning)
    */
   const calculateDropdownPosition = () => {
     if (buttonRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
-      const scrollY = window.scrollY;
-      const scrollX = window.scrollX;
+      const dropdownWidth = 384; // w-96 = 384px
       
-      setDropdownPosition({
-        top: buttonRect.bottom + scrollY + 8, // 8px gap below button
-        right: window.innerWidth - buttonRect.right - scrollX // Align right edge with button
-      });
+      // Calculate position
+      let top = buttonRect.bottom + 8; // 8px gap below button
+      let right = window.innerWidth - buttonRect.right; // Align right edge with button
+      
+      // Ensure dropdown doesn't go off-screen horizontally
+      if (right + dropdownWidth > window.innerWidth) {
+        right = window.innerWidth - dropdownWidth - 16; // 16px margin from edge
+      }
+      if (right < 16) {
+        right = 16; // Minimum 16px from left edge
+      }
+      
+      // Ensure dropdown doesn't go off-screen vertically
+      const dropdownHeight = 400; // Approximate max height
+      if (top + dropdownHeight > window.innerHeight) {
+        top = buttonRect.top - dropdownHeight - 8; // Show above button instead
+      }
+      if (top < 16) {
+        top = 16; // Minimum 16px from top
+      }
+      
+      setDropdownPosition({ top, right });
     }
   };
 

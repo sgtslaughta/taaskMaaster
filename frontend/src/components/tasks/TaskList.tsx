@@ -16,7 +16,7 @@ export interface Task {
   id: number;
   title: string;
   description: string;
-  status: 'todo' | 'in_progress' | 'done' | 'review' | 'cancelled';
+  status: 'todo' | 'in_progress' | 'done' | 'submitted_for_approval' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate?: string;
   completedAt?: string;
