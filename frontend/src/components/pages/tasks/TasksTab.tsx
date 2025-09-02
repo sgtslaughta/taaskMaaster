@@ -557,18 +557,29 @@ const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      {task.status !== 'done' && onCompleteTask && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCompleteTask(task.id);
-                          }}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                          title="Complete Task"
-                        >
-                          <CheckCircleIcon className="w-4 h-4" />
-                        </button>
-                      )}
+                      {task.status !== 'done' && onCompleteTask && (() => {
+                        // Determine button appearance based on workflow state
+                        const isSubmittedForApproval = task.status === 'submitted_for_approval';
+                        const buttonClass = isSubmittedForApproval 
+                          ? "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          : "text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300";
+                        const buttonTitle = isSubmittedForApproval 
+                          ? "Approve Task Completion" 
+                          : "Complete Task";
+                        
+                        return (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCompleteTask(task.id);
+                            }}
+                            className={buttonClass}
+                            title={buttonTitle}
+                          >
+                            <CheckCircleIcon className="w-4 h-4" />
+                          </button>
+                        );
+                      })()}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -619,18 +630,29 @@ const TaskTable: React.FC<TaskTableProps> = ({
                 className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <div className="flex items-center space-x-2">
-                {task.status !== 'done' && onCompleteTask && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCompleteTask(task.id);
-                    }}
-                    className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                    title="Complete Task"
-                  >
-                    <CheckCircleIcon className="w-4 h-4" />
-                  </button>
-                )}
+                {task.status !== 'done' && onCompleteTask && (() => {
+                  // Determine button appearance based on workflow state
+                  const isSubmittedForApproval = task.status === 'submitted_for_approval';
+                  const buttonClass = isSubmittedForApproval 
+                    ? "text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                    : "text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300";
+                  const buttonTitle = isSubmittedForApproval 
+                    ? "Approve Task Completion" 
+                    : "Complete Task";
+                  
+                  return (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCompleteTask(task.id);
+                      }}
+                      className={buttonClass}
+                      title={buttonTitle}
+                    >
+                      <CheckCircleIcon className="w-4 h-4" />
+                    </button>
+                  );
+                })()}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

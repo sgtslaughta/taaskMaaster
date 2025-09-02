@@ -7,8 +7,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { Button } from '../../design-system/components/Button';
-import { Modal } from '../../design-system/components/Modal';
-import { Input } from '../../design-system/components/Input';
 import { cn } from '../../design-system/utils/cn';
 import {
   ClockIcon,
@@ -54,12 +52,7 @@ interface WorkflowStep {
   activeColor: string;
 }
 
-interface TransitionDialog {
-  open: boolean;
-  targetStatus: Task['status'];
-  reason: string;
-  comment: string;
-}
+
 
 const WORKFLOW_STEPS: WorkflowStep[] = [
   {
@@ -113,12 +106,6 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
   className
 }) => {
   const [loading, setLoading] = useState(false);
-  const [dialog, setDialog] = useState<TransitionDialog>({
-    open: false,
-    targetStatus: 'todo',
-    reason: '',
-    comment: ''
-  });
 
   // Find current step index
   const currentStepIndex = WORKFLOW_STEPS.findIndex(step => step.status === task.status);
@@ -169,18 +156,7 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
       return;
     }
 
-    // For sensitive transitions, show dialog
-    if (targetStatus === 'done' || targetStatus === 'submitted_for_approval') {
-      setDialog({
-        open: true,
-        targetStatus,
-        reason: '',
-        comment: ''
-      });
-      return;
-    }
-
-    // Direct transition for simple status changes
+    // Direct transition for all status changes - no dialog required
     await performTransition(targetStatus);
   };
 
@@ -207,7 +183,7 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
       const response = await workflowService.transitionTaskStatus({
         task_id: task.id,
         new_status: targetStatus,
-        comment: reason ? `${reason}${comment ? ` - ${comment}` : ''}` : comment
+        comment: reason ? `${reason}${comment ? ` - ${comment}` : ''}` : comment || ''
       }, workflowUser);
 
       console.log('TaskStepIndicator: Transition successful:', response.message);
@@ -336,59 +312,7 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
         </div>
       </div>
 
-      {/* Transition Dialog */}
-      <Modal
-        isOpen={dialog.open}
-        onClose={() => setDialog({ open: false, targetStatus: 'todo', reason: '', comment: '' })}
-        title={`Move to ${WORKFLOW_STEPS.find(s => s.status === dialog.targetStatus)?.label}`}
-        showCloseButton={true}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Reason for transition
-            </label>
-            <Input
-              value={dialog.reason}
-              onChange={(e) => setDialog(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="Brief reason for this status change"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Additional comments (optional)
-            </label>
-            <textarea
-              value={dialog.comment}
-              onChange={(e) => setDialog(prev => ({ ...prev, comment: e.target.value }))}
-              placeholder="Any additional details or notes..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              rows={3}
-            />
-          </div>
-        </div>
-        
-        <div className="flex justify-end gap-2 mt-6">
-          <Button 
-            variant="secondary" 
-            onClick={() => setDialog({ open: false, targetStatus: 'todo', reason: '', comment: '' })}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="primary"
-            onClick={handleDialogSubmit} 
-            disabled={loading || !dialog.reason.trim()}
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            ) : null}
-            Confirm Transition
-          </Button>
-        </div>
-      </Modal>
+
     </>
   );
 };

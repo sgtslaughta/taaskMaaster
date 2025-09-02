@@ -523,9 +523,19 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
     try {
       const completedBackendTask = await taskService.completeTask(taskId);
       const completedFrontendTask = adaptBackendToFrontendTask(completedBackendTask);
+      
+      // Update tasks list
       setTasks(prev => prev.map(task => 
         task.id === taskId ? completedFrontendTask : task
       ));
+      
+      // If the completed task is currently selected in the modal, update it
+      setSelectedTask(prev => 
+        prev && prev.id === taskId ? completedFrontendTask : prev
+      );
+      
+      // Invalidate cache to ensure fresh data on next load
+      await api.invalidateUserCache();
     } catch (err) {
       console.error('Error completing task:', err);
     }

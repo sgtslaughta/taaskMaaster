@@ -18,6 +18,7 @@ import SimpleTaskComments from '../comments/SimpleTaskComments';
 import { User, UserRole } from '../../types/user';
 import TaskStepIndicator from '../workflow/TaskStepIndicator';
 import { commentService } from '../../services/commentService';
+import { taskService } from '../../services/taskService';
 import { 
   PencilIcon, 
   CheckIcon, 
@@ -34,6 +35,36 @@ import {
   ChatBubbleLeftRightIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+
+/**
+ * @description Convert backend task to frontend task format
+ */
+const adaptBackendToFrontendTask = (backendTask: any): Task => {
+  return {
+    id: backendTask.id,
+    title: backendTask.title,
+    description: backendTask.description,
+    status: backendTask.status,
+    priority: backendTask.priority,
+    dueDate: backendTask.due_date,
+    estimatedHours: backendTask.estimated_hours,
+    actualHours: backendTask.actual_hours,
+    tags: backendTask.tags || [],
+    assignedTo: backendTask.assigned_to ? {
+      id: backendTask.assigned_to.id,
+      username: backendTask.assigned_to.username,
+      email: backendTask.assigned_to.email,
+      firstName: backendTask.assigned_to.first_name,
+      lastName: backendTask.assigned_to.last_name
+    } : undefined,
+    createdById: backendTask.created_by_id,
+    createdAt: backendTask.created_at,
+    updatedAt: backendTask.updated_at,
+    rewardType: backendTask.reward_type,
+    rewardValue: backendTask.reward_value,
+    subtasks: backendTask.subtasks?.map(adaptBackendToFrontendTask) || [],
+  };
+};
 
 /**
  * @description Task detail modal component props
@@ -333,6 +364,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  const handleRefreshTask = async (taskId: number) => {
+    try {
+      // Fetch fresh task data from backend
+      const updatedTask = await taskService.getTask(taskId);
+      const frontendTask = adaptBackendToFrontendTask(updatedTask);
+      
+      // Update the task in the parent component
+      if (onUpdateTask) {
+        onUpdateTask(taskId, frontendTask);
+      }
+    } catch (error) {
+      console.error('Error refreshing task:', error);
+    }
+  };
+
   const handleDelete = () => {
     if (onDeleteTask && task && confirm('Are you sure you want to delete this task?')) {
       onDeleteTask(task.id);
@@ -401,6 +447,60 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'details' && (
             <div className="space-y-6">
+          {/* Prominent Status Banners for Different States */}
+          {currentUser && (
+            (() => {
+              const isTaskCreator = task.createdById === parseInt(currentUser.id);
+              const isAssignedUser = task.assignedTo?.id === parseInt(currentUser.id);
+              const isAdmin = currentUser.role === 'admin' || currentUser.role === 'organizer';
+              const canApprove = isTaskCreator || isAdmin;
+              
+              // Banner for tasks awaiting approval (only show to approvers, not submitters)
+              if (task.status === 'submitted_for_approval' && canApprove && !isAssignedUser) {
+                return (
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-l-4 border-orange-400 p-4 rounded-lg shadow-sm">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <ClockIcon className="h-6 w-6 text-orange-400" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-lg font-semibold text-orange-800 dark:text-orange-200">
+                          Ready for Review
+                        </h3>
+                        <p className="text-sm text-orange-700 dark:text-orange-300">
+                          Task marked complete by <strong>{task.assignedTo?.username || 'assignee'}</strong> and is awaiting your approval.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // Banner for tasks ready to begin (only show to assignees)
+              if (task.status === 'todo' && isAssignedUser && !isTaskCreator) {
+                return (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-400 p-4 rounded-lg shadow-sm">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <PlayIcon className="h-6 w-6 text-blue-400" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
+                          Ready to Begin
+                        </h3>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          This task has been assigned to you and is ready to start. Click the workflow step to begin working.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return null;
+            })()
+          )}
+          
           {/* Task Workflow Step Indicator */}
           {currentUser && (
             <TaskStepIndicator
@@ -409,6 +509,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               onTaskUpdate={(taskId, updates) => {
                 onUpdateTask?.(taskId, updates);
               }}
+              onRefreshTask={handleRefreshTask}
               onError={(error) => {
                 console.error('Workflow error:', error);
               }}
@@ -477,15 +578,42 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </>
               )}
               {canEdit && task.status !== 'done' && (
-                <Button
-                  onClick={handleComplete}
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                  title="Mark task as complete"
-                >
-                  <CheckCircleIcon className="w-4 h-4 mr-2" />
-                  Complete
-                </Button>
+                (() => {
+                  // Determine button text and action based on workflow
+                  const isTaskCreator = currentUser && task.createdById === parseInt(currentUser.id);
+                  const isAssignedUser = currentUser && task.assignedTo?.id === parseInt(currentUser.id);
+                  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'organizer');
+                  
+                  let buttonText = 'Complete';
+                  let buttonTitle = 'Mark task as complete';
+                  let buttonClass = 'px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700';
+                  
+                  if (task.status === 'submitted_for_approval') {
+                    if (isTaskCreator || isAdmin) {
+                      buttonText = 'Approve Task Completion';
+                      buttonTitle = 'Approve that this task has been completed';
+                      buttonClass = 'px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700';
+                    } else {
+                      return null; // Hide button if not creator/admin and task is pending approval
+                    }
+                  } else if (isAssignedUser && !isTaskCreator && !isAdmin) {
+                    buttonText = 'Submit for Review';
+                    buttonTitle = 'Submit task completion for approval by the task creator';
+                    buttonClass = 'px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700';
+                  }
+                  
+                  return (
+                    <Button
+                      onClick={handleComplete}
+                      disabled={loading}
+                      className={buttonClass}
+                      title={buttonTitle}
+                    >
+                      <CheckCircleIcon className="w-4 h-4 mr-2" />
+                      {buttonText}
+                    </Button>
+                  );
+                })()
               )}
               {canEdit && (
                 <Button

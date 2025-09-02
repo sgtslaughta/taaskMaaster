@@ -420,23 +420,47 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   /**
    * @description Handle task update
    */
-  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask>) => {
+  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask> | FrontendTask) => {
     try {
-      const backendUpdates: UpdateTaskRequest = {};
+      // Check if this is a full task object (from TaskDetailModal's onRefreshTask) 
+      // or partial updates that need backend API call
+      const isFullTask = updates.hasOwnProperty('id') && updates.hasOwnProperty('title');
       
-      if (updates.title !== undefined) backendUpdates.title = updates.title;
-      if (updates.description !== undefined) backendUpdates.description = updates.description;
-      if (updates.status !== undefined) backendUpdates.status = mapFrontendStatusToBackend(updates.status);
-      if (updates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(updates.priority);
-      if (updates.dueDate !== undefined) backendUpdates.due_date = updates.dueDate;
-      if (updates.points !== undefined) backendUpdates.points = updates.points;
+      if (isFullTask) {
+        // Direct update from TaskDetailModal's refresh - just update local state
+        const fullTask = updates as FrontendTask;
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? fullTask : task
+        ));
+        
+        // If the updated task is currently selected in the modal, update it
+        setSelectedTask(prev => 
+          prev && prev.id === taskId ? fullTask : prev
+        );
+      } else {
+        // Partial updates - make backend API call
+        const partialUpdates = updates as Partial<FrontendTask>;
+        const backendUpdates: UpdateTaskRequest = {};
+        
+        if (partialUpdates.title !== undefined) backendUpdates.title = partialUpdates.title;
+        if (partialUpdates.description !== undefined) backendUpdates.description = partialUpdates.description;
+        if (partialUpdates.status !== undefined) backendUpdates.status = mapFrontendStatusToBackend(partialUpdates.status);
+        if (partialUpdates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(partialUpdates.priority);
+        if (partialUpdates.dueDate !== undefined) backendUpdates.due_date = partialUpdates.dueDate;
+        if (partialUpdates.points !== undefined) backendUpdates.points = partialUpdates.points;
 
-      const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
-      const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
-      
-      setTasks(prev => prev.map(task => 
-        task.id === taskId ? updatedFrontendTask : task
-      ));
+        const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
+        const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
+        
+        setTasks(prev => prev.map(task => 
+          task.id === taskId ? updatedFrontendTask : task
+        ));
+        
+        // If the updated task is currently selected in the modal, update it
+        setSelectedTask(prev => 
+          prev && prev.id === taskId ? updatedFrontendTask : prev
+        );
+      }
     } catch (err) {
       console.error('Error updating task:', err);
     }
@@ -461,9 +485,19 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
     try {
       const completedBackendTask = await taskService.completeTask(taskId);
       const completedFrontendTask = adaptBackendToFrontendTask(completedBackendTask);
+      
+      // Update tasks list
       setTasks(prev => prev.map(task => 
         task.id === taskId ? completedFrontendTask : task
       ));
+      
+      // If the completed task is currently selected in the modal, update it
+      setSelectedTask(prev => 
+        prev && prev.id === taskId ? completedFrontendTask : prev
+      );
+      
+      // Invalidate cache to ensure fresh data on next load
+      await api.invalidateUserCache();
     } catch (err) {
       console.error('Error completing task:', err);
     }
@@ -520,6 +554,8 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
     setIsDetailModalOpen(false);
     setSelectedTask(null);
   };
+
+
 
   /**
    * @description Check if user can edit a task - disabled in My Tasks page
@@ -673,6 +709,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
         onClose={handleCloseModal}
         task={selectedTask}
         users={users}
+        onUpdateTask={handleTaskUpdate}
         loading={loading}
         canEdit={false}
         currentUser={user}
