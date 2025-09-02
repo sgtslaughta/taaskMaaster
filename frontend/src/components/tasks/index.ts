@@ -24,5 +24,6 @@ export { CustomizationSettings, type CustomizationSettingsProps, type Customizat
 // Statistics and My Tasks Components
 export { default as StatsCarousel } from './StatsCarousel';
 export { default as MyTasksTable } from './MyTasksTable';
+export { default as TaskActivityTimeline } from './TaskActivityTimeline';
 export type { StatsCarouselProps, StatsData } from './StatsCarousel';
 export type { MyTasksTableProps } from './MyTasksTable';

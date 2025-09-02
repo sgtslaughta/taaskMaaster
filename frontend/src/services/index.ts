@@ -29,6 +29,7 @@ export * from './workflowService';
 export * from './messagingService';
 export * from './websocketService';
 export * from './notificationService';
+export * from './taskHistoryService';
 
 // Re-export service instances for convenience
 export { authService } from './authService';
@@ -39,3 +40,4 @@ export { userService } from './userService';
 export { ListService } from './listService';
 export { websocketService } from './websocketService';
 export { notificationService } from './notificationService';
+export { taskHistoryService } from './taskHistoryService';

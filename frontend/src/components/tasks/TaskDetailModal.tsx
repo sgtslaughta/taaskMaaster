@@ -14,6 +14,7 @@ import { Task } from './TaskList';
 import { cn } from '../../design-system/utils/cn';
 import { REWARD_TYPES } from './TaskForm';
 import SimpleTaskComments from '../comments/SimpleTaskComments';
+import TaskActivityTimeline from './TaskActivityTimeline';
 
 import { User, UserRole } from '../../types/user';
 import TaskStepIndicator from '../workflow/TaskStepIndicator';
@@ -396,7 +397,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       closeOnEscape={true}
       className="dark:bg-gray-800 w-[75vw] max-w-none mx-auto"
     >
-      <div className="max-h-[85vh] flex flex-col">
+      <div className="max-h-[80vh] flex flex-col min-h-0">
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-600 px-6 pt-6">
           <nav className="flex space-x-8" aria-label="Tabs">
@@ -444,9 +445,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {activeTab === 'details' && (
-            <div className="space-y-6">
+            <div className="space-y-4 p-4 pb-16">
           {/* Prominent Status Banners for Different States */}
           {currentUser && (
             (() => {
@@ -628,41 +629,45 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Status and Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Core Details - Compact Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Status
               </label>
-              {isEditMode ? (
-                <select
-                  value={getFieldValue('status') as Task['status']}
-                  onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="todo">Todo</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="done">Done</option>
-                  <option value="review">Review</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              ) : (
-                <div className="text-sm text-gray-900 dark:text-white">
-                  {(getFieldValue('status') as string).replace('_', ' ')}
-                </div>
-              )}
+              <div className="text-sm text-gray-900 dark:text-white font-medium">
+                {(getFieldValue('status') as string).replace('_', ' ')}
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Priority
               </label>
               <span className={cn(
-                "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
+                "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
                 getPriorityColor(task.priority)
               )}>
                 {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
               </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Points
+              </label>
+              <div className="text-sm text-gray-900 dark:text-white font-medium">
+                {task.points || 0}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Hours
+              </label>
+              <div className="text-sm text-gray-900 dark:text-white font-medium">
+                {task.estimatedHours || 0}h
+              </div>
             </div>
           </div>
 
@@ -678,155 +683,46 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             editMode={isEditMode}
           />
 
-          {/* Category and Assignee */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <EditableField
-              label="Category"
-              value={(() => {
-                const categoryValue = getFieldValue('category');
-                if (typeof categoryValue === 'string') {
-                  return categoryValue;
-                } else if (categoryValue && typeof categoryValue === 'object' && 'name' in categoryValue) {
-                  return (categoryValue as any).name;
-                } else {
-                  return task.category?.name || 'Uncategorized';
-                }
-              })()}
-              onSave={(value) => handleFieldUpdate('category', value)}
-              type="text"
-              editMode={isEditMode}
-            />
-
+          {/* Assignment and Timeline - Compact */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Assigned To
               </label>
-              {isEditMode ? (
-                <select
-                  value={getFieldValue('assignedToId') || ''}
-                  onChange={(e) => handleFieldUpdate('assignedToId', e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Unassigned</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.username}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <UserIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-900 dark:text-white">
-                    {(getFieldValue('assignedTo') as any)?.username || task.assignedTo?.username || 'Unassigned'}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center space-x-2">
+                <UserIcon className="w-3 h-3 text-gray-400" />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {(getFieldValue('assignedTo') as any)?.username || task.assignedTo?.username || 'Unassigned'}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Due Date and Reward */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Due Date
               </label>
-              {isEditMode ? (
-                <input
-                  type="datetime-local"
-                  value={getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toISOString().slice(0, 16) : ''}
-                  onChange={(e) => handleFieldUpdate('dueDate', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <CalendarIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-900 dark:text-white">
-                    {getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toLocaleString() : 'No due date'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Points
-              </label>
-              {isEditMode ? (
-                <input
-                  type="number"
-                  value={task.points || 0}
-                  onChange={(e) => handleFieldUpdate('points', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  min="0"
-                />
-              ) : (
-                <div className="text-sm text-gray-900 dark:text-white">
-                  {task.points || 0} points
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Priority and Estimated Hours */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Priority
-              </label>
-              {isEditMode ? (
-                <select
-                  value={task.priority}
-                  onChange={(e) => handleFieldUpdate('priority', e.target.value as Task['priority'])}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              ) : (
-                <span className={cn(
-                  "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
-                  getPriorityColor(task.priority)
-                )}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+              <div className="flex items-center space-x-2">
+                <CalendarIcon className="w-3 h-3 text-gray-400" />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toLocaleDateString() : 'No due date'}
                 </span>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Estimated Hours
-              </label>
-              {isEditMode ? (
-                <input
-                  type="number"
-                  step="0.5"
-                  value={task.estimatedHours || 0}
-                  onChange={(e) => handleFieldUpdate('estimatedHours', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  min="0"
-                />
-              ) : (
-                <div className="text-sm text-gray-900 dark:text-white">
-                  {task.estimatedHours || 0} hours
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* Tags */}
+
+
+          {/* Tags - Compact */}
           {task.tags && task.tags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Tags
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1">
                 {task.tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+                    className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
                   >
                     <TagIcon className="w-3 h-3 mr-1" />
                     {typeof tag === 'string' ? tag : (tag as any)?.name || JSON.stringify(tag)}
@@ -836,25 +732,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
-          {/* Subtasks */}
+          {/* Subtasks - Compact */}
           {task.subtasks && task.subtasks.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Subtasks
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Subtasks ({task.subtasks.filter(s => s.status === 'done').length}/{task.subtasks.length})
               </label>
-              <div className="space-y-2">
+              <div className="space-y-1 max-h-32 overflow-y-auto">
                 {task.subtasks.map((subtask, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
                     <input
                       type="checkbox"
                       checked={subtask.status === 'done'}
                       onChange={() => {
                         // Handle subtask status change
                       }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
                     />
                     <span className={cn(
-                      "flex-1 text-sm",
+                      "flex-1 text-xs",
                       subtask.status === 'done' 
                         ? "text-gray-500 line-through" 
                         : "text-gray-900 dark:text-white"
@@ -867,32 +763,31 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
-          {/* Activity Timeline */}
+          {/* Activity Timeline - Scrollable */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Activity
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              Activity History
             </label>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>Task created on {new Date(task.createdAt).toLocaleString()}</span>
+            <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800">
+                <TaskActivityTimeline 
+                  taskId={task.id}
+                  currentUser={currentUser ? {
+                    id: currentUser.id,
+                    username: currentUser.username,
+                    email: '', // We'll need to get this from the user object if needed
+                    role: currentUser.role
+                  } : undefined}
+                  className="relative"
+                />
               </div>
-              {task.updatedAt !== task.createdAt && (
-                <div className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                  <span>Last updated on {new Date(task.updatedAt).toLocaleString()}</span>
-                </div>
-              )}
             </div>
           </div>
-
-
-
             </div>
           )}
 
           {activeTab === 'messages' && currentUser && hasLoadedMessages && (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col p-4 pb-8">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   Task Discussion
@@ -929,7 +824,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           )}
 
           {activeTab === 'messages' && currentUser && !hasLoadedMessages && (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-64 p-4">
               <div className="text-center">
                 <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
@@ -943,7 +838,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           )}
 
           {activeTab === 'messages' && !currentUser && (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-64 p-4">
               <div className="text-center">
                 <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
