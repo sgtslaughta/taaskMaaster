@@ -86,6 +86,26 @@ class TaskService:
         if task_data.tag_names:
             self._add_tags_to_task(task.id, task_data.tag_names, created_by_id)
 
+        # Add task creation to history (before commit)
+        try:
+            from app.models.comment import TaskStatusHistory
+            
+            # Get the creator's username
+            creator = self.db.query(User).filter(User.id == created_by_id).first()
+            creator_username = creator.username if creator else "Unknown"
+            
+            # Create history entry for task creation
+            history_entry = TaskStatusHistory(
+                task_id=task.id,
+                user_id=created_by_id,
+                previous_status=None,  # No previous status for creation
+                new_status=task.status.value,
+                comment=f"Task created by {creator_username}"
+            )
+            self.db.add(history_entry)
+        except Exception as e:
+            logger.error(f"Error creating task creation history: {e}")
+
         self.db.commit()
         self.db.refresh(task)
 
@@ -574,6 +594,39 @@ class TaskService:
             
             # Handle assignment changes
             if old_assigned_to_id != task.assigned_to_id:
+                # Add assignment change to history
+                try:
+                    from app.models.comment import TaskStatusHistory
+                    
+                    old_user = self.db.query(User).filter(User.id == old_assigned_to_id).first() if old_assigned_to_id else None
+                    new_user = self.db.query(User).filter(User.id == task.assigned_to_id).first() if task.assigned_to_id else None
+                    updater = self.db.query(User).filter(User.id == user_id).first()
+                    
+                    if old_assigned_to_id and task.assigned_to_id:
+                        # Reassignment
+                        comment = f"Task reassigned from {old_user.username} to {new_user.username} by {updater.username}"
+                    elif task.assigned_to_id and not old_assigned_to_id:
+                        # New assignment
+                        comment = f"Task assigned to {new_user.username} by {updater.username}"
+                    elif old_assigned_to_id and not task.assigned_to_id:
+                        # Unassignment
+                        comment = f"Task unassigned from {old_user.username} by {updater.username}"
+                    else:
+                        comment = f"Assignment changed by {updater.username}"
+                    
+                    history_entry = TaskStatusHistory(
+                        task_id=task.id,
+                        user_id=user_id,
+                        previous_status=task.status.value,  # Status didn't change, just assignment
+                        new_status=task.status.value,
+                        comment=comment
+                    )
+                    self.db.add(history_entry)
+                    self.db.commit()
+                except Exception as e:
+                    logger.error(f"Error creating assignment change history: {e}")
+                
+                # Send notifications
                 if old_assigned_to_id and task.assigned_to_id:
                     # Reassignment
                     await notification_service.notify_task_reassigned(
