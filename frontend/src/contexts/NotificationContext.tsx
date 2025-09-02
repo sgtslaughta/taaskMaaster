@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getLoginState } from '../utils/cookies';
+import { notificationService, Notification as StoredNotification } from '../services/notificationService';
 
 export interface NotificationData {
   id: string;
@@ -19,6 +20,7 @@ export interface NotificationData {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   data?: any; // Additional notification-specific data
   actionUrl?: string; // URL to navigate to when clicked
+  storedId?: number; // ID from database for stored notifications
 }
 
 export interface Toast {
@@ -43,6 +45,11 @@ interface NotificationContextValue {
   markAllAsRead: () => void;
   clearNotification: (notificationId: string) => void;
   clearAllNotifications: () => void;
+  
+  // Stored notifications management
+  refreshStoredNotifications: () => Promise<void>;
+  markStoredAsRead: (storedIds: number[]) => Promise<void>;
+  deleteStoredNotifications: (storedIds: number[]) => Promise<void>;
   
   // Toasts
   toasts: Toast[];
@@ -74,6 +81,154 @@ export const NotificationProvider: React.FC<{
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [onNotificationReceived, setOnNotificationReceived] = useState<((notification: NotificationData) => void) | undefined>();
   
+  /**
+   * @description Convert stored notification to NotificationData format
+   */
+  const convertStoredNotification = useCallback((stored: StoredNotification): NotificationData => {
+    // Map notification type from backend to frontend format
+    const typeMapping: Record<string, NotificationData['type']> = {
+      'task_comment': 'task_comment',
+      'task_assigned': 'task_assigned',
+      'task_status_changed': 'workflow_transition',
+      'task_approval_request': 'approval_request',
+      'task_approved': 'approval_request',
+      'task_rejected': 'approval_request',
+      'user_mentioned': 'mention',
+      'direct_message': 'message',
+      'task_chat_message': 'message'
+    };
+
+    const priority = stored.data?.requires_action ? 'high' : 'medium';
+
+    return {
+      id: `stored_${stored.id}`,
+      type: typeMapping[stored.type] || 'task_comment',
+      title: stored.title,
+      message: stored.message,
+      timestamp: stored.created_at,
+      read: stored.is_read,
+      priority: priority as NotificationData['priority'],
+      data: stored.data,
+      actionUrl: stored.action_url || undefined,
+      storedId: stored.id
+    };
+  }, []);
+
+  /**
+   * @description Fetch stored notifications from the backend
+   */
+  const refreshStoredNotifications = useCallback(async () => {
+    try {
+      const loginState = getLoginState();
+      if (!loginState || !loginState.userId) {
+        console.log('🔔 No authenticated user, skipping stored notification fetch');
+        return;
+      }
+
+      // Convert loginState to user object format expected by notificationService
+      const user = {
+        id: parseInt(loginState.userId),
+        username: loginState.username,
+        email: loginState.email,
+        role: loginState.role || 'user' // Use actual role from login state or default to 'user'
+      };
+
+      console.log('🔔 Fetching stored notifications for user:', user.id);
+      const response = await notificationService.getNotifications(user, {
+        skip: 0,
+        limit: 100, // Get recent notifications
+        unread_only: false
+      });
+
+      const storedNotifications = response.notifications.map(convertStoredNotification);
+      
+      // Merge with existing real-time notifications, avoiding duplicates
+      setNotifications(prev => {
+        const realTimeNotifications = prev.filter(n => !n.storedId);
+        const combinedNotifications = [...realTimeNotifications, ...storedNotifications];
+        
+        // Sort by timestamp (newest first)
+        return combinedNotifications.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      });
+
+      console.log('🔔 Loaded', storedNotifications.length, 'stored notifications');
+    } catch (error) {
+      console.error('Error fetching stored notifications:', error);
+    }
+  }, [convertStoredNotification]);
+
+  /**
+   * @description Mark stored notifications as read via API
+   */
+  const markStoredAsRead = useCallback(async (storedIds: number[]) => {
+    try {
+      const loginState = getLoginState();
+      if (!loginState || !loginState.userId || storedIds.length === 0) {
+        return;
+      }
+
+      // Convert loginState to user object format
+      const user = {
+        id: parseInt(loginState.userId),
+        username: loginState.username,
+        email: loginState.email,
+        role: loginState.role || 'user'
+      };
+
+      console.log('🔔 Marking stored notifications as read:', storedIds);
+      await notificationService.markNotificationsRead(user, storedIds);
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.storedId && storedIds.includes(notification.storedId)
+            ? { ...notification, read: true }
+            : notification
+        )
+      );
+
+      console.log('🔔 Marked', storedIds.length, 'stored notifications as read');
+    } catch (error) {
+      console.error('Error marking stored notifications as read:', error);
+    }
+  }, []);
+
+  /**
+   * @description Delete stored notifications via API
+   */
+  const deleteStoredNotifications = useCallback(async (storedIds: number[]) => {
+    try {
+      const loginState = getLoginState();
+      if (!loginState || !loginState.userId || storedIds.length === 0) {
+        return;
+      }
+
+      // Convert loginState to user object format
+      const user = {
+        id: parseInt(loginState.userId),
+        username: loginState.username,
+        email: loginState.email,
+        role: loginState.role || 'user'
+      };
+
+      console.log('🔔 Deleting stored notifications:', storedIds);
+      await notificationService.deleteNotifications(user, storedIds);
+      
+      // Remove from local state
+      setNotifications(prev => 
+        prev.filter(notification => 
+          !notification.storedId || !storedIds.includes(notification.storedId)
+        )
+      );
+
+      console.log('🔔 Deleted', storedIds.length, 'stored notifications');
+    } catch (error) {
+      console.error('Error deleting stored notifications:', error);
+    }
+  }, []);
+
   /**
    * @description Handle navigation from notification action URL
    */
@@ -388,26 +543,70 @@ export const NotificationProvider: React.FC<{
   }, []);
 
   /**
-   * @description Mark notification as read
+   * @description Mark notification as read (handles both real-time and stored)
    */
-  const markAsRead = useCallback((notificationId: string) => {
+  const markAsRead = useCallback(async (notificationId: string) => {
+    const notification = notifications.find(n => n.id === notificationId);
+    
+    // Update local state immediately
     setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, read: true }
-          : notification
+      prev.map(n => 
+        n.id === notificationId 
+          ? { ...n, read: true }
+          : n
       )
     );
-  }, []);
+
+    // If it's a stored notification, also update on the backend
+    if (notification?.storedId) {
+      try {
+        await markStoredAsRead([notification.storedId]);
+      } catch (error) {
+        console.error('Failed to mark stored notification as read:', error);
+        // Revert local state on error
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id === notificationId 
+              ? { ...n, read: false }
+              : n
+          )
+        );
+      }
+    }
+  }, [notifications, markStoredAsRead]);
 
   /**
-   * @description Mark all notifications as read
+   * @description Mark all notifications as read (handles both real-time and stored)
    */
-  const markAllAsRead = useCallback(() => {
+  const markAllAsRead = useCallback(async () => {
+    // Get stored notification IDs that are unread
+    const unreadStoredIds = notifications
+      .filter(n => !n.read && n.storedId)
+      .map(n => n.storedId!)
+      .filter(id => id !== undefined);
+
+    // Update local state immediately
     setNotifications(prev => 
       prev.map(notification => ({ ...notification, read: true }))
     );
-  }, []);
+
+    // Update stored notifications on the backend
+    if (unreadStoredIds.length > 0) {
+      try {
+        await markStoredAsRead(unreadStoredIds);
+      } catch (error) {
+        console.error('Failed to mark all stored notifications as read:', error);
+        // Revert local state on error
+        setNotifications(prev => 
+          prev.map(n => 
+            n.storedId && unreadStoredIds.includes(n.storedId) 
+              ? { ...n, read: false }
+              : n
+          )
+        );
+      }
+    }
+  }, [notifications, markStoredAsRead]);
 
   /**
    * @description Clear a specific notification
@@ -448,21 +647,25 @@ export const NotificationProvider: React.FC<{
     };
   }, [notificationWS.isConnected]);
 
-  // Initialize WebSocket connection when user is authenticated
+  // Initialize WebSocket connection and load stored notifications when user is authenticated
   useEffect(() => {
     const loginState = getLoginState();
     if (loginState && loginState.userId) {
-      console.log('🔌 Connecting to notification WebSocket for user:', loginState.userId);
-      // Add a small delay to ensure backend is ready
+      console.log('🔌 Initializing notifications for user:', loginState.userId);
+      
+      // Load stored notifications first
+      refreshStoredNotifications();
+      
+      // Then connect to WebSocket for real-time updates
       const timer = setTimeout(() => {
         notificationWS.connect();
       }, 1000);
       
       return () => clearTimeout(timer);
     } else {
-      console.log('🔌 No authenticated user found, skipping WebSocket connection');
+      console.log('🔌 No authenticated user found, skipping notification initialization');
     }
-  }, []);
+  }, [refreshStoredNotifications]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -478,6 +681,9 @@ export const NotificationProvider: React.FC<{
     markAllAsRead,
     clearNotification,
     clearAllNotifications,
+    refreshStoredNotifications,
+    markStoredAsRead,
+    deleteStoredNotifications,
     toasts,
     showToast,
     dismissToast,

@@ -166,6 +166,7 @@ export const saveLoginState = (userData: {
   userId: string;
   username: string;
   email: string;
+  role?: string;
   token?: string;
   lastLogin: number;
 }): void => {
@@ -187,6 +188,7 @@ export const getLoginState = (): {
   userId: string;
   username: string;
   email: string;
+  role?: string;
   token?: string;
   lastLogin: number;
 } | null => {

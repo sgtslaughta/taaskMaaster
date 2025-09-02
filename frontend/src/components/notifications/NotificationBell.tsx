@@ -18,7 +18,8 @@ import {
   UserIcon,
   ChatBubbleLeftIcon,
   DocumentTextIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 interface NotificationBellProps {
@@ -31,6 +32,7 @@ interface NotificationItemProps {
   onMarkAsRead: (id: string) => void;
   onClear: (id: string) => void;
   onNavigate: (url: string) => void;
+  onDeleteStored?: (storedIds: number[]) => Promise<void>;
 }
 
 /**
@@ -40,7 +42,8 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
   onMarkAsRead,
   onClear,
-  onNavigate
+  onNavigate,
+  onDeleteStored
 }) => {
   /**
    * @description Get notification icon based on type
@@ -176,9 +179,15 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
               </button>
             )}
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                onClear(notification.id);
+                // If it's a stored notification, delete it from the backend
+                if (notification.storedId && onDeleteStored) {
+                  await onDeleteStored([notification.storedId]);
+                } else {
+                  // Otherwise, just clear it locally
+                  onClear(notification.id);
+                }
               }}
               className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               title="Clear notification"
@@ -209,6 +218,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className, o
     markAllAsRead,
     clearNotification,
     clearAllNotifications,
+    refreshStoredNotifications,
+    deleteStoredNotifications,
     isConnected,
     navigateFromNotification
   } = useNotifications();
@@ -345,6 +356,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className, o
               Notifications
             </h3>
             <div className="flex items-center space-x-1 sm:space-x-2">
+              <button
+                onClick={() => refreshStoredNotifications()}
+                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                title="Refresh notifications"
+              >
+                <ArrowPathIcon className="w-4 h-4" />
+              </button>
               {unreadCount > 0 && (
                 <Button
                   size="sm"
@@ -396,6 +414,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className, o
                     onMarkAsRead={markAsRead}
                     onClear={clearNotification}
                     onNavigate={handleNavigate}
+                    onDeleteStored={deleteStoredNotifications}
                   />
                 ))}
               </div>

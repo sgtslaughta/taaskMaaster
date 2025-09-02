@@ -70,23 +70,17 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   const [currentPage, setCurrentPage] = useState<CurrentPage>(initialPage);
   const [currentTaskId, setCurrentTaskId] = useState<number | undefined>(undefined);
 
-  // Sync with initialPage prop changes
+  // Initialize page only on mount, don't sync with prop changes after that
   useEffect(() => {
-    console.log('🧭 AppRouter: initialPage prop changed to:', initialPage, 'currentPage:', currentPage);
-    if (currentPage !== initialPage) {
-      console.log('🧭 AppRouter: Updating currentPage from', currentPage, 'to', initialPage);
-      setCurrentPage(initialPage);
-    }
-  }, [initialPage, currentPage]);
+    console.log('🧭 AppRouter: Initializing with initialPage:', initialPage);
+    setCurrentPage(initialPage);
+  }, []); // Only run on mount, don't sync with prop changes
 
-  // Sync with initialTaskId prop changes
+  // Sync with initialTaskId prop changes (only when initialTaskId actually changes)
   useEffect(() => {
     console.log('🧭 AppRouter: initialTaskId prop changed to:', initialTaskId, 'currentTaskId:', currentTaskId);
-    if (currentTaskId !== (initialTaskId || undefined)) {
-      console.log('🧭 AppRouter: Updating currentTaskId from', currentTaskId, 'to', initialTaskId);
-      setCurrentTaskId(initialTaskId || undefined);
-    }
-  }, [initialTaskId, currentTaskId]);
+    setCurrentTaskId(initialTaskId || undefined);
+  }, [initialTaskId]); // Removed currentTaskId from dependency array to prevent loops
 
   /**
    * @description Handle navigation between pages

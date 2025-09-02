@@ -28,6 +28,7 @@ export * from './commentService';
 export * from './workflowService';
 export * from './messagingService';
 export * from './websocketService';
+export * from './notificationService';
 
 // Re-export service instances for convenience
 export { authService } from './authService';
@@ -37,3 +38,4 @@ export { goalService } from './goalService';
 export { userService } from './userService';
 export { ListService } from './listService';
 export { websocketService } from './websocketService';
+export { notificationService } from './notificationService';

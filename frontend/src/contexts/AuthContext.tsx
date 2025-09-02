@@ -136,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: userData.id,
         username: userData.username,
         email: userData.email,
+        role: userData.role,
         token: response.access_token,
         lastLogin: Date.now(),
       });
