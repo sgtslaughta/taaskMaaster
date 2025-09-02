@@ -216,6 +216,10 @@ export interface TaskHubPageProps {
    */
   initialTaskId?: number;
   /**
+   * @description Notification trigger counter to force modal re-opening
+   */
+  notificationTrigger?: number;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -233,6 +237,7 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
   onNavigation,
   onNotificationNavigation,
   initialTaskId,
+  notificationTrigger,
   className,
 }) => {
   const [tasks, setTasks] = useState<FrontendTask[]>([]);
@@ -281,13 +286,16 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
 
   // Handle auto-opening task modal from notification navigation
   useEffect(() => {
-    if (initialTaskId && tasks.length > 0) {
-      console.log('TaskHubPage: Auto-opening task from notification:', initialTaskId);
-      // For now, just switch to tasks tab - the TasksTab component will handle the modal
+    console.log('TaskHubPage: Auto-open effect triggered. initialTaskId:', initialTaskId, 'notificationTrigger:', notificationTrigger, 'tasks.length:', tasks.length);
+    if (initialTaskId && tasks.length > 0 && notificationTrigger !== undefined) {
+      console.log('TaskHubPage: Auto-opening task from notification:', initialTaskId, 'trigger:', notificationTrigger);
+      // Switch to tasks tab and pass the initialTaskId down
       setActiveTab('tasks');
-      // TODO: Pass initialTaskId to TasksTab component to auto-open modal
+      // TODO: Pass initialTaskId and notificationTrigger to TasksTab component to auto-open modal
+    } else if (initialTaskId && notificationTrigger !== undefined) {
+      console.log('TaskHubPage: initialTaskId provided but no tasks loaded yet:', initialTaskId, 'trigger:', notificationTrigger);
     }
-  }, [initialTaskId, tasks]);
+  }, [notificationTrigger, tasks]); // Changed dependency from initialTaskId to notificationTrigger
 
   /**
    * @description Load tasks from API

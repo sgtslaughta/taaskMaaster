@@ -63,6 +63,10 @@ export interface MyTasksPageProps {
    */
   initialTaskId?: number;
   /**
+   * @description Notification trigger counter to force modal re-opening
+   */
+  notificationTrigger?: number;
+  /**
    * @description Additional CSS classes
    */
   className?: string;
@@ -200,6 +204,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   onNavigation,
   onNotificationNavigation,
   initialTaskId,
+  notificationTrigger,
   className,
 }) => {
   const [tasks, setTasks] = useState<FrontendTask[]>([]);
@@ -223,20 +228,19 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
 
   // Handle auto-opening task modal from notification navigation
   useEffect(() => {
-    console.log('MyTasksPage: Auto-open effect triggered. initialTaskId:', initialTaskId, 'tasks.length:', tasks.length);
-    if (initialTaskId && tasks.length > 0) {
+    if (initialTaskId && tasks.length > 0 && notificationTrigger !== undefined && notificationTrigger > 0) {
       const taskToOpen = tasks.find(task => task.id === initialTaskId);
       if (taskToOpen) {
-        console.log('MyTasksPage: Auto-opening task from notification:', initialTaskId);
-        setSelectedTask(taskToOpen);
-        setIsDetailModalOpen(true);
-      } else {
-        console.warn('MyTasksPage: Task not found for auto-open:', initialTaskId, 'Available task IDs:', tasks.map(t => t.id));
+        // Only open modal if it's not already open for this task or if it's closed
+        const shouldOpenModal = !isDetailModalOpen || selectedTask?.id !== initialTaskId;
+        
+        if (shouldOpenModal) {
+          setSelectedTask(taskToOpen);
+          setIsDetailModalOpen(true);
+        }
       }
-    } else if (initialTaskId) {
-      console.log('MyTasksPage: initialTaskId provided but no tasks loaded yet:', initialTaskId);
     }
-  }, [initialTaskId, tasks]);
+  }, [notificationTrigger, tasks]); // Changed dependency from initialTaskId to notificationTrigger
 
   /**
    * @description Load user's tasks from API

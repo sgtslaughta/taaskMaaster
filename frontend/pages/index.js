@@ -76,11 +76,15 @@ export default function Home() {
   const [currentTaskId, setCurrentTaskId] = useState(null)
 
   const handleNotificationNavigation = (pageId, taskId) => {
-    console.log('📱 Main App: handleNotificationNavigation called with:', pageId, taskId)
-    console.log('📱 Main App: Current view before change:', currentView)
-    setCurrentView(pageId)
-    setCurrentTaskId(taskId)
-    console.log('📱 Main App: Setting currentView to:', pageId, 'and currentTaskId to:', taskId)
+    // Force prop changes by temporarily clearing the taskId, then setting it
+    // This ensures AppRouter's useEffect always triggers
+    setCurrentTaskId(null)
+    
+    // Use setTimeout to ensure the null value is processed first
+    setTimeout(() => {
+      setCurrentView(pageId)
+      setCurrentTaskId(taskId)
+    }, 0)
   }
 
   const navigationItems = [

@@ -69,18 +69,30 @@ export const AppRouter: React.FC<AppRouterProps> = ({
 }) => {
   const [currentPage, setCurrentPage] = useState<CurrentPage>(initialPage);
   const [currentTaskId, setCurrentTaskId] = useState<number | undefined>(undefined);
+  const [notificationTrigger, setNotificationTrigger] = useState<number>(0);
 
   // Initialize page only on mount, don't sync with prop changes after that
   useEffect(() => {
-    console.log('🧭 AppRouter: Initializing with initialPage:', initialPage);
     setCurrentPage(initialPage);
   }, []); // Only run on mount, don't sync with prop changes
 
   // Sync with initialTaskId prop changes (only when initialTaskId actually changes)
   useEffect(() => {
-    console.log('🧭 AppRouter: initialTaskId prop changed to:', initialTaskId, 'currentTaskId:', currentTaskId);
+    // Check if this is a notification navigation (has taskId)
+    if (initialTaskId) {
+      // Always increment trigger for notification navigation (even if same taskId)
+      const newTrigger = notificationTrigger + 1;
+      setNotificationTrigger(newTrigger);
+      
+      // Update the current page to match the initialPage (for notification navigation)
+      if (initialPage !== currentPage) {
+        setCurrentPage(initialPage);
+      }
+    }
+    
+    // Always update currentTaskId
     setCurrentTaskId(initialTaskId || undefined);
-  }, [initialTaskId]); // Removed currentTaskId from dependency array to prevent loops
+  }, [initialTaskId, initialPage]); // Added initialPage to dependencies
 
   /**
    * @description Handle navigation between pages
@@ -123,20 +135,15 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     }
 
     console.log('🧭 AppRouter: Setting currentPage to:', page, 'and currentTaskId to:', taskId);
-    // Set both page and task ID - force update even if page is the same
+    
+    // Increment notification trigger to ensure modal re-opens even for same task
+    const newTrigger = notificationTrigger + 1;
+    setNotificationTrigger(newTrigger);
+    console.log('🧭 AppRouter: Incrementing notification trigger to:', newTrigger);
+    
+    // Set page and task ID
     setCurrentPage(page);
     setCurrentTaskId(taskId);
-    
-    // Force a re-render by updating the page state even if it's the same
-    // This ensures the task modal opens even when navigating to the same page
-    if (taskId) {
-      console.log('🧭 AppRouter: Forcing page re-render for task modal');
-      setCurrentPage('dashboard'); // Temporarily set to different page
-      setTimeout(() => {
-        setCurrentPage(page); // Then set back to target page
-        setCurrentTaskId(taskId);
-      }, 0);
-    }
     
     // Update browser URL (optional, for better UX)
     if (typeof window !== 'undefined') {
@@ -171,7 +178,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
    * @description Render the current page component
    */
   const renderCurrentPage = () => {
-    console.log('🧭 AppRouter: renderCurrentPage called, currentPage:', currentPage, 'initialPage prop:', initialPage, 'currentTaskId:', currentTaskId);
+
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -192,6 +199,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             onNavigation={handleNavigation}
             onNotificationNavigation={handleNotificationNavigation}
             initialTaskId={currentTaskId}
+            notificationTrigger={notificationTrigger}
             className={className}
           />
         );
@@ -218,6 +226,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             onNavigation={handleNavigation}
             onNotificationNavigation={handleNotificationNavigation}
             initialTaskId={currentTaskId}
+            notificationTrigger={notificationTrigger}
             className={className}
           />
         );

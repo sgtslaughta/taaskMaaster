@@ -247,8 +247,17 @@ export const NotificationProvider: React.FC<{
     const taskMatch = actionUrl.match(/\/tasks\/(\d+)/);
     if (taskMatch) {
       const taskId = parseInt(taskMatch[1], 10);
-      console.log('🔔 NotificationContext: Calling onNavigation with:', 'my-tasks', taskId);
-      onNavigation('my-tasks', taskId);
+      
+      // Get user role to determine which page to navigate to
+      const loginState = getLoginState();
+      const userRole = loginState?.role || 'user';
+      
+      // Navigate to appropriate page based on user role
+      // Admins and organizers go to task-hub, regular users go to my-tasks
+      const targetPage = (userRole === 'admin' || userRole === 'organizer') ? 'task-hub' : 'my-tasks';
+      
+      console.log('🔔 NotificationContext: User role:', userRole, '-> navigating to:', targetPage, 'with taskId:', taskId);
+      onNavigation(targetPage, taskId);
       return;
     }
 
@@ -616,11 +625,27 @@ export const NotificationProvider: React.FC<{
   }, []);
 
   /**
-   * @description Clear all notifications
+   * @description Clear all notifications (both local and stored)
    */
-  const clearAllNotifications = useCallback(() => {
+  const clearAllNotifications = useCallback(async () => {
+    // Find all stored notifications (those with storedId)
+    const storedIds = notifications
+      .filter(notification => notification.storedId)
+      .map(notification => notification.storedId!);
+    
+    // Delete stored notifications from database if any exist
+    if (storedIds.length > 0) {
+      try {
+        await deleteStoredNotifications(storedIds);
+      } catch (error) {
+        console.error('Failed to delete stored notifications:', error);
+        // Continue with local clearing even if database deletion fails
+      }
+    }
+    
+    // Clear all notifications from local state (both stored and real-time)
     setNotifications([]);
-  }, []);
+  }, [notifications, deleteStoredNotifications]);
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;

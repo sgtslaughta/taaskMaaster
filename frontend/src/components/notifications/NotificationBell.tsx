@@ -183,7 +183,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                 e.stopPropagation();
                 // If it's a stored notification, delete it from the backend
                 if (notification.storedId && onDeleteStored) {
-                  await onDeleteStored([notification.storedId]);
+                  try {
+                    await onDeleteStored([notification.storedId]);
+                  } catch (error) {
+                    console.error('Failed to delete stored notification:', error);
+                  }
                 } else {
                   // Otherwise, just clear it locally
                   onClear(notification.id);
