@@ -117,7 +117,7 @@ export class TokenManager {
       this.scheduleTokenRefresh();
       this.resetRefreshRetryCount();
 
-      console.log('✅ Tokens stored successfully');
+
     } catch (error) {
       console.error('❌ Failed to store tokens:', error);
       throw new Error('Failed to store authentication tokens');
@@ -242,7 +242,7 @@ export class TokenManager {
       this.refreshPromise = null;
       this.resetRefreshRetryCount();
 
-      console.log('✅ All tokens cleared');
+
       this.emitEvent('revoked');
     } catch (error) {
       console.error('❌ Failed to clear tokens:', error);
@@ -384,7 +384,7 @@ export class TokenManager {
       this.setTokens(newTokens);
       this.emitEvent('refreshed', newTokens);
       
-      console.log('✅ Token refresh successful');
+
       return {
         success: true,
         tokens: newTokens,
@@ -396,7 +396,7 @@ export class TokenManager {
       
       // Check if we should retry
       if (this.refreshRetryCount < this.MAX_REFRESH_RETRIES) {
-        console.log(`🔄 Retrying token refresh (${this.refreshRetryCount}/${this.MAX_REFRESH_RETRIES})`);
+
         
         // Exponential backoff: 1s, 2s, 4s
         const delay = Math.pow(2, this.refreshRetryCount - 1) * 1000;
@@ -431,11 +431,11 @@ export class TokenManager {
     const refreshIn = Math.max(1000, validation.timeUntilExpiry - this.REFRESH_BUFFER_TIME);
     
     this.refreshTimeout = setTimeout(async () => {
-      console.log('⏰ Scheduled token refresh triggered');
+
       await this.refreshTokens();
     }, refreshIn);
 
-    console.log(`📅 Token refresh scheduled in ${Math.round(refreshIn / 1000)}s`);
+
   }
 
   /**
@@ -459,10 +459,10 @@ export class TokenManager {
     const validation = this.validateAccessToken();
     
     if (validation.isExpired && this.canRefreshToken()) {
-      console.log('🔄 Token expired, attempting automatic refresh');
+
       this.refreshTokens();
     } else if (validation.isExpired && !this.canRefreshToken()) {
-      console.log('🚪 Tokens expired, clearing auth state');
+
       this.clearTokens();
     }
   }

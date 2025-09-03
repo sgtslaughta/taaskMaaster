@@ -46,7 +46,7 @@ export default function Home() {
   const { logout } = useAuth()
 
   const handleLogin = (data) => {
-    console.log('Login data:', data)
+
     setCurrentView('dashboard')
   }
 

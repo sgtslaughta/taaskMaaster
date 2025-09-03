@@ -98,9 +98,7 @@ export class AuthService {
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      console.log('AuthService: Attempting login with credentials:', credentials);
       const response = await apiPost<LoginResponse>('/api/v1/auth/login', credentials);
-      console.log('AuthService: Received response:', response);
       
       // Use TokenManager to securely store tokens
       tokenManager.setTokens({
@@ -126,7 +124,7 @@ export class AuthService {
         is_superuser: response.data.is_superuser,
       };
 
-      console.log('AuthService: Login successful, returning data:', response.data);
+
       return response.data;
     } catch (error) {
       console.error('AuthService: Login error:', error);

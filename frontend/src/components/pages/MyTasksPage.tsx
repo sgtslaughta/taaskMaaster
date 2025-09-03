@@ -252,22 +252,14 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       
       // Get tasks assigned to current user only
       const currentUserId = parseInt(user.id);
-      console.log('My Tasks: Loading tasks for user ID:', currentUserId, 'User:', user.username);
+
       // Don't pass any user filter - let the backend handle filtering by created_by OR assigned_to
       const response = await taskService.getTasks();
-      console.log('My Tasks: Received tasks:', response.tasks?.length, 'tasks');
+
       
       const frontendTasks = response.tasks.map(adaptBackendToFrontendTask);
       
-      // Debug: Log task details to check created_by vs assigned_to
-      console.log('My Tasks Debug:', frontendTasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        createdById: t.createdById,
-        assignedToId: t.assignedToId,
-        status: t.status,
-        currentUserId: parseInt(user?.id || '0')
-      })));
+
       
       setTasks(frontendTasks);
 

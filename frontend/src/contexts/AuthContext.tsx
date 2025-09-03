@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Setup forced logout listener
     const handleForcedLogout = (event: any) => {
-      console.log('🚪 Forced logout triggered:', event.detail);
+
       setUser(null);
       setIsLoading(false);
     };
@@ -93,13 +93,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Check if token is expired before making API calls
           if (authService.isTokenExpired()) {
-            console.log('Access token is expired, attempting refresh...');
+
             
             try {
               const refreshToken = authService.getRefreshToken();
               if (refreshToken) {
                 const refreshResponse = await authService.refreshToken(refreshToken);
-                console.log('Token refresh successful');
+
                 
                 // Update the saved login state with new token
                 saveLoginState({
@@ -172,13 +172,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    */
   const login = async (credentials: { username: string; password: string }) => {
     try {
-      console.log('AuthContext: Starting login process');
       setIsLoading(true);
       setError(null);
 
-      console.log('AuthContext: Calling authService.login');
       const response = await authService.login(credentials);
-      console.log('AuthContext: authService.login returned:', response);
       
       // Convert API response to User interface
       const userData: User = {
@@ -204,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(userData);
-      console.log('AuthContext: User logged in successfully, user data:', userData);
+
     } catch (error: any) {
       console.error('AuthContext: Login failed with error:', error);
       const errorMessage = error.message || 'Login failed';
@@ -237,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear auth service token
       authService.clearAuth();
       
-      console.log('User logged out successfully');
+
     }
   };
 

@@ -177,7 +177,7 @@ export class HttpInterceptor {
       const refreshResult = await tokenManager.refreshTokens();
       
       if (refreshResult.success) {
-        console.log('✅ Token refreshed, retrying original request');
+
         
         // Process queued requests
         this.processRequestQueue();
@@ -230,7 +230,7 @@ export class HttpInterceptor {
     // Exponential backoff: 1s, 2s, 4s
     const delay = baseDelay * Math.pow(2, retryCount);
     
-    console.log(`🔄 Retrying request (${retryCount + 1}/${maxRetries}) after ${delay}ms: ${originalRequest.url}`);
+
     
     await new Promise(resolve => setTimeout(resolve, delay));
     
@@ -275,20 +275,20 @@ export class HttpInterceptor {
    */
   private setupTokenEventListeners(): void {
     tokenManager.addEventListener('expired', () => {
-      console.log('🔔 Token expired event received');
+      // Token expired event - handled automatically by TokenManager
     });
 
     tokenManager.addEventListener('refreshed', () => {
-      console.log('🔔 Token refreshed event received');
+      // Token refreshed event - handled automatically by TokenManager
     });
 
     tokenManager.addEventListener('invalid', () => {
-      console.log('🔔 Invalid token event received');
+      // Invalid token event - force logout
       this.forceLogout();
     });
 
     tokenManager.addEventListener('revoked', () => {
-      console.log('🔔 Token revoked event received');
+      // Token revoked event - handled automatically by TokenManager
     });
   }
 
