@@ -113,10 +113,8 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     // Update current page
     setCurrentPage(page);
     
-    // Update browser URL (optional, for better UX)
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', `/${page === 'dashboard' ? '' : page}`);
-    }
+    // Don't update browser URL for SPA - keep it simple
+    // All routing is handled client-side
   };
 
   /**
@@ -134,45 +132,22 @@ export const AppRouter: React.FC<AppRouterProps> = ({
       return;
     }
 
-    console.log('🧭 AppRouter: Setting currentPage to:', page, 'and currentTaskId to:', taskId);
+
     
     // Increment notification trigger to ensure modal re-opens even for same task
     const newTrigger = notificationTrigger + 1;
     setNotificationTrigger(newTrigger);
-    console.log('🧭 AppRouter: Incrementing notification trigger to:', newTrigger);
+
     
     // Set page and task ID
     setCurrentPage(page);
     setCurrentTaskId(taskId);
     
-    // Update browser URL (optional, for better UX)
-    if (typeof window !== 'undefined') {
-      const url = `/${page === 'dashboard' ? '' : page}${taskId ? `?task=${taskId}` : ''}`;
-      console.log('🧭 AppRouter: Updating browser URL to:', url);
-      window.history.pushState({}, '', url);
-    }
+    // Don't update browser URL for SPA - keep it simple
+    // All routing is handled client-side
   };
 
-  /**
-   * @description Handle browser back/forward navigation
-   */
-  useEffect(() => {
-    const handlePopState = () => {
-      const path = window.location.pathname.slice(1) || 'dashboard';
-      const page = path as CurrentPage;
-      
-      if (canAccessPage(user as NavigationUser | null, page)) {
-        setCurrentPage(page);
-      } else {
-        // Redirect to dashboard if user doesn't have access
-        setCurrentPage('dashboard');
-        window.history.replaceState({}, '', '/');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [user]);
+  // No browser navigation handling needed for SPA
 
   /**
    * @description Render the current page component

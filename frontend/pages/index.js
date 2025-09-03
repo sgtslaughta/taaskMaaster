@@ -22,6 +22,8 @@ export default function Home() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const [currentView, setCurrentView] = useState('dashboard')
 
+
+
   useEffect(() => {
     // Check API health
     const checkApiHealth = async () => {
