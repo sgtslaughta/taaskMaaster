@@ -221,3 +221,11 @@ alembic.ini
 backend/alembic/versions/*
 taaskmaaster.db
 docs/task_workflow_enhancement_plan.md
+
+# jetbrains
+.idea/
+.vscode/
+
+# Development files
+.env.development
+.env.no-rate-limit
