@@ -20,12 +20,27 @@ import { NavigationItem } from '../navigation/Sidebar';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
+  UserCircleIcon,
+  PlusCircleIcon,
+  EyeIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 /**
  * @description Task filter types for My Tasks page
  */
 type TaskFilter = 'all' | 'pending' | 'in_progress' | 'completed';
+
+/**
+ * @description Comprehensive filter options for My Tasks page
+ */
+interface MyTasksFilters {
+  status: string;
+  priority: string;
+  category: string;
+  assignee: string;
+  rewardType: string;
+}
 
 /**
  * @description My Tasks page component props
@@ -216,6 +231,15 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   const [users, setUsers] = useState<User[]>([]);
   const [selectedTask, setSelectedTask] = useState<FrontendTask | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'assigned' | 'created'>('assigned');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<MyTasksFilters>({
+    status: '',
+    priority: '',
+    category: '',
+    assignee: '',
+    rewardType: ''
+  });
   const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(() => {
     return providedNavigationItems || generateNavigationItems(user as NavigationUser | null);
   });
@@ -300,18 +324,47 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   };
 
   /**
-   * @description Filter tasks based on active filter and search term
+   * @description Handle filter changes
+   */
+  const handleFilterChange = (filterKey: keyof MyTasksFilters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: value
+    }));
+  };
+
+  /**
+   * @description Clear all filters
+   */
+  const handleClearFilters = () => {
+    setFilters({
+      status: '',
+      priority: '',
+      category: '',
+      assignee: '',
+      rewardType: ''
+    });
+    setSearchTerm('');
+    setActiveFilter('all');
+  };
+
+  /**
+   * @description Filter tasks based on active tab, comprehensive filters, and search term
    */
   const filteredTasks = React.useMemo(() => {
     const currentUserId = parseInt(user?.id || '0');
     
-    // First filter to only show tasks created by OR assigned to current user
-    let userTasks = tasks.filter(task => 
-      task.createdById === currentUserId || task.assignedToId === currentUserId
-    );
+    // First filter based on active tab
+    let tabFilteredTasks = tasks.filter(task => {
+      if (activeTab === 'assigned') {
+        return task.assignedToId === currentUserId;
+      } else {
+        return task.createdById === currentUserId;
+      }
+    });
     
-    // Then apply search filter
-    let filtered = userTasks.filter(task => {
+    // Apply search filter
+    let filtered = tabFilteredTasks.filter(task => {
       if (!searchTerm) return true;
       
       return task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -320,7 +373,46 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
              task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     });
     
-    // Then apply status filter
+    // Apply comprehensive filters
+    if (filters.status) {
+      filtered = filtered.filter(task => {
+        switch (filters.status) {
+          case 'todo': return task.status === 'todo';
+          case 'in_progress': return task.status === 'in_progress';
+          case 'done': return task.status === 'done';
+          case 'cancelled': return task.status === 'cancelled';
+          default: return true;
+        }
+      });
+    }
+    
+    if (filters.priority) {
+      filtered = filtered.filter(task => task.priority === filters.priority);
+    }
+    
+    if (filters.category) {
+      filtered = filtered.filter(task => {
+        if (filters.category === 'uncategorized') {
+          return !task.category || !task.category.name;
+        }
+        return task.category?.name?.toLowerCase() === filters.category.toLowerCase();
+      });
+    }
+    
+    if (filters.assignee) {
+      filtered = filtered.filter(task => {
+        if (filters.assignee === 'unassigned') {
+          return !task.assignedToId;
+        }
+        return task.assignedToId?.toString() === filters.assignee;
+      });
+    }
+    
+    if (filters.rewardType) {
+      filtered = filtered.filter(task => task.rewardType === filters.rewardType);
+    }
+    
+    // Apply legacy activeFilter for backward compatibility
     switch (activeFilter) {
       case 'pending':
         return filtered.filter(task => task.status === 'todo');
@@ -331,7 +423,21 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       default:
         return filtered;
     }
-  }, [tasks, activeFilter, searchTerm, user?.id]);
+  }, [tasks, activeTab, activeFilter, searchTerm, filters, user?.id]);
+
+  /**
+   * @description Get tasks for current tab for statistics
+   */
+  const currentTabTasks = React.useMemo(() => {
+    const currentUserId = parseInt(user?.id || '0');
+    return tasks.filter(task => {
+      if (activeTab === 'assigned') {
+        return task.assignedToId === currentUserId;
+      } else {
+        return task.createdById === currentUserId;
+      }
+    });
+  }, [tasks, activeTab, user?.id]);
 
   /**
    * @description Get user's tasks (created by or assigned to current user)
@@ -614,17 +720,45 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
             {/* Statistics Carousel */}
             <StatsCarousel
               stats={{
-                total: userTasks.length,
-                pending: taskStats.pending,
-                inProgress: taskStats.inProgress,
-                completed: taskStats.completed,
-                totalPoints: taskStats.totalPoints,
-                overdue: taskStats.overdue,
-                dueToday: taskStats.dueToday,
-                dueThisWeek: taskStats.dueThisWeek,
-                highPriority: taskStats.highPriority,
-                latestCompleted: taskStats.latestCompleted,
-                completionRate: taskStats.completionRate,
+                total: currentTabTasks.length,
+                pending: currentTabTasks.filter(t => t.status === 'todo').length,
+                inProgress: currentTabTasks.filter(t => t.status === 'in_progress').length,
+                completed: currentTabTasks.filter(t => t.status === 'done').length,
+                totalPoints: currentTabTasks.filter(t => t.status === 'done').reduce((sum, task) => sum + (task.points || 0), 0),
+                overdue: currentTabTasks.filter(task => {
+                  if (!task.dueDate || task.status === 'done') return false;
+                  const dueDate = new Date(task.dueDate);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return dueDate < today;
+                }).length,
+                dueToday: currentTabTasks.filter(task => {
+                  if (!task.dueDate || task.status === 'done') return false;
+                  const dueDate = new Date(task.dueDate);
+                  const today = new Date();
+                  return dueDate.toDateString() === today.toDateString();
+                }).length,
+                dueThisWeek: currentTabTasks.filter(task => {
+                  if (!task.dueDate || task.status === 'done') return false;
+                  const dueDate = new Date(task.dueDate);
+                  const today = new Date();
+                  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+                  return dueDate >= today && dueDate <= nextWeek;
+                }).length,
+                highPriority: currentTabTasks.filter(task => 
+                  (task.priority === 'high' || task.priority === 'urgent') && task.status !== 'done'
+                ).length,
+                latestCompleted: currentTabTasks
+                  .filter(t => t.status === 'done')
+                  .sort((a, b) => {
+                    if (!a.completedAt && !b.completedAt) return 0;
+                    if (!a.completedAt) return 1;
+                    if (!b.completedAt) return -1;
+                    return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+                  })[0]?.title,
+                completionRate: currentTabTasks.filter(t => t.status !== 'cancelled').length > 0 
+                  ? Math.round((currentTabTasks.filter(t => t.status === 'done').length / currentTabTasks.filter(t => t.status !== 'cancelled').length) * 100) 
+                  : 0,
               }}
               autoRotate={true}
               rotationInterval={6000}
@@ -638,61 +772,185 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
               showDots={true}
             />
 
+            {/* Tab Navigation */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="flex border-b border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setActiveTab('assigned');
+                    setActiveFilter('all'); // Reset filter when switching tabs
+                    setSearchTerm(''); // Reset search when switching tabs
+                    handleClearFilters(); // Reset comprehensive filters when switching tabs
+                  }}
+                  className={`flex-1 px-6 py-4 text-sm font-medium text-center border-b-2 transition-colors ${
+                    activeTab === 'assigned'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <UserCircleIcon className="w-5 h-5" />
+                    <span>Assigned to Me</span>
+                    <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                      {tasks.filter(task => task.assignedToId === parseInt(user?.id || '0')).length}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('created');
+                    setActiveFilter('all'); // Reset filter when switching tabs
+                    setSearchTerm(''); // Reset search when switching tabs
+                    handleClearFilters(); // Reset comprehensive filters when switching tabs
+                  }}
+                  className={`flex-1 px-6 py-4 text-sm font-medium text-center border-b-2 transition-colors ${
+                    activeTab === 'created'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <PlusCircleIcon className="w-5 h-5" />
+                    <span>Created by Me</span>
+                    <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs">
+                      {tasks.filter(task => task.createdById === parseInt(user?.id || '0')).length}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* Filter Toolbar */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <div className="flex flex-col space-y-4">
-                {/* Search and Filter Row */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3 flex-1">
-                    {/* Search Input */}
-                    <div className="relative flex-1 max-w-md">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                      <input
-                        type="text"
-                        placeholder="Search my tasks..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                      />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="p-4">
+                <div className="flex flex-col space-y-4">
+                  {/* Top Row - Search and Actions */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1 max-w-md">
+                      <div className="relative flex-1">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <input
+                          type="text"
+                          placeholder={`Search ${activeTab === 'assigned' ? 'assigned' : 'created'} tasks...`}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        />
+                      </div>
                     </div>
-                    
-                    {/* Filter Dropdown */}
+
                     <div className="flex items-center space-x-2">
-                      <FunnelIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                      {/* Filter Toggle */}
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={cn(
+                          "p-2 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors",
+                          showFilters 
+                            ? "bg-blue-600 text-white border-blue-600" 
+                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                        )}
+                        title="Toggle Filters"
+                      >
+                        <FunnelIcon className="w-4 h-4" />
+                      </button>
+
+                      {/* Refresh Button */}
+                      <button
+                        onClick={loadMyTasks}
+                        disabled={loading}
+                        className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Refresh Tasks"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+
+                      {/* Clear Filters */}
+                      {(searchTerm || activeFilter !== 'all' || Object.values(filters).some(f => f !== '')) && (
+                        <button
+                          onClick={handleClearFilters}
+                          className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          title="Clear All Filters"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Task Count */}
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
+                  </div>
+
+                  {/* Filters Panel */}
+                  {showFilters && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                       <select
-                        value={activeFilter}
-                        onChange={(e) => setActiveFilter(e.target.value as TaskFilter)}
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange('status', e.target.value)}
                         className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
-                        <option value="all">All Tasks ({userTasks.length})</option>
-                        <option value="pending">Pending ({taskStats.pending})</option>
-                        <option value="in_progress">In Progress ({taskStats.inProgress})</option>
-                        <option value="completed">Completed ({taskStats.completed})</option>
+                        <option value="">All Status</option>
+                        <option value="todo">Todo</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+
+                      <select
+                        value={filters.priority}
+                        onChange={(e) => handleFilterChange('priority', e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">All Priority</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+
+                      <select
+                        value={filters.category}
+                        onChange={(e) => handleFilterChange('category', e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">All Categories</option>
+                        <option value="household">Household</option>
+                        <option value="personal">Personal</option>
+                        <option value="work">Work</option>
+                        <option value="school">School</option>
+                        <option value="health">Health</option>
+                        <option value="other">Other</option>
+                        <option value="uncategorized">Uncategorized</option>
+                      </select>
+
+                      <select
+                        value={filters.assignee}
+                        onChange={(e) => handleFilterChange('assignee', e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">All Assignees</option>
+                        <option value="unassigned">Unassigned</option>
+                        {users && users.map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.username}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={filters.rewardType}
+                        onChange={(e) => handleFilterChange('rewardType', e.target.value)}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">All Rewards</option>
+                        <option value="points">Points</option>
+                        <option value="monetary">Money</option>
+                        <option value="time">Time</option>
+                        <option value="custom">Custom</option>
                       </select>
                     </div>
-                    
-                    {/* Clear Filters */}
-                    {(searchTerm || activeFilter !== 'all') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSearchTerm('');
-                          setActiveFilter('all');
-                        }}
-                        className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {/* Task Count */}
-                  <div className="flex items-center space-x-2">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
