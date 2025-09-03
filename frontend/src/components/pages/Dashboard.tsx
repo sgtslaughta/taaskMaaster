@@ -159,12 +159,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
       
       // Load task stats (using task service)
       const taskResponse = await taskService.getTasks();
-      const tasks = taskResponse.tasks;
-      const tasksCompleted = tasks.filter(t => t.status === 'done').length;
-      const tasksPending = tasks.filter(t => t.status !== 'done').length;
+      const allTasks = taskResponse.tasks;
+      
+      // Filter to only tasks for current user (created by OR assigned to)
+      const userTasks = allTasks.filter(task => 
+        task.created_by_id === userId || task.assigned_to_id === userId
+      );
+      
+      const tasksCompleted = userTasks.filter(t => t.status === 'done').length;
+      const tasksPending = userTasks.filter(t => t.status !== 'done').length;
 
-      // Calculate workflow statistics
-      const workflowStatsData = workflowStatsService.calculateWorkflowStats(tasks);
+      // Calculate workflow statistics (use user tasks only)
+      const workflowStatsData = workflowStatsService.calculateWorkflowStats(userTasks);
       setWorkflowStats(workflowStatsData);
 
       // Combine all stats
@@ -182,13 +188,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       // Load recent activity
       await loadRecentActivity(userId);
 
-      // Generate navigation items with task counts
-      // myTasks should represent tasks that need attention (not done)
-      const myTasksCount = tasks.filter(t => t.status !== 'done').length;
+      // Generate navigation items with task counts (use user tasks only)
+      // myTasks should represent tasks that need attention (not done) for current user
+      const myTasksCount = userTasks.filter(t => t.status !== 'done').length;
       
       const navItems = generateNavigationItems(user as NavigationUser, {
         myTasks: myTasksCount, // Tasks that need user attention (created by or assigned to them)
-        allTasks: tasks.length,
+        allTasks: userTasks.length,
         pendingTasks: tasksPending,
       });
       setNavigationItems(navItems);

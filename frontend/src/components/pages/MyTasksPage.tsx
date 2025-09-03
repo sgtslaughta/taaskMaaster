@@ -265,14 +265,14 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
 
       // Update navigation items with task counts
       // Filter to only tasks for current user, then count those needing attention
-      const userTasks = frontendTasks.filter(task => 
+      const userTasksForNav = frontendTasks.filter(task => 
         task.createdById === currentUserId || task.assignedToId === currentUserId
       );
       
       const taskStats = {
-        myTasks: userTasks.filter(task => task.status !== 'done').length,
-        allTasks: userTasks.length,
-        pendingTasks: userTasks.filter(task => task.status !== 'done').length,
+        myTasks: userTasksForNav.filter(task => task.status !== 'done').length,
+        allTasks: userTasksForNav.length,
+        pendingTasks: userTasksForNav.filter(task => task.status !== 'done').length,
       };
       
       // Always update navigation items with current task counts, regardless of providedNavigationItems
@@ -334,18 +334,22 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
   }, [tasks, activeFilter, searchTerm, user?.id]);
 
   /**
+   * @description Get user's tasks (created by or assigned to current user)
+   */
+  const userTasks = React.useMemo(() => {
+    const currentUserId = parseInt(user?.id || '0');
+    return tasks.filter(task => 
+      task.createdById === currentUserId || task.assignedToId === currentUserId
+    );
+  }, [tasks, user?.id]);
+
+  /**
    * @description Get enhanced task statistics
    */
   const taskStats = React.useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    // First filter to only tasks for current user
-    const currentUserId = parseInt(user?.id || '0');
-    const userTasks = tasks.filter(task => 
-      task.createdById === currentUserId || task.assignedToId === currentUserId
-    );
 
     const pendingTasks = userTasks.filter(task => task.status === 'todo');
     const inProgressTasks = userTasks.filter(task => task.status === 'in_progress');
@@ -385,8 +389,8 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
         return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
       })[0]?.title;
 
-    // Calculate completion rate
-    const totalNonCancelled = tasks.filter(task => task.status !== 'cancelled').length;
+    // Calculate completion rate (only for user's tasks)
+    const totalNonCancelled = userTasks.filter(task => task.status !== 'cancelled').length;
     const completionRate = totalNonCancelled > 0 
       ? Math.round((completedTasks.length / totalNonCancelled) * 100) 
       : 0;
@@ -403,7 +407,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
       latestCompleted,
       completionRate
     };
-  }, [tasks, user?.id]);
+  }, [userTasks]);
 
 
 
@@ -593,7 +597,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
             {/* Statistics Carousel */}
             <StatsCarousel
               stats={{
-                total: tasks.length,
+                total: userTasks.length,
                 pending: taskStats.pending,
                 inProgress: taskStats.inProgress,
                 completed: taskStats.completed,
@@ -643,7 +647,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
                         onChange={(e) => setActiveFilter(e.target.value as TaskFilter)}
                         className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
-                        <option value="all">All Tasks ({tasks.length})</option>
+                        <option value="all">All Tasks ({userTasks.length})</option>
                         <option value="pending">Pending ({taskStats.pending})</option>
                         <option value="in_progress">In Progress ({taskStats.inProgress})</option>
                         <option value="completed">Completed ({taskStats.completed})</option>
