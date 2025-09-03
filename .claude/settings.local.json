@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ui.mantine.dev)",
+      "mcp__ide__getDiagnostics",
+      "mcp__mantine-ui__list_components",
+      "mcp__mantine-ui__search_components",
+      "mcp__mantine-ui__get_component_docs",
+      "mcp__mantine-ui__get_component_docs"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

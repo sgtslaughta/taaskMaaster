@@ -5,6 +5,7 @@ import {
   getUserSettings, 
   saveUserSettings 
 } from '../utils/cookies';
+import { BrandColors, defaultBrandColors, createMantineTheme } from '../lib/mantine-theme';
 
 /**
  * @description Theme context interface
@@ -14,12 +15,20 @@ interface ThemeContextType {
   isDarkMode: boolean;
   /** Current theme preference */
   theme: 'light' | 'dark' | 'system';
+  /** Current brand colors */
+  brandColors: BrandColors;
+  /** Current Mantine theme object */
+  mantineTheme: any;
   /** Function to toggle dark mode */
   toggleDarkMode: () => void;
   /** Function to set dark mode explicitly */
   setDarkMode: (enabled: boolean) => void;
   /** Function to set theme preference */
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  /** Function to update brand colors */
+  setBrandColors: (colors: Partial<BrandColors>) => void;
+  /** Function to reset brand colors to default */
+  resetBrandColors: () => void;
 }
 
 /**
@@ -44,6 +53,8 @@ const getSystemTheme = (): boolean => {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
+  const [brandColors, setBrandColorsState] = useState<BrandColors>(defaultBrandColors);
+  const [mantineTheme, setMantineTheme] = useState<any>(createMantineTheme());
   const [isInitialized, setIsInitialized] = useState(false);
 
   /**
@@ -54,6 +65,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Get theme preference from cookies
       const savedTheme = getThemePreference();
       setThemeState(savedTheme);
+      
+      // Get saved user settings including brand colors
+      const userSettings = getUserSettings();
+      if (userSettings?.brandColors) {
+        setBrandColorsState(userSettings.brandColors);
+      }
       
       // Determine actual theme based on preference
       let actualDarkMode = false;
@@ -172,13 +189,65 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTheme(newTheme);
   };
 
+  /**
+   * @description Update brand colors
+   */
+  const setBrandColors = (colors: Partial<BrandColors>) => {
+    const newBrandColors = { ...brandColors, ...colors };
+    setBrandColorsState(newBrandColors);
+    
+    // Update Mantine theme with new colors
+    setMantineTheme(createMantineTheme(newBrandColors));
+    
+    // Save to user settings
+    try {
+      const currentSettings = getUserSettings() || {};
+      saveUserSettings({
+        ...currentSettings,
+        brandColors: newBrandColors
+      });
+    } catch (error) {
+      console.error('Failed to save brand colors:', error);
+    }
+  };
+
+  /**
+   * @description Reset brand colors to default
+   */
+  const resetBrandColors = () => {
+    setBrandColorsState(defaultBrandColors);
+    setMantineTheme(createMantineTheme(defaultBrandColors));
+    
+    // Remove from user settings
+    try {
+      const currentSettings = getUserSettings() || {};
+      const { brandColors: _, ...settingsWithoutBrandColors } = currentSettings;
+      saveUserSettings(settingsWithoutBrandColors);
+    } catch (error) {
+      console.error('Failed to reset brand colors:', error);
+    }
+  };
+
+  /**
+   * @description Update Mantine theme when brand colors change
+   */
+  useEffect(() => {
+    if (isInitialized) {
+      setMantineTheme(createMantineTheme(brandColors));
+    }
+  }, [brandColors, isInitialized]);
+
   return (
     <ThemeContext.Provider value={{ 
       isDarkMode, 
-      theme, 
+      theme,
+      brandColors,
+      mantineTheme,
       toggleDarkMode, 
       setDarkMode, 
-      setTheme 
+      setTheme,
+      setBrandColors,
+      resetBrandColors
     }}>
       {children}
     </ThemeContext.Provider>

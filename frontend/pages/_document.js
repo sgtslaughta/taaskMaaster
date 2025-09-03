@@ -6,6 +6,7 @@
  */
 
 import { Html, Head, Main, NextScript } from 'next/document'
+import { ColorSchemeScript } from '@mantine/core';
 
 /**
  * @description Custom Document component
@@ -15,6 +16,7 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+        <ColorSchemeScript />
         {/* Preconnect to Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

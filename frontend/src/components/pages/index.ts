@@ -6,6 +6,7 @@
  */
 
 export { Dashboard } from './Dashboard';
+export { MyHub } from './MyHub';
 export { TasksPage } from './TasksPage';
 export { TaskHubPage } from './TaskHubPage';
 export { MyTasksPage } from './MyTasksPage';

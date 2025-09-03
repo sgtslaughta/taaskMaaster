@@ -1,567 +1,178 @@
 /**
- * @fileoverview Notification Bell Component
- * @description Bell icon with notification count and dropdown for viewing notifications
+ * @fileoverview Notification Bell Component - Simplified for Mantine Migration
+ * @description Bell icon with notification dropdown - temporary implementation
  * @author TaaskMaaster Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { cn } from '../../design-system/utils/cn';
-import { Button } from '../../design-system/components/Button';
-import { useNotifications, type NotificationData } from '../../contexts/NotificationContext';
-import {
-  BellIcon,
-  CheckIcon,
-  TrashIcon,
-  EyeIcon,
-  UserIcon,
-  ChatBubbleLeftIcon,
-  DocumentTextIcon,
-  ExclamationTriangleIcon,
-  ArrowPathIcon,
-  PlusCircleIcon,
-  PencilSquareIcon,
-  XCircleIcon,
-  ClockIcon,
-  ExclamationCircleIcon,
-  CheckCircleIcon,
-  UserPlusIcon,
-  ArrowRightCircleIcon
-} from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { 
+  ActionIcon, 
+  Indicator, 
+  Menu, 
+  Button, 
+  Text, 
+  Stack, 
+  Center,
+  Tooltip
+} from '@mantine/core';
+import { 
+  IconBell,
+  IconRefresh
+} from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 
 interface NotificationBellProps {
   className?: string;
-  onNavigation?: (pageId: string, taskId?: number) => void;
 }
 
-interface NotificationItemProps {
-  notification: NotificationData;
-  onMarkAsRead: (id: string) => void;
-  onClear: (id: string) => void;
-  onNavigate: (url: string) => void;
-  onDeleteStored?: (storedIds: number[]) => Promise<void>;
-}
+// Mock notification data for testing
+const mockNotifications = [
+  {
+    id: '1',
+    title: 'New Task Assigned',
+    message: 'You have been assigned to "Complete weekly report"',
+    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minutes ago
+    read: false
+  },
+  {
+    id: '2',
+    title: 'Task Completed',
+    message: 'Sarah completed "Clean the kitchen"',
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+    read: false
+  },
+  {
+    id: '3',
+    title: 'Goal Progress',
+    message: 'You\'re 75% complete with your weekly goals!',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    read: true
+  }
+];
 
 /**
- * @description Individual notification item component
+ * @description Notification Bell Component
  */
-const NotificationItem: React.FC<NotificationItemProps> = ({
-  notification,
-  onMarkAsRead,
-  onClear,
-  onNavigate,
-  onDeleteStored
-}) => {
-  /**
-   * @description Get notification icon based on type
-   */
-  const getIcon = () => {
-    switch (notification.type) {
-      // Task lifecycle notifications
-      case 'task_created':
-        return <PlusCircleIcon className="w-4 h-4 text-green-500" />;
-      case 'task_assigned':
-        return <UserPlusIcon className="w-4 h-4 text-blue-500" />;
-      case 'task_reassigned':
-        return <ArrowRightCircleIcon className="w-4 h-4 text-amber-500" />;
-      case 'task_updated':
-        return <PencilSquareIcon className="w-4 h-4 text-purple-500" />;
-      case 'task_completed':
-        return <CheckCircleIcon className="w-4 h-4 text-green-600" />;
-      case 'task_deleted':
-        return <XCircleIcon className="w-4 h-4 text-red-500" />;
-      
-      // Task workflow notifications
-      case 'task_status_changed':
-        return <ArrowPathIcon className="w-4 h-4 text-indigo-500" />;
-      case 'task_approval_request':
-        return <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />;
-      case 'task_approved':
-        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
-      case 'task_rejected':
-        return <XCircleIcon className="w-4 h-4 text-red-600" />;
-      
-      // Time-based notifications
-      case 'task_due_soon':
-        return <ClockIcon className="w-4 h-4 text-yellow-500" />;
-      case 'task_overdue':
-        return <ExclamationCircleIcon className="w-4 h-4 text-red-600" />;
-      
-      // Communication notifications
-      case 'task_comment':
-        return <ChatBubbleLeftIcon className="w-4 h-4 text-blue-500" />;
-      case 'direct_message':
-        return <ChatBubbleLeftIcon className="w-4 h-4 text-indigo-500" />;
-      case 'task_chat_message':
-        return <ChatBubbleLeftIcon className="w-4 h-4 text-purple-500" />;
-      case 'user_mentioned':
-        return <UserIcon className="w-4 h-4 text-yellow-500" />;
-      
-      // Legacy/backward compatibility
-      case 'workflow_transition':
-        return <ArrowPathIcon className="w-4 h-4 text-indigo-500" />;
-      case 'approval_request':
-        return <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />;
-      case 'message':
-        return <ChatBubbleLeftIcon className="w-4 h-4 text-indigo-500" />;
-      case 'mention':
-        return <UserIcon className="w-4 h-4 text-yellow-500" />;
-      
-      // System notifications
-      case 'media_attached':
-        return <DocumentTextIcon className="w-4 h-4 text-gray-500" />;
-      case 'system_announcement':
-        return <BellIcon className="w-4 h-4 text-blue-500" />;
-      
-      default:
-        return <BellIcon className="w-4 h-4 text-gray-500" />;
-    }
+export const NotificationBell: React.FC<NotificationBellProps> = ({ className }) => {
+  const [mockNotifs, setMockNotifs] = useState(mockNotifications);
+
+  const unreadCount = mockNotifs.filter(n => !n.read).length;
+
+  const handleMarkAllRead = () => {
+    setMockNotifs(prev => prev.map(n => ({ ...n, read: true })));
+    notifications.show({
+      title: 'Notifications',
+      message: 'All notifications marked as read',
+      color: 'green',
+    });
   };
 
-  /**
-   * @description Get notification category for styling
-   */
-  const getNotificationCategory = () => {
-    switch (notification.type) {
-      case 'task_created':
-      case 'task_assigned':
-      case 'task_reassigned':
-        return 'assignment';
-      case 'task_updated':
-      case 'task_status_changed':
-        return 'update';
-      case 'task_completed':
-      case 'task_approved':
-        return 'success';
-      case 'task_deleted':
-      case 'task_rejected':
-        return 'danger';
-      case 'task_approval_request':
-        return 'approval';
-      case 'task_due_soon':
-      case 'task_overdue':
-        return 'warning';
-      case 'task_comment':
-      case 'direct_message':
-      case 'task_chat_message':
-      case 'user_mentioned':
-        return 'communication';
-      default:
-        return 'default';
-    }
+  const handleRefresh = () => {
+    notifications.show({
+      title: 'Notifications',
+      message: 'Refreshed notifications',
+      color: 'blue',
+    });
   };
 
-  /**
-   * @description Get priority color based on category and priority
-   */
-  const getPriorityColor = () => {
-    const category = getNotificationCategory();
-    
-    // Priority-based colors (if priority exists)
-    if (notification.priority) {
-      switch (notification.priority) {
-        case 'urgent':
-          return 'border-l-red-500';
-        case 'high':
-          return 'border-l-orange-500';
-        case 'medium':
-          return 'border-l-blue-500';
-        case 'low':
-          return 'border-l-gray-500';
-      }
-    }
-    
-    // Category-based colors (fallback)
-    switch (category) {
-      case 'assignment':
-        return 'border-l-blue-500';
-      case 'update':
-        return 'border-l-purple-500';
-      case 'success':
-        return 'border-l-green-500';
-      case 'danger':
-        return 'border-l-red-500';
-      case 'approval':
-        return 'border-l-orange-500';
-      case 'warning':
-        return 'border-l-yellow-500';
-      case 'communication':
-        return 'border-l-indigo-500';
-      default:
-        return 'border-l-gray-500';
-    }
-  };
-
-  /**
-   * @description Get human-readable category label
-   */
-  const getCategoryLabel = () => {
-    const category = getNotificationCategory();
-    switch (category) {
-      case 'assignment':
-        return 'Task Assignment';
-      case 'update':
-        return 'Task Update';
-      case 'success':
-        return 'Completed';
-      case 'danger':
-        return 'Important';
-      case 'approval':
-        return 'Approval Required';
-      case 'warning':
-        return 'Deadline Alert';
-      case 'communication':
-        return 'Message';
-      default:
-        return 'Notification';
-    }
-  };
-
-  /**
-   * @description Format timestamp
-   */
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
 
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
     return date.toLocaleDateString();
   };
 
-  /**
-   * @description Handle notification click
-   */
-  const handleClick = () => {
-    if (!notification.read) {
-      onMarkAsRead(notification.id);
-    }
-    if (notification.actionUrl) {
-      onNavigate(notification.actionUrl);
-    }
-  };
-
   return (
-    <div
-      className={cn(
-        "flex items-start space-x-3 p-3 border-l-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer",
-        getPriorityColor(),
-        !notification.read && "bg-blue-50 dark:bg-blue-900/10"
-      )}
-      onClick={handleClick}
-    >
-      {/* Icon */}
-      <div className="flex-shrink-0 mt-1">
-        {getIcon()}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                {getCategoryLabel()}
-              </span>
-            </div>
-            <h4 className={cn(
-              "text-sm font-medium text-gray-900 dark:text-white",
-              !notification.read && "font-semibold"
-            )}>
-              {notification.title}
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
-              {notification.message}
-            </p>
-            <div className="flex items-center space-x-2 mt-2">
-              <ClockIcon className="w-3 h-3 text-gray-400" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {formatTimestamp(notification.timestamp)}
-              </span>
-              {!notification.read && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                  New
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center space-x-1 ml-2">
-            {!notification.read && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMarkAsRead(notification.id);
-                }}
-                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                title="Mark as read"
-              >
-                <EyeIcon className="w-3 h-3" />
-              </button>
-            )}
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                // If it's a stored notification, delete it from the backend
-                if (notification.storedId && onDeleteStored) {
-                  try {
-                    await onDeleteStored([notification.storedId]);
-                  } catch (error) {
-                    console.error('Failed to delete stored notification:', error);
-                  }
-                } else {
-                  // Otherwise, just clear it locally
-                  onClear(notification.id);
-                }
-              }}
-              className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              title="Clear notification"
+    <Menu position="bottom-end" width={350} shadow="lg">
+      <Menu.Target>
+        <Tooltip label="Notifications">
+          <Indicator 
+            inline 
+            label={unreadCount > 99 ? '99+' : unreadCount} 
+            size={16} 
+            disabled={unreadCount === 0}
+            color="red"
+          >
+            <ActionIcon 
+              variant="subtle" 
+              color="gray"
+              size="lg"
+              className={className}
             >
-              <TrashIcon className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+              <IconBell size={20} />
+            </ActionIcon>
+          </Indicator>
+        </Tooltip>
+      </Menu.Target>
 
-/**
- * @description Notification Bell Component
- */
-export const NotificationBell: React.FC<NotificationBellProps> = ({ className, onNavigation }) => {
+      <Menu.Dropdown>
+        <Menu.Label>
+          <Text fw={600} size="lg">Notifications</Text>
+        </Menu.Label>
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    clearNotification,
-    clearAllNotifications,
-    refreshStoredNotifications,
-    deleteStoredNotifications,
-    isConnected,
-    navigateFromNotification
-  } = useNotifications();
+        <Menu.Divider />
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Recalculate position on window resize (no need to reposition on scroll with fixed positioning)
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleReposition = () => {
-      calculateDropdownPosition();
-    };
-
-    window.addEventListener('resize', handleReposition);
-
-    return () => {
-      window.removeEventListener('resize', handleReposition);
-    };
-  }, [isOpen]);
-
-  /**
-   * @description Handle navigation to notification URL
-   */
-  const handleNavigate = (url: string) => {
-    setIsOpen(false);
-    
-    // Use navigation function from context instead of props
-    navigateFromNotification(url);
-  };
-
-  /**
-   * @description Calculate dropdown position relative to viewport (for fixed positioning)
-   */
-  const calculateDropdownPosition = () => {
-    if (buttonRef.current) {
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const dropdownWidth = 384; // w-96 = 384px
-      
-      // Calculate position
-      let top = buttonRect.bottom + 8; // 8px gap below button
-      let right = window.innerWidth - buttonRect.right; // Align right edge with button
-      
-      // Ensure dropdown doesn't go off-screen horizontally
-      if (right + dropdownWidth > window.innerWidth) {
-        right = window.innerWidth - dropdownWidth - 16; // 16px margin from edge
-      }
-      if (right < 16) {
-        right = 16; // Minimum 16px from left edge
-      }
-      
-      // Ensure dropdown doesn't go off-screen vertically
-      const dropdownHeight = 400; // Approximate max height
-      if (top + dropdownHeight > window.innerHeight) {
-        top = buttonRect.top - dropdownHeight - 8; // Show above button instead
-      }
-      if (top < 16) {
-        top = 16; // Minimum 16px from top
-      }
-      
-      setDropdownPosition({ top, right });
-    }
-  };
-
-  /**
-   * @description Toggle dropdown
-   */
-  const toggleDropdown = () => {
-    if (!isOpen) {
-      calculateDropdownPosition();
-    }
-    setIsOpen(!isOpen);
-  };
-
-  return (
-    <div className={cn("relative", className)}>
-      {/* Bell Button */}
-      <button
-        ref={buttonRef}
-        onClick={toggleDropdown}
-        className={cn(
-          "relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors",
-          !isConnected && "text-red-500 dark:text-red-400"
-        )}
-        title={isConnected ? "Notifications" : "Disconnected from notifications"}
-      >
-        <BellIcon className="w-5 h-5" />
-        
-        {/* Notification Badge */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full min-w-[1.25rem] h-5">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-        
-        {/* Connection Status Indicator */}
-        {!isConnected && (
-          <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white dark:border-gray-800 rounded-full"></span>
-        )}
-      </button>
-
-      {/* Dropdown - Fixed positioning to break out of header container */}
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="fixed w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[99999]"
-          style={{ 
-            zIndex: 99999,
-            top: dropdownPosition.top,
-            right: dropdownPosition.right
-          }}
+        <Menu.Item
+          leftSection={<IconRefresh size={16} />}
+          onClick={handleRefresh}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-              Notifications
-            </h3>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <button
-                onClick={() => refreshStoredNotifications()}
-                className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                title="Refresh notifications"
+          Refresh
+        </Menu.Item>
+
+        {unreadCount > 0 && (
+          <Menu.Item onClick={handleMarkAllRead}>
+            Mark all as read
+          </Menu.Item>
+        )}
+
+        <Menu.Divider />
+
+        {mockNotifs.length === 0 ? (
+          <Center py="xl">
+            <Stack align="center" gap="sm">
+              <IconBell size={48} color="var(--mantine-color-gray-4)" />
+              <Text c="dimmed">No notifications yet</Text>
+            </Stack>
+          </Center>
+        ) : (
+          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            {mockNotifs.map((notification) => (
+              <Menu.Item
+                key={notification.id}
+                style={{
+                  backgroundColor: !notification.read ? 'light-dark(var(--mantine-color-blue-0), var(--mantine-color-blue-9))' : 'transparent',
+                  padding: '12px',
+                  whiteSpace: 'normal',
+                  height: 'auto'
+                }}
               >
-                <ArrowPathIcon className="w-4 h-4" />
-              </button>
-              {unreadCount > 0 && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={markAllAsRead}
-                >
-                  Mark all read
-                </Button>
-              )}
-              {notifications.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={clearAllNotifications}
-                >
-                  Clear all
-                </Button>
-              )}
-            </div>
+                <Stack gap={4}>
+                  <Text size="sm" fw={notification.read ? 500 : 600}>
+                    {notification.title}
+                  </Text>
+                  <Text size="xs" c="dimmed" style={{ whiteSpace: 'normal' }}>
+                    {notification.message}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {formatTimestamp(notification.timestamp)}
+                    {!notification.read && (
+                      <> • <Text component="span" size="xs" c="blue">New</Text></>
+                    )}
+                  </Text>
+                </Stack>
+              </Menu.Item>
+            ))}
           </div>
-
-          {/* Connection Status */}
-          {!isConnected && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-2">
-                <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-                <span className="text-sm text-red-600 dark:text-red-400">
-                  Disconnected from notifications
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Notification List */}
-          <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="p-6 text-center">
-                <BellIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400">
-                  No notifications yet
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {notifications.slice(0, 20).map((notification) => (
-                  <NotificationItem
-                    key={notification.id}
-                    notification={notification}
-                    onMarkAsRead={markAsRead}
-                    onClear={clearNotification}
-                    onNavigate={handleNavigate}
-                    onDeleteStored={deleteStoredNotifications}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          {notifications.length > 20 && (
-            <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-center">
-              <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                View all notifications
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        )}
+      </Menu.Dropdown>
+    </Menu>
   );
 };
 

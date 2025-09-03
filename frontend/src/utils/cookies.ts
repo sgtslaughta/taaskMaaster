@@ -3,11 +3,22 @@
  */
 
 /**
+ * @description Brand colors interface for theming
+ */
+export interface BrandColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+
+/**
  * @description User settings interface
  */
 export interface UserSettings {
   /** Theme preference */
   theme: 'light' | 'dark' | 'system';
+  /** Brand colors for theming */
+  brandColors?: BrandColors;
   /** Sidebar collapsed state */
   sidebarCollapsed: boolean;
   /** Language preference */

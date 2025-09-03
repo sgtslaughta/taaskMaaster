@@ -7,20 +7,35 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  HomeIcon,
-  CheckCircleIcon,
-  TrophyIcon,
-  UserGroupIcon,
-  ChartBarIcon,
-  CalendarIcon,
-  StarIcon,
-  FireIcon,
-  AcademicCapIcon,
-  Cog6ToothIcon
-} from '@heroicons/react/24/outline';
-import { getNavigationItems, updateNavigationWithBadges, type NavigationUser } from '../../utils/navigation';
-import { AppLayout, NavigationItem } from '../layout/AppLayout';
-import { cn } from '../../design-system/utils/cn';
+  Card,
+  Text,
+  Group,
+  Stack,
+  Button,
+  Grid,
+  Loader,
+  Alert,
+  ThemeIcon,
+  Title,
+  Paper,
+  Divider,
+  Center,
+  Badge,
+  Gradient
+} from '@mantine/core';
+import { 
+  IconHome,
+  IconCheckbox,
+  IconTrophy,
+  IconUsers,
+  IconChartBar,
+  IconCalendar,
+  IconStar,
+  IconFlame,
+  IconSchool,
+  IconSettings
+} from '@tabler/icons-react';
+import { AppLayout } from '../layout/AppLayout';
 import { gamificationService, goalService, taskService } from '../../services';
 import { workflowStatsService, type WorkflowStats } from '../../services/workflowStatsService';
 import WorkflowStatsCards from '../workflow/WorkflowStatsCards';
@@ -80,25 +95,10 @@ export interface DashboardProps {
   onNotificationNavigation?: (pageId: string, taskId?: number) => void;
   /** Additional CSS classes */
   className?: string;
+  /** Whether this dashboard is embedded (e.g., in My Hub) */
+  isEmbedded?: boolean;
 }
 
-/**
- * @description Generate navigation items based on user role and task counts
- * @param user - Current user
- * @param taskCounts - Task counts for badges
- * @returns Role-based navigation items
- */
-const generateNavigationItems = (
-  user: NavigationUser | null,
-  taskCounts?: {
-    myTasks?: number;
-    allTasks?: number;
-    pendingTasks?: number;
-  }
-): NavigationItem[] => {
-  const baseItems = getNavigationItems(user, 'dashboard');
-  return updateNavigationWithBadges(baseItems, taskCounts);
-};
 
 /**
  * @description Dashboard component
@@ -118,6 +118,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigation,
   onNotificationNavigation,
   className,
+  isEmbedded = false,
 }) => {
 
   const [stats, setStats] = useState<DashboardStats>({
@@ -134,10 +135,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [workflowStats, setWorkflowStats] = useState<WorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(() => {
-    // Initialize with basic navigation items to prevent undefined errors
-    return generateNavigationItems(user as NavigationUser | null);
-  });
 
   /**
    * @description Load dashboard data
@@ -187,17 +184,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       // Load recent activity
       await loadRecentActivity(userId);
-
-      // Generate navigation items with task counts (use user tasks only)
-      // myTasks should represent tasks that need attention (not done) for current user
-      const myTasksCount = userTasks.filter(t => t.status !== 'done').length;
-      
-      const navItems = generateNavigationItems(user as NavigationUser, {
-        myTasks: myTasksCount, // Tasks that need user attention (created by or assigned to them)
-        allTasks: userTasks.length,
-        pendingTasks: tasksPending,
-      });
-      setNavigationItems(navItems);
 
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -282,13 +268,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData();
   }, [user?.id]);
 
-  // Update navigation items when user changes
-  useEffect(() => {
-    if (user) {
-      const navItems = generateNavigationItems(user as NavigationUser);
-      setNavigationItems(navItems);
-    }
-  }, [user]);
 
   /**
    * @description Get appropriate greeting based on time of day
@@ -316,176 +295,170 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return date.toLocaleDateString();
   };
 
-  /**
-   * @description Handle navigation item click
-   */
-  const handleNavigation = (item: NavigationItem) => {
-    if (onNavigation) {
-      // For now, we'll implement simple routing by showing different components
-      // based on the navigation item clicked
-      switch (item.id) {
-        case 'my-tasks':
-          // This would normally be handled by a router
-          // For now, we'll just call the parent's onNavigation
-          onNavigation('my-tasks');
-          break;
-        case 'task-hub':
-          onNavigation('task-hub');
-          break;
-        default:
-          onNavigation(item.id);
-          break;
-      }
+
+  const renderContent = (content: React.ReactNode) => {
+    if (isEmbedded) {
+      return content;
     }
+    return (
+      <AppLayout
+        currentPage="dashboard"
+        onNavigate={(pageId) => onNavigation?.(pageId)}
+        user={user}
+        onLogout={onLogout}
+      >
+        {content}
+      </AppLayout>
+    );
   };
 
   if (loading) {
-    return (
-      <AppLayout
-        user={user}
-        title="Dashboard"
-        navigationItems={navigationItems}
-        onLogout={onLogout}
-        onNavigation={handleNavigation}
-        onNotificationNavigation={onNotificationNavigation}
-        className={className}
-      >
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading dashboard...</span>
-        </div>
-      </AppLayout>
+    return renderContent(
+      <Center h={400}>
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading dashboard...</Text>
+        </Stack>
+      </Center>
     );
   }
 
   if (error) {
-    return (
-      <AppLayout
-        user={user}
-        title="Dashboard"
-        navigationItems={navigationItems}
-        onLogout={onLogout}
-        onNavigation={handleNavigation}
-        onNotificationNavigation={onNotificationNavigation}
-        className={className}
-      >
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <button
-            onClick={loadDashboardData}
-            className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
-          >
-            Try again
-          </button>
-        </div>
-      </AppLayout>
+    return renderContent(
+      <Alert color="red" title="Error loading dashboard">
+        <Text>{error}</Text>
+        <Button 
+          variant="subtle" 
+          color="red" 
+          size="sm" 
+          mt="sm"
+          onClick={loadDashboardData}
+        >
+          Try again
+        </Button>
+      </Alert>
     );
   }
 
-  return (
-    <AppLayout
-      user={user}
-      title="Dashboard"
-      navigationItems={navigationItems}
-      onLogout={onLogout}
-      onNavigation={handleNavigation}
-      className={className}
-    >
-      <div className="space-y-6">
+  return renderContent(
+    <Stack gap="xl">
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 rounded-lg p-6 text-white">
-          <div className="flex items-center justify-between">
+        <Paper
+          p="xl"
+          radius="md"
+          style={{
+            background: 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-blue-7) 100%)',
+            color: 'white'
+          }}
+        >
+          <Group justify="space-between" align="flex-start">
             <div>
-              <h1 className="text-2xl font-bold mb-2">
+              <Title order={2} mb="sm" c="white">
                 {getGreeting()}! 👋
-              </h1>
-              <p className="text-blue-100 dark:text-blue-200">
+              </Title>
+              <Text c="blue.1">
                 Ready to tackle today's tasks and earn some points?
-              </p>
+              </Text>
             </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.totalPoints}</div>
-                <div className="text-sm text-blue-100 dark:text-blue-200">Total Points</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.currentLevel}</div>
-                <div className="text-sm text-blue-100 dark:text-blue-200">Level</div>
-              </div>
-            </div>
-          </div>
-        </div>
+            <Group gap="xl" visibleFrom="md">
+              <Stack align="center" gap={4}>
+                <Text size="xl" fw={700} c="white">{stats.totalPoints}</Text>
+                <Text size="sm" c="blue.1">Total Points</Text>
+              </Stack>
+              <Stack align="center" gap={4}>
+                <Text size="xl" fw={700} c="white">{stats.currentLevel}</Text>
+                <Text size="sm" c="blue.1">Level</Text>
+              </Stack>
+            </Group>
+          </Group>
+        </Paper>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button
-            onClick={() => onQuickAction?.('tasks')}
-            className={cn(
-              'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700',
-              'hover:shadow-md transition-shadow duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
-            )}
-          >
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Create Task</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Add a new task</p>
-              </div>
-            </div>
-          </button>
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card 
+              shadow="sm" 
+              padding="lg" 
+              radius="md" 
+              withBorder
+              style={{ cursor: 'pointer' }}
+              onClick={() => onQuickAction?.('tasks')}
+            >
+              <Group>
+                <ThemeIcon size="lg" color="blue" variant="light">
+                  <IconCheckbox size={24} />
+                </ThemeIcon>
+                <div>
+                  <Text fw={500} size="sm">Create Task</Text>
+                  <Text size="xs" c="dimmed">Add a new task</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <button
-            onClick={() => onQuickAction?.('goals')}
-            className={cn(
-              'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700',
-              'hover:shadow-md transition-shadow duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
-            )}
-          >
-            <div className="flex items-center">
-              <TrophyIcon className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Set Goal</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Create a new goal</p>
-              </div>
-            </div>
-          </button>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card 
+              shadow="sm" 
+              padding="lg" 
+              radius="md" 
+              withBorder
+              style={{ cursor: 'pointer' }}
+              onClick={() => onQuickAction?.('goals')}
+            >
+              <Group>
+                <ThemeIcon size="lg" color="yellow" variant="light">
+                  <IconTrophy size={24} />
+                </ThemeIcon>
+                <div>
+                  <Text fw={500} size="sm">Set Goal</Text>
+                  <Text size="xs" c="dimmed">Create a new goal</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <button
-            onClick={() => onQuickAction?.('family')}
-            className={cn(
-              'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700',
-              'hover:shadow-md transition-shadow duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
-            )}
-          >
-            <div className="flex items-center">
-              <UserGroupIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Family</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">View family members</p>
-              </div>
-            </div>
-          </button>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card 
+              shadow="sm" 
+              padding="lg" 
+              radius="md" 
+              withBorder
+              style={{ cursor: 'pointer' }}
+              onClick={() => onQuickAction?.('family')}
+            >
+              <Group>
+                <ThemeIcon size="lg" color="green" variant="light">
+                  <IconUsers size={24} />
+                </ThemeIcon>
+                <div>
+                  <Text fw={500} size="sm">Family</Text>
+                  <Text size="xs" c="dimmed">View family members</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <button
-            onClick={() => onQuickAction?.('achievements')}
-            className={cn(
-              'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700',
-              'hover:shadow-md transition-shadow duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500'
-            )}
-          >
-            <div className="flex items-center">
-              <StarIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Achievements</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">View your badges</p>
-              </div>
-            </div>
-          </button>
-        </div>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card 
+              shadow="sm" 
+              padding="lg" 
+              radius="md" 
+              withBorder
+              style={{ cursor: 'pointer' }}
+              onClick={() => onQuickAction?.('achievements')}
+            >
+              <Group>
+                <ThemeIcon size="lg" color="violet" variant="light">
+                  <IconStar size={24} />
+                </ThemeIcon>
+                <div>
+                  <Text fw={500} size="sm">Achievements</Text>
+                  <Text size="xs" c="dimmed">View your badges</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
+        </Grid>
 
         {/* Workflow Statistics */}
         {workflowStats && (
@@ -496,92 +469,97 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className={cn(
-            'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'
-          )}>
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Tasks Completed</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.tasksCompleted}</p>
-              </div>
-            </div>
-          </div>
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Group>
+                <ThemeIcon size="md" color="green" variant="light">
+                  <IconCheckbox size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>Tasks Completed</Text>
+                  <Text size="xl" fw={700}>{stats.tasksCompleted}</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <div className={cn(
-            'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'
-          )}>
-            <div className="flex items-center">
-              <FireIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Streak</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.streakDays} days</p>
-              </div>
-            </div>
-          </div>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Group>
+                <ThemeIcon size="md" color="orange" variant="light">
+                  <IconFlame size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>Streak</Text>
+                  <Text size="xl" fw={700}>{stats.streakDays} days</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <div className={cn(
-            'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'
-          )}>
-            <div className="flex items-center">
-              <StarIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Achievements</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.achievements}</p>
-              </div>
-            </div>
-          </div>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Group>
+                <ThemeIcon size="md" color="yellow" variant="light">
+                  <IconStar size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>Achievements</Text>
+                  <Text size="xl" fw={700}>{stats.achievements}</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <div className={cn(
-            'p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'
-          )}>
-            <div className="flex items-center">
-              <ChartBarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Pending Tasks</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.tasksPending}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Group>
+                <ThemeIcon size="md" color="blue" variant="light">
+                  <IconChartBar size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500}>Pending Tasks</Text>
+                  <Text size="xl" fw={700}>{stats.tasksPending}</Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
+        </Grid>
 
         {/* Recent Activity */}
-        <div className={cn(
-          'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700'
-        )}>
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Recent Activity</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center">
-                    <div className={cn(
-                      'w-2 h-2 rounded-full',
-                      activity.type === 'task_completed' ? 'bg-green-500' :
-                      activity.type === 'points_earned' ? 'bg-blue-500' :
-                      activity.type === 'achievement_unlocked' ? 'bg-yellow-500' :
-                      'bg-purple-500'
-                    )}></div>
-                    <p className="ml-3 text-sm text-gray-600 dark:text-gray-400">
-                      {activity.title}
-                    </p>
-                    <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">
-                      {formatTimestamp(activity.timestamp)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                  No recent activity
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppLayout>
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Title order={3} mb="md">Recent Activity</Title>
+          <Divider mb="md" />
+          <Stack gap="md">
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <Group key={activity.id} justify="space-between" align="flex-start">
+                  <Group align="flex-start" gap="sm">
+                    <ThemeIcon
+                      size="xs"
+                      radius="xl"
+                      color={
+                        activity.type === 'task_completed' ? 'green' :
+                        activity.type === 'points_earned' ? 'blue' :
+                        activity.type === 'achievement_unlocked' ? 'yellow' :
+                        'violet'
+                      }
+                    />
+                    <Text size="sm">{activity.title}</Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    {formatTimestamp(activity.timestamp)}
+                  </Text>
+                </Group>
+              ))
+            ) : (
+              <Center py="xl">
+                <Text size="sm" c="dimmed">No recent activity</Text>
+              </Center>
+            )}
+          </Stack>
+        </Card>
+    </Stack>
   );
 };

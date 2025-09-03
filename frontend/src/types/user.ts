@@ -35,10 +35,20 @@ export enum OnlineStatus {
 }
 
 /**
+ * @description Brand colors interface for theming
+ */
+export interface BrandColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+}
+
+/**
  * @description User preferences interface
  */
 export interface UserPreferences {
   theme: 'light' | 'dark' | 'system';
+  brandColors?: BrandColors;
   language: string;
   timezone: string;
   notifications: {

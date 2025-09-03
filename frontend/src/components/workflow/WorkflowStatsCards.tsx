@@ -6,21 +6,19 @@
  */
 
 import React from 'react';
-import { cn } from '../../design-system/utils/cn';
-import { Card } from '../../design-system/components/Card';
+import { Card, Grid, Group, Text, ThemeIcon } from '@mantine/core';
 import { WorkflowStats } from '../../services/workflowStatsService';
-import {
-  ClockIcon,
-  UserIcon,
-  PlayIcon,
-  PaperAirplaneIcon,
-  EyeIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon
-} from '@heroicons/react/24/outline';
+// Fallback icons when @tabler/icons-react is not available
+const IconClock = () => <div>⏰</div>;
+const IconUser = () => <div>👤</div>;
+const IconPlay = () => <div>▶️</div>;
+const IconSend = () => <div>📤</div>;
+const IconEye = () => <div>👁️</div>;
+const IconCircleCheck = () => <div>✅</div>;
+const IconAlertTriangle = () => <div>⚠️</div>;
+const IconChartBar = () => <div>📊</div>;
+const IconTrendingUp = () => <div>📈</div>;
+const IconTrendingDown = () => <div>📉</div>;
 
 interface WorkflowStatsCardsProps {
   stats: WorkflowStats;
@@ -58,58 +56,58 @@ const StatCard: React.FC<StatCardProps> = ({
     
     switch (trend.direction) {
       case 'up':
-        return <TrendingUpIcon className="w-4 h-4 text-green-500" />;
+        return <IconTrendingUp size={16} color="var(--mantine-color-green-6)" />;
       case 'down':
-        return <TrendingDownIcon className="w-4 h-4 text-red-500" />;
+        return <IconTrendingDown size={16} color="var(--mantine-color-red-6)" />;
       default:
         return null;
     }
   };
 
   const getTrendColor = () => {
-    if (!trend) return '';
+    if (!trend) return 'dimmed';
     
     switch (trend.direction) {
       case 'up':
-        return 'text-green-600 dark:text-green-400';
+        return 'green';
       case 'down':
-        return 'text-red-600 dark:text-red-400';
+        return 'red';
       default:
-        return 'text-gray-600 dark:text-gray-400';
+        return 'dimmed';
     }
   };
 
   return (
-    <Card className={cn("p-4", className)}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className={cn("p-2 rounded-lg", color)}>
-            <Icon className="w-5 h-5" />
-          </div>
+    <Card withBorder padding="md" className={className}>
+      <Group justify="space-between" align="flex-start">
+        <Group align="flex-start" gap="sm">
+          <ThemeIcon size="lg" color={color} variant="light">
+            <Icon size={20} />
+          </ThemeIcon>
           <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            <Text size="sm" fw={500} c="dimmed">
               {title}
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            </Text>
+            <Text size="xl" fw={700} mt={4}>
               {value}
-            </p>
+            </Text>
             {description && (
-              <p className="text-xs text-gray-500 dark:text-gray-500">
+              <Text size="xs" c="dimmed" mt={2}>
                 {description}
-              </p>
+              </Text>
             )}
           </div>
-        </div>
+        </Group>
         
         {trend && (
-          <div className="flex items-center space-x-1">
+          <Group gap={4} align="center">
             {getTrendIcon()}
-            <span className={cn("text-sm font-medium", getTrendColor())}>
+            <Text size="sm" fw={500} c={getTrendColor()}>
               {Math.abs(trend.value)}%
-            </span>
-          </div>
+            </Text>
+          </Group>
         )}
-      </div>
+      </Group>
     </Card>
   );
 };
@@ -124,19 +122,23 @@ export const WorkflowStatsCards: React.FC<WorkflowStatsCardsProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4", className)}>
+      <Grid className={className}>
         {Array.from({ length: 8 }).map((_, index) => (
-          <Card key={index} className="p-4 animate-pulse">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-              <div className="space-y-2 flex-1">
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-              </div>
-            </div>
-          </Card>
+          <Grid.Col key={index} span={{ base: 12, sm: 6, lg: 3 }}>
+            <Card withBorder padding="md">
+              <Group align="flex-start" gap="sm">
+                <ThemeIcon size="lg" variant="light">
+                  <div style={{ width: 20, height: 20, backgroundColor: 'var(--mantine-color-gray-4)' }} />
+                </ThemeIcon>
+                <div>
+                  <div style={{ width: 60, height: 14, backgroundColor: 'var(--mantine-color-gray-3)', borderRadius: 4 }} />
+                  <div style={{ width: 40, height: 20, backgroundColor: 'var(--mantine-color-gray-3)', borderRadius: 4, marginTop: 8 }} />
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
         ))}
-      </div>
+      </Grid>
     );
   }
 
@@ -144,183 +146,195 @@ export const WorkflowStatsCards: React.FC<WorkflowStatsCardsProps> = ({
     {
       title: 'Active Workflow',
       value: stats.activeWorkflow,
-      icon: PlayIcon,
-      color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
+      icon: IconPlay,
+      color: 'blue',
       description: 'Tasks in progress'
     },
     {
       title: 'Pending Approval',
       value: stats.pendingApproval,
-      icon: PaperAirplaneIcon,
-      color: 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+      icon: IconSend,
+      color: 'violet',
       description: 'Awaiting review'
     },
     {
       title: 'Completion Rate',
       value: `${stats.completionRate}%`,
-      icon: CheckCircleIcon,
-      color: 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+      icon: IconCircleCheck,
+      color: 'green',
       description: 'Tasks completed'
     },
     {
       title: 'Overdue Tasks',
       value: stats.overdueTasks,
-      icon: ExclamationTriangleIcon,
-      color: 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+      icon: IconAlertTriangle,
+      color: 'red',
       description: 'Past due date'
     },
     {
       title: 'Assigned',
       value: stats.assigned,
-      icon: UserIcon,
-      color: 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
+      icon: IconUser,
+      color: 'cyan',
       description: 'Ready to start'
     },
     {
       title: 'In Progress',
       value: stats.inProgress,
-      icon: PlayIcon,
-      color: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
+      icon: IconClock,
+      color: 'yellow',
       description: 'Currently working'
     },
     {
       title: 'In Review',
       value: stats.review,
-      icon: EyeIcon,
-      color: 'bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
+      icon: IconEye,
+      color: 'orange',
       description: 'Under review'
     },
     {
       title: 'Total Tasks',
       value: stats.totalTasks,
-      icon: ChartBarIcon,
-      color: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
+      icon: IconChartBar,
+      color: 'gray',
       description: 'All tasks'
     }
   ];
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={className}>
       {/* Main Workflow Metrics */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <Text size="lg" fw={600} mb="md">
           Workflow Overview
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        </Text>
+        <Grid>
           {statCards.slice(0, 4).map((card, index) => (
-            <StatCard
-              key={index}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              color={card.color}
-              description={card.description}
-            />
+            <Grid.Col key={index} span={{ base: 12, sm: 6, lg: 3 }}>
+              <StatCard
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+                color={card.color}
+                description={card.description}
+              />
+            </Grid.Col>
           ))}
-        </div>
+        </Grid>
       </div>
 
       {/* Status Distribution */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div style={{ marginTop: 'var(--mantine-spacing-xl)' }}>
+        <Text size="lg" fw={600} mb="md">
           Status Distribution
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        </Text>
+        <Grid>
           {statCards.slice(4).map((card, index) => (
-            <StatCard
-              key={index + 4}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              color={card.color}
-              description={card.description}
-            />
+            <Grid.Col key={index + 4} span={{ base: 12, sm: 6, lg: 3 }}>
+              <StatCard
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+                color={card.color}
+                description={card.description}
+              />
+            </Grid.Col>
           ))}
-        </div>
+        </Grid>
       </div>
 
       {/* Additional Metrics */}
       {(stats.dueTodayTasks > 0 || stats.dueThisWeekTasks > 0 || stats.highPriorityInWorkflow > 0) && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div style={{ marginTop: 'var(--mantine-spacing-xl)' }}>
+          <Text size="lg" fw={600} mb="md">
             Priority Metrics
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          </Text>
+          <Grid>
             {stats.dueTodayTasks > 0 && (
-              <StatCard
-                title="Due Today"
-                value={stats.dueTodayTasks}
-                icon={ClockIcon}
-                color="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
-                description="Tasks due today"
-              />
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <StatCard
+                  title="Due Today"
+                  value={stats.dueTodayTasks}
+                  icon={IconClock}
+                  color="yellow"
+                  description="Tasks due today"
+                />
+              </Grid.Col>
             )}
             {stats.dueThisWeekTasks > 0 && (
-              <StatCard
-                title="Due This Week"
-                value={stats.dueThisWeekTasks}
-                icon={ClockIcon}
-                color="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
-                description="Tasks due this week"
-              />
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <StatCard
+                  title="Due This Week"
+                  value={stats.dueThisWeekTasks}
+                  icon={IconClock}
+                  color="yellow"
+                  description="Tasks due this week"
+                />
+              </Grid.Col>
             )}
             {stats.highPriorityInWorkflow > 0 && (
-              <StatCard
-                title="High Priority"
-                value={stats.highPriorityInWorkflow}
-                icon={ExclamationTriangleIcon}
-                color="bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
-                description="High priority in workflow"
-              />
+              <Grid.Col span={{ base: 12, md: 4 }}>
+                <StatCard
+                  title="High Priority"
+                  value={stats.highPriorityInWorkflow}
+                  icon={IconAlertTriangle}
+                  color="orange"
+                  description="High priority in workflow"
+                />
+              </Grid.Col>
             )}
-          </div>
+          </Grid>
         </div>
       )}
 
       {/* Performance Metrics */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div style={{ marginTop: 'var(--mantine-spacing-xl)' }}>
+        <Text size="lg" fw={600} mb="md">
           Performance Metrics
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
-                <ChartBarIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Avg. Completion Time
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.averageTimeToComplete}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500">
-                  From creation to done
-                </p>
-              </div>
-            </div>
-          </Card>
+        </Text>
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <Card withBorder padding="md">
+              <Group align="flex-start" gap="sm">
+                <ThemeIcon size="lg" color="indigo" variant="light">
+                  <IconChartBar size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500} c="dimmed">
+                    Avg. Completion Time
+                  </Text>
+                  <Text size="xl" fw={700} mt={4}>
+                    {stats.averageTimeToComplete}
+                  </Text>
+                  <Text size="xs" c="dimmed" mt={2}>
+                    From creation to done
+                  </Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
-                <EyeIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Approval Backlog
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.approvalBacklog}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500">
-                  Tasks awaiting approval
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <Card withBorder padding="md">
+              <Group align="flex-start" gap="sm">
+                <ThemeIcon size="lg" color="violet" variant="light">
+                  <IconEye size={20} />
+                </ThemeIcon>
+                <div>
+                  <Text size="sm" fw={500} c="dimmed">
+                    Approval Backlog
+                  </Text>
+                  <Text size="xl" fw={700} mt={4}>
+                    {stats.approvalBacklog}
+                  </Text>
+                  <Text size="xs" c="dimmed" mt={2}>
+                    Tasks awaiting approval
+                  </Text>
+                </div>
+              </Group>
+            </Card>
+          </Grid.Col>
+        </Grid>
       </div>
     </div>
   );
