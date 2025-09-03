@@ -219,7 +219,6 @@ const TaskStepIndicator: React.FC<TaskStepIndicatorProps> = ({
         console.log('TaskStepIndicator: Also triggering full task refresh');
         setTimeout(() => onRefreshTask(task.id), 100); // Small delay to avoid race conditions
       }
-      setDialog({ open: false, targetStatus: 'todo', reason: '', comment: '' });
     } catch (error: any) {
       console.error('TaskStepIndicator: Transition failed:', error);
       onError(error.message || 'Failed to update task status');

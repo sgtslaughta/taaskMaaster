@@ -16,7 +16,7 @@ import { REWARD_TYPES } from './TaskForm';
 import SimpleTaskComments from '../comments/SimpleTaskComments';
 import TaskActivityTimeline from './TaskActivityTimeline';
 
-import { User, UserRole } from '../../types/user';
+import { User, UserRole, UserStatus } from '../../types/user';
 import TaskStepIndicator from '../workflow/TaskStepIndicator';
 import { commentService } from '../../services/commentService';
 import { taskService } from '../../services/taskService';
@@ -50,6 +50,7 @@ const adaptBackendToFrontendTask = (backendTask: any): Task => {
     dueDate: backendTask.due_date,
     estimatedHours: backendTask.estimated_hours,
     actualHours: backendTask.actual_hours,
+    points: backendTask.points || 0,
     tags: backendTask.tags || [],
     assignedTo: backendTask.assigned_to ? {
       id: backendTask.assigned_to.id,
@@ -63,6 +64,9 @@ const adaptBackendToFrontendTask = (backendTask: any): Task => {
     updatedAt: backendTask.updated_at,
     rewardType: backendTask.reward_type,
     rewardValue: backendTask.reward_value,
+    isRecurring: backendTask.is_recurring || false,
+    dependencies: backendTask.dependencies || [],
+    mediaAttachments: backendTask.media_attachments || [],
     subtasks: backendTask.subtasks?.map(adaptBackendToFrontendTask) || [],
   };
 };
@@ -241,10 +245,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             limit: 1,
             include_system: false
           });
-          setMessageCount(response.total_count || 0);
+          setMessageCount(response.total || 0);
           // For now, assume all messages are "new" if we haven't loaded them yet
           if (!hasLoadedMessages) {
-            setNewMessageCount(response.total_count || 0);
+            setNewMessageCount(response.total || 0);
           }
         } catch (error) {
           console.warn('Failed to load message count:', error);
@@ -270,7 +274,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
       case 'in_progress':
         return <PlayIcon className="w-5 h-5 text-blue-500" />;
-      case 'review':
+      case 'submitted_for_approval':
         return <ExclamationTriangleIcon className="w-5 h-5 text-orange-500" />;
       case 'cancelled':
         return <StopIcon className="w-5 h-5 text-red-500" />;
@@ -506,7 +510,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {currentUser && (
             <TaskStepIndicator
               task={task}
-              currentUser={currentUser}
+              currentUser={{
+                id: parseInt(currentUser.id),
+                username: currentUser.username,
+                email: (currentUser as any).email || '',
+                first_name: (currentUser as any).first_name || '',
+                last_name: (currentUser as any).last_name || '',
+                full_name: (currentUser as any).full_name || currentUser.username,
+                role: (currentUser.role as UserRole) || UserRole.USER,
+                status: UserStatus.ACTIVE,
+                is_active: true,
+                is_verified: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }}
               onTaskUpdate={(taskId, updates) => {
                 onUpdateTask?.(taskId, updates);
               }}
@@ -635,39 +652,87 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Status
               </label>
-              <div className="text-sm text-gray-900 dark:text-white font-medium">
-                {(getFieldValue('status') as string).replace('_', ' ')}
-              </div>
+              {isEditMode ? (
+                <select
+                  value={getFieldValue('status') as string}
+                  onChange={(e) => handleFieldUpdate('status', e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="submitted_for_approval">Submitted for Approval</option>
+                  <option value="done">Done</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white font-medium">
+                  {(getFieldValue('status') as string).replace('_', ' ')}
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Priority
               </label>
-              <span className={cn(
-                "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                getPriorityColor(task.priority)
-              )}>
-                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-              </span>
+              {isEditMode ? (
+                <select
+                  value={getFieldValue('priority') as string}
+                  onChange={(e) => handleFieldUpdate('priority', e.target.value)}
+                  className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              ) : (
+                <span className={cn(
+                  "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                  getPriorityColor(task.priority)
+                )}>
+                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                </span>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Points
               </label>
-              <div className="text-sm text-gray-900 dark:text-white font-medium">
-                {task.points || 0}
-              </div>
+              {isEditMode ? (
+                <Input
+                  type="number"
+                  value={getFieldValue('points') as number || 0}
+                  onChange={(e) => handleFieldUpdate('points', parseInt(e.target.value) || 0)}
+                  className="w-full px-2 py-1 text-xs"
+                  min="0"
+                />
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white font-medium">
+                  {task.points || 0}
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Hours
               </label>
-              <div className="text-sm text-gray-900 dark:text-white font-medium">
-                {task.estimatedHours || 0}h
-              </div>
+              {isEditMode ? (
+                <Input
+                  type="number"
+                  value={getFieldValue('estimatedHours') as number || 0}
+                  onChange={(e) => handleFieldUpdate('estimatedHours', parseFloat(e.target.value) || 0)}
+                  className="w-full px-2 py-1 text-xs"
+                  min="0"
+                  step="0.5"
+                />
+              ) : (
+                <div className="text-sm text-gray-900 dark:text-white font-medium">
+                  {task.estimatedHours || 0}h
+                </div>
+              )}
             </div>
           </div>
 
@@ -689,24 +754,51 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Assigned To
               </label>
-              <div className="flex items-center space-x-2">
-                <UserIcon className="w-3 h-3 text-gray-400" />
-                <span className="text-sm text-gray-900 dark:text-white">
-                  {(getFieldValue('assignedTo') as any)?.username || task.assignedTo?.username || 'Unassigned'}
-                </span>
-              </div>
+              {isEditMode ? (
+                <select
+                  value={task.assignedTo?.id?.toString() || ''}
+                  onChange={(e) => {
+                    const selectedUser = users.find(u => u.id.toString() === e.target.value);
+                    handleFieldUpdate('assignedTo', selectedUser || null);
+                  }}
+                  className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <UserIcon className="w-3 h-3 text-gray-400" />
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {(getFieldValue('assignedTo') as any)?.username || task.assignedTo?.username || 'Unassigned'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                 Due Date
               </label>
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="w-3 h-3 text-gray-400" />
-                <span className="text-sm text-gray-900 dark:text-white">
-                  {getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toLocaleDateString() : 'No due date'}
-                </span>
-              </div>
+              {isEditMode ? (
+                <Input
+                  type="datetime-local"
+                  value={getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toISOString().slice(0, 16) : ''}
+                  onChange={(e) => handleFieldUpdate('dueDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                  className="w-full px-2 py-1 text-xs"
+                />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <CalendarIcon className="w-3 h-3 text-gray-400" />
+                  <span className="text-sm text-gray-900 dark:text-white">
+                    {getFieldValue('dueDate') ? new Date(getFieldValue('dueDate') as string).toLocaleString() : 'No due date'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

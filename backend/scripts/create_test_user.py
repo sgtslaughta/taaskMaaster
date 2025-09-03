@@ -33,6 +33,7 @@ def create_test_users():
                 role=UserRole.ADMIN,
             ),
             "is_superuser": True,
+            "is_active": True,
             "description": "Admin user with full privileges"
         },
         {
@@ -45,6 +46,7 @@ def create_test_users():
                 role=UserRole.ORGANIZER,
             ),
             "is_superuser": False,
+            "is_active": True,
             "description": "Organizer test user for messaging and notifications"
         }
     ]
@@ -79,7 +81,7 @@ def create_test_users():
 
             # Set user privileges
             user.is_superuser = user_info["is_superuser"]
-            user.is_active = True
+            user.is_active = user_info["is_active"]
             db.commit()
 
             created_users.append(user)

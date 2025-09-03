@@ -73,7 +73,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       const userData = {
         user_id: parseInt(loginState.userId),
         username: loginState.username,
-        role: 'user'
+        role: loginState.role || 'user'
       };
       
       const wsUrl = `${url}?user_data=${encodeURIComponent(JSON.stringify(userData))}`;

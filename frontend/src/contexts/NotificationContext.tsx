@@ -248,15 +248,12 @@ export const NotificationProvider: React.FC<{
     if (taskMatch) {
       const taskId = parseInt(taskMatch[1], 10);
       
-      // Get user role to determine which page to navigate to
-      const loginState = getLoginState();
-      const userRole = loginState?.role || 'user';
+      // For task notifications, always route to 'my-tasks' regardless of user role
+      // Task notifications are always about tasks that are relevant to the current user
+      // (either they created them, are assigned to them, or need to take action)
+      const targetPage = 'my-tasks';
       
-      // Navigate to appropriate page based on user role
-      // Admins and organizers go to task-hub, regular users go to my-tasks
-      const targetPage = (userRole === 'admin' || userRole === 'organizer') ? 'task-hub' : 'my-tasks';
-      
-      console.log('🔔 NotificationContext: User role:', userRole, '-> navigating to:', targetPage, 'with taskId:', taskId);
+      console.log('🔔 Task notification -> routing to my-tasks with taskId:', taskId);
       onNavigation(targetPage, taskId);
       return;
     }
@@ -293,6 +290,8 @@ export const NotificationProvider: React.FC<{
           handleTaskCommentNotification(data);
           break;
         case 'task_assigned':
+        case 'task_reassigned':
+        case 'task_created':
           console.log('📡 Processing task_assigned notification');
           handleTaskAssignedNotification(data);
           break;
@@ -300,21 +299,33 @@ export const NotificationProvider: React.FC<{
           console.log('📡 Processing task_completed notification');
           handleTaskCompletedNotification(data);
           break;
-        case 'workflow_transition':
+        case 'task_status_changed':
+        case 'task_updated':
           console.log('📡 Processing workflow_transition notification');
           handleWorkflowTransitionNotification(data);
           break;
-        case 'approval_request':
+        case 'task_approval_request':
+        case 'task_approved':
+        case 'task_rejected':
           console.log('📡 Processing approval_request notification');
           handleApprovalRequestNotification(data);
           break;
-        case 'message':
+        case 'direct_message':
+        case 'task_chat_message':
           console.log('📡 Processing message notification');
           handleMessageNotification(data);
           break;
-        case 'mention':
+        case 'user_mentioned':
           console.log('📡 Processing mention notification');
           handleMentionNotification(data);
+          break;
+        case 'task_deleted':
+        case 'task_due_soon':
+        case 'task_overdue':
+        case 'media_attached':
+        case 'system_announcement':
+          console.log('📡 Processing general notification');
+          handleGeneralNotification(data);
           break;
         default:
           console.log('📡 Unknown notification type:', data.type, data);
@@ -389,6 +400,44 @@ export const NotificationProvider: React.FC<{
       title: 'Task Assigned',
       message: notification.message,
       duration: 6000,
+      actions: [{
+        label: 'View Task',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }
+
+  /**
+   * @description Handle task completed notifications
+   */
+  function handleTaskCompletedNotification(data: any) {
+    console.log('🔔 Received task completed notification:', data);
+    
+    const notificationData = data.data || data;
+    
+    const notification: NotificationData = {
+      id: `completed_${notificationData.task_id}_${Date.now()}`,
+      type: 'task_completed',
+      title: data.title || 'Task Completed',
+      message: data.message || `Task "${notificationData.task_title || 'Unknown'}" has been completed`,
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
+    };
+
+    console.log('🔔 Adding task completed notification to bell:', notification);
+    addNotification(notification);
+    
+    // Show toast for immediate feedback
+    showToast({
+      type: 'success',
+      title: 'Task Completed',
+      message: notification.message,
+      duration: 4000,
       actions: [{
         label: 'View Task',
         onClick: () => {
@@ -503,6 +552,53 @@ export const NotificationProvider: React.FC<{
     showToast({
       type: 'info',
       title: 'Mentioned',
+      message: notification.message,
+      duration: 5000,
+      actions: [{
+        label: 'View',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }
+
+  /**
+   * @description Handle general notifications (deleted, due soon, overdue, media, system)
+   */
+  function handleGeneralNotification(data: any) {
+    console.log('🔔 Received general notification:', data);
+    
+    const notificationData = data.data || data;
+    
+    // Map notification types to display types
+    const typeMapping: Record<string, NotificationData['type']> = {
+      'task_deleted': 'task_comment', // Use existing type for now
+      'task_due_soon': 'task_comment',
+      'task_overdue': 'task_comment',
+      'media_attached': 'task_comment',
+      'system_announcement': 'task_comment'
+    };
+    
+    const notification: NotificationData = {
+      id: `general_${data.type}_${Date.now()}`,
+      type: typeMapping[data.type] || 'task_comment',
+      title: data.title || 'Notification',
+      message: data.message || 'You have a new notification',
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: data.priority || 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || (notificationData.task_id ? `/tasks/${notificationData.task_id}` : '/dashboard')
+    };
+
+    console.log('🔔 Adding general notification to bell:', notification);
+    addNotification(notification);
+    
+    // Show toast for immediate feedback
+    showToast({
+      type: data.type === 'system_announcement' ? 'info' : 'warning',
+      title: notification.title,
       message: notification.message,
       duration: 5000,
       actions: [{
@@ -660,11 +756,22 @@ export const NotificationProvider: React.FC<{
     const unsubscribers = [
       notificationWS.subscribe('task_comment', handleWebSocketMessage),
       notificationWS.subscribe('task_assigned', handleWebSocketMessage),
+      notificationWS.subscribe('task_reassigned', handleWebSocketMessage),
+      notificationWS.subscribe('task_created', handleWebSocketMessage),
       notificationWS.subscribe('task_completed', handleWebSocketMessage),
-      notificationWS.subscribe('workflow_transition', handleWebSocketMessage),
-      notificationWS.subscribe('approval_request', handleWebSocketMessage),
-      notificationWS.subscribe('message', handleWebSocketMessage),
-      notificationWS.subscribe('mention', handleWebSocketMessage)
+      notificationWS.subscribe('task_status_changed', handleWebSocketMessage),
+      notificationWS.subscribe('task_updated', handleWebSocketMessage),
+      notificationWS.subscribe('task_approval_request', handleWebSocketMessage),
+      notificationWS.subscribe('task_approved', handleWebSocketMessage),
+      notificationWS.subscribe('task_rejected', handleWebSocketMessage),
+      notificationWS.subscribe('direct_message', handleWebSocketMessage),
+      notificationWS.subscribe('task_chat_message', handleWebSocketMessage),
+      notificationWS.subscribe('user_mentioned', handleWebSocketMessage),
+      notificationWS.subscribe('task_deleted', handleWebSocketMessage),
+      notificationWS.subscribe('task_due_soon', handleWebSocketMessage),
+      notificationWS.subscribe('task_overdue', handleWebSocketMessage),
+      notificationWS.subscribe('media_attached', handleWebSocketMessage),
+      notificationWS.subscribe('system_announcement', handleWebSocketMessage)
     ];
 
     return () => {

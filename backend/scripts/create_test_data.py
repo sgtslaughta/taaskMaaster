@@ -69,44 +69,74 @@ class TestDataGenerator:
         
         user_data = [
             {
-                "username": "admin",
-                "email": "admin@taaskmaaster.com",
-                "full_name": "Administrator",
+                "user_create": UserCreate(
+                    username="admin",
+                    email="admin@taaskmaaster.com",
+                    full_name="Administrator",
+                    password="password123",
+                    timezone="UTC",
+                    role="admin"
+                ),
                 "is_active": True,
                 "is_superuser": True
             },
             {
-                "username": "testuser",
-                "email": "testuser@taaskmaaster.com", 
-                "full_name": "Test User",
+                "user_create": UserCreate(
+                    username="testuser",
+                    email="testuser@taaskmaaster.com", 
+                    full_name="Test User",
+                    password="password123",
+                    timezone="UTC",
+                    role="organizer"
+                ),
                 "is_active": True,
                 "is_superuser": False
             },
             {
-                "username": "john_doe",
-                "email": "john@example.com",
-                "full_name": "John Doe",
+                "user_create": UserCreate(
+                    username="john_doe",
+                    email="john@example.com",
+                    full_name="John Doe",
+                    password="password123",
+                    timezone="UTC",
+                    role="user"
+                ),
                 "is_active": True,
                 "is_superuser": False
             },
             {
-                "username": "jane_smith",
-                "email": "jane@example.com",
-                "full_name": "Jane Smith",
+                "user_create": UserCreate(
+                    username="jane_smith",
+                    email="jane@example.com",
+                    full_name="Jane Smith",
+                    password="password123",
+                    timezone="UTC",
+                    role="user"
+                ),
                 "is_active": True,
                 "is_superuser": False
             },
             {
-                "username": "bob_wilson",
-                "email": "bob@example.com",
-                "full_name": "Bob Wilson",
+                "user_create": UserCreate(
+                    username="bob_wilson",
+                    email="bob@example.com",
+                    full_name="Bob Wilson",
+                    password="password123",
+                    timezone="UTC",
+                    role="user"
+                ),
                 "is_active": True,
                 "is_superuser": False
             },
             {
-                "username": "alice_brown",
-                "email": "alice@example.com",
-                "full_name": "Alice Brown",
+                "user_create": UserCreate(
+                    username="alice_brown",
+                    email="alice@example.com",
+                    full_name="Alice Brown",
+                    password="password123",
+                    timezone="UTC",
+                    role="user"
+                ),
                 "is_active": True,
                 "is_superuser": False
             }
@@ -114,22 +144,20 @@ class TestDataGenerator:
 
         for user_info in user_data:
             # Check if user already exists
-            existing_user = self.user_service.get_user_by_username(user_info["username"])
+            user_create = user_info["user_create"]
+            existing_user = self.user_service.get_user_by_username(user_create.username)
             if existing_user:
                 print(f"  User already exists: {existing_user.username} ({existing_user.email})")
                 self.users.append(existing_user)
                 continue
             
-            user_create = UserCreate(
-                username=user_info["username"],
-                email=user_info["email"],
-                full_name=user_info["full_name"],
-                password="password123",
-                is_active=user_info["is_active"],
-                is_superuser=user_info["is_superuser"]
-            )
-            
             user = self.user_service.create_user(user_create)
+            
+            # Set additional properties not in UserCreate schema
+            user.is_active = user_info["is_active"]
+            user.is_superuser = user_info["is_superuser"]
+            self.db.commit()
+            
             self.users.append(user)
             
             # Create initial points record for user
@@ -454,7 +482,7 @@ class TestDataGenerator:
             {
                 "title": "Review Marketing Proposal",
                 "description": "Review and approve the new marketing campaign proposal",
-                "status": TaskStatus.ASSIGNED,
+                "status": TaskStatus.TODO,
                 "priority": TaskPriority.HIGH,
                 "category_name": "Work",
                 "assigned_to": "bob_wilson",
@@ -623,7 +651,7 @@ class TestDataGenerator:
         self.db.commit()
         print(f"Created {len(self.lists)} task lists")
 
-    def create_tasks_from_templates(self) -> None:
+    async def create_tasks_from_templates(self) -> None:
         """Create some tasks from templates to demonstrate template usage"""
         print("Creating tasks from templates...")
         
@@ -661,7 +689,7 @@ class TestDataGenerator:
             assigned_user = next((user for user in self.users if user.username == task_info["assigned_to"]), None)
             created_user = next((user for user in self.users if user.username == task_info["created_by"]), None)
             
-            task = self.task_service.create_task_from_template(
+            task = await self.task_service.create_task_from_template(
                 template.id,
                 created_user.id if created_user else self.users[0].id
             )
@@ -877,6 +905,12 @@ class TestDataGenerator:
         print("Creating user status records...")
         
         for user in self.users[:4]:  # First 4 users
+            # Check if user status already exists
+            existing_status = self.db.query(UserStatus).filter(UserStatus.user_id == user.id).first()
+            if existing_status:
+                print(f"  Status already exists for {user.username}: {existing_status.status}")
+                continue
+                
             status_value = random.choice(["online", "away", "busy", "offline"])
             user_status = UserStatus(
                 user_id=user.id,
@@ -895,55 +929,37 @@ class TestDataGenerator:
         print("Creating task status history...")
         
         # Create history for tasks with workflow statuses
-        workflow_tasks = [t for t in self.tasks if t.status in [TaskStatus.ASSIGNED, TaskStatus.SUBMITTED_FOR_APPROVAL]]
+        workflow_tasks = [t for t in self.tasks if t.status in [TaskStatus.TODO, TaskStatus.SUBMITTED_FOR_APPROVAL]]
         
         for task in workflow_tasks:
-            # Create initial status change to ASSIGNED
-            if task.status == TaskStatus.ASSIGNED:
-                history = TaskStatusHistory(
-                    task_id=task.id,
-                    changed_by_id=task.created_by_id,
-                    old_status="todo",
-                    new_status="assigned",
-                    changed_at=task.created_at + timedelta(minutes=5),
-                    reason="Task assigned to team member"
-                )
-                self.db.add(history)
+            # Create initial status change to TODO (no history needed for initial status)
+            if task.status == TaskStatus.TODO:
+                # TODO is the initial status, no history entry needed
+                pass
                 
             # Create status change to SUBMITTED_FOR_APPROVAL
             elif task.status == TaskStatus.SUBMITTED_FOR_APPROVAL:
-                # First: TODO -> ASSIGNED
+                # First: TODO -> IN_PROGRESS
                 history1 = TaskStatusHistory(
                     task_id=task.id,
-                    changed_by_id=task.created_by_id,
-                    old_status="todo",
-                    new_status="assigned", 
-                    changed_at=task.created_at + timedelta(minutes=5),
-                    reason="Task assigned to team member"
+                    user_id=task.assigned_to_id,
+                    previous_status="todo",
+                    new_status="in_progress",
+                    created_at=task.created_at + timedelta(hours=1),
+                    comment="Started working on task"
                 )
                 self.db.add(history1)
                 
-                # Then: ASSIGNED -> IN_PROGRESS
+                # Then: IN_PROGRESS -> SUBMITTED_FOR_APPROVAL
                 history2 = TaskStatusHistory(
                     task_id=task.id,
-                    changed_by_id=task.assigned_to_id,
-                    old_status="assigned",
-                    new_status="in_progress",
-                    changed_at=task.created_at + timedelta(hours=1),
-                    reason="Started working on task"
+                    user_id=task.assigned_to_id,
+                    previous_status="in_progress",
+                    new_status="submitted_for_approval",
+                    created_at=task.created_at + timedelta(hours=2),
+                    comment="Work completed, ready for review"
                 )
                 self.db.add(history2)
-                
-                # Finally: IN_PROGRESS -> SUBMITTED_FOR_APPROVAL
-                history3 = TaskStatusHistory(
-                    task_id=task.id,
-                    changed_by_id=task.assigned_to_id,
-                    old_status="in_progress",
-                    new_status="submitted_for_approval",
-                    changed_at=task.created_at + timedelta(hours=2),
-                    reason="Work completed, ready for review"
-                )
-                self.db.add(history3)
                 
             print(f"  Created status history for '{task.title}'")
 
@@ -961,7 +977,7 @@ class TestDataGenerator:
             self.create_templates()
             await self.create_tasks()
             self.create_task_lists()
-            self.create_tasks_from_templates()
+            await self.create_tasks_from_templates()
             
             # New workflow enhancement data
             self.create_conversations()
