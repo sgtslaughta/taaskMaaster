@@ -34,7 +34,8 @@ import {
   PlayIcon,
   StopIcon,
   ChatBubbleLeftRightIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -580,36 +581,33 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               {canEdit && !isEditMode && (
-                <Button
+                <button
                   onClick={() => setIsEditMode(true)}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  title="Edit task"
+                  className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Edit task details"
                 >
-                  <PencilIcon className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                  <PencilIcon className="w-4 h-4" />
+                </button>
               )}
               {isEditMode && (
                 <>
-                  <Button
+                  <button
                     onClick={handleSaveChanges}
-                    disabled={loading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    disabled={loading || Object.keys(editedTask).length === 0}
+                    className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Save changes"
                   >
-                    <CheckIcon className="w-4 h-4 mr-2" />
-                    Save
-                  </Button>
-                  <Button
+                    <CheckIcon className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={handleCancelEdit}
                     disabled={loading}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Cancel editing"
                   >
-                    <XMarkIcon className="w-4 h-4 mr-2" />
-                    Cancel
-                  </Button>
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
                 </>
               )}
               {canEdit && task.status !== 'done' && (
@@ -619,46 +617,47 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   const isAssignedUser = currentUser && task.assignedTo?.id === parseInt(currentUser.id);
                   const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'organizer');
                   
-                  let buttonText = 'Complete';
                   let buttonTitle = 'Mark task as complete';
-                  let buttonClass = 'px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700';
+                  let buttonIcon = CheckCircleIcon;
+                  let buttonClass = 'p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
                   
                   if (task.status === 'submitted_for_approval') {
                     if (isTaskCreator || isAdmin) {
-                      buttonText = 'Approve Task Completion';
-                      buttonTitle = 'Approve that this task has been completed';
-                      buttonClass = 'px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700';
+                      buttonTitle = 'Approve task completion';
+                      buttonIcon = CheckCircleIcon;
+                      buttonClass = 'p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
                     } else {
                       return null; // Hide button if not creator/admin and task is pending approval
                     }
                   } else if (isAssignedUser && !isTaskCreator && !isAdmin) {
-                    buttonText = 'Submit for Review';
-                    buttonTitle = 'Submit task completion for approval by the task creator';
-                    buttonClass = 'px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700';
+                    buttonTitle = 'Submit task for approval';
+                    buttonIcon = PlayIcon;
+                    buttonClass = 'p-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
                   }
                   
+                  const IconComponent = buttonIcon;
+                  
                   return (
-                    <Button
+                    <button
                       onClick={handleComplete}
                       disabled={loading}
                       className={buttonClass}
                       title={buttonTitle}
                     >
-                      <CheckCircleIcon className="w-4 h-4 mr-2" />
-                      {buttonText}
-                    </Button>
+                      <IconComponent className="w-4 h-4" />
+                    </button>
                   );
                 })()
               )}
               {canEdit && (
-                <Button
+                <button
                   onClick={handleDelete}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                  title="Delete task"
+                  className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete task permanently"
                 >
-                  Delete
-                </Button>
+                  <TrashIcon className="w-4 h-4" />
+                </button>
               )}
             </div>
           </div>
@@ -773,7 +772,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </label>
               {isEditMode ? (
                 <select
-                  value={task.assignedTo?.id?.toString() || ''}
+                  value={(getFieldValue('assignedTo') as any)?.id?.toString() || ''}
                   onChange={(e) => {
                     const selectedUser = users.find(u => u.id.toString() === e.target.value);
                     handleFieldUpdate('assignedTo', selectedUser || null);

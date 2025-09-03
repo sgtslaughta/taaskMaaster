@@ -457,7 +457,14 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
         backendUpdates.assigned_to_id = updates.assignedToId;
       }
       if (updates.assignedTo !== undefined) {
-        backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
+        // Handle assignedTo as user object with id property
+        if (updates.assignedTo === null) {
+          backendUpdates.assigned_to_id = null;
+        } else if (typeof updates.assignedTo === 'object' && updates.assignedTo.id) {
+          backendUpdates.assigned_to_id = parseInt(updates.assignedTo.id);
+        } else if (typeof updates.assignedTo === 'string' || typeof updates.assignedTo === 'number') {
+          backendUpdates.assigned_to_id = parseInt(updates.assignedTo.toString());
+        }
       }
       if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
       if (updates.category !== undefined) {
@@ -733,18 +740,7 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
               )}
               {activeTab === 'tasks' && (
                 <TasksTab
-                  tasks={tasks}
-                  loading={loading}
-                  error={error}
                   onCreateTask={handleCreateTask}
-                  onUpdateTask={handleTaskUpdate}
-                  onDeleteTask={handleTaskDelete}
-                  onStatusChange={handleStatusChange}
-                  onAssignTask={handleTaskAssign}
-                  onCompleteTask={handleTaskComplete}
-                  onBulkUpdate={handleBulkUpdate}
-                  onExport={handleExport}
-                  onRefresh={handleRefresh}
                   users={users}
                   className={className}
                 />

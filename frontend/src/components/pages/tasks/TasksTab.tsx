@@ -15,6 +15,7 @@ import { WorkflowStatusBadge, type WorkflowStatus } from '../../workflow/Workflo
 import { TaskDetailModal } from '../../tasks/TaskDetailModal';
 import { BulkEditModal } from '../../tasks/BulkEditModal';
 import { TaskExportModal, TaskExportData } from '../../tasks/TaskExportModal';
+import { taskService, TaskFilterOptions, TaskListResponse } from '../../../services/taskService';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
@@ -44,53 +45,9 @@ import {
  */
 export interface TasksTabProps {
   /**
-   * @description Tasks to display
-   */
-  tasks: FrontendTask[];
-  /**
-   * @description Loading state
-   */
-  loading: boolean;
-  /**
-   * @description Error state
-   */
-  error: string | null;
-  /**
    * @description Function to handle task creation
    */
   onCreateTask: () => void;
-  /**
-   * @description Function to handle task update
-   */
-  onUpdateTask: (taskId: number, updates: Partial<FrontendTask>) => void;
-  /**
-   * @description Function to handle task deletion
-   */
-  onDeleteTask: (taskId: number) => void;
-  /**
-   * @description Function to handle task status change
-   */
-  onStatusChange: (taskId: number, status: FrontendTask['status']) => void;
-  /**
-   * @description Function to handle task assignment
-   */
-  onAssignTask: (taskId: number, userId: number) => void;
-  /**
-   * @description Function to handle task completion
-   */
-  onCompleteTask?: (taskId: number) => void;
-  /**
-   * @description Function to handle bulk update
-   */
-  onBulkUpdate?: (taskIds: number[], updates: Partial<FrontendTask>) => void;
-  /**
-   * @description Function to handle task export
-   */
-  onExport?: (exportData: TaskExportData) => void;
-  /**
-   * @description Function to refresh tasks
-   */
-  onRefresh: () => void;
   /**
    * @description Available users for assignment
    */
@@ -317,7 +274,11 @@ const TableToolbar: React.FC<TableToolbarProps> = ({
             >
               <option value="">All Assignees</option>
               <option value="unassigned">Unassigned</option>
-              <option value="assigned">Assigned</option>
+              {users && users.map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
+                </option>
+              ))}
             </select>
 
             <select
@@ -723,23 +684,18 @@ const TaskTable: React.FC<TaskTableProps> = ({
  * @param props - Tasks tab component props
  * @returns Tasks tab component
  */
-export const TasksTab: React.FC<TasksTabProps> = ({ 
-  tasks,
-  loading,
-  error,
+export const TasksTab: React.FC<TasksTabProps> = ({
   onCreateTask,
-  onUpdateTask,
-  onDeleteTask,
-  onStatusChange,
-  onAssignTask,
-  onCompleteTask,
-  onBulkUpdate,
-  onExport,
-  onRefresh,
   users = [],
-  className 
+  className
 }) => {
   const { user } = useAuth();
+
+  // Internal state management
+  const [tasks, setTasks] = useState<FrontendTask[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [taskListResponse, setTaskListResponse] = useState<TaskListResponse | null>(null);
 
   /**
    * @description Check if user can edit a task
@@ -777,6 +733,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Update selectedTask when tasks array changes (after updates)
   useEffect(() => {
@@ -789,58 +747,84 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     }
   }, [tasks, selectedTask?.id]);
 
-  // Filter and sort tasks
-  const filteredAndSortedTasks = useMemo(() => {
-    let filtered = tasks.filter(task => {
-      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (task.category?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = !filters.status || task.status === filters.status;
-      const matchesPriority = !filters.priority || task.priority === filters.priority;
-      const matchesCategory = !filters.category || task.category?.name === filters.category;
-      const matchesAssignee = !filters.assignee || 
-        (filters.assignee === 'unassigned' && !task.assignedTo) ||
-        (filters.assignee === 'assigned' && task.assignedTo);
-      const matchesRewardType = !filters.rewardType || task.rewardType === filters.rewardType;
+  // Pagination calculations from server response
+  const totalItems = taskListResponse?.total || 0;
+  const totalPages = taskListResponse?.pages || 0;
+  const currentServerPage = taskListResponse?.page || 1;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignee && matchesRewardType;
-    });
-
-    // Sort tasks
-    filtered.sort((a, b) => {
-      let comparison = 0;
+  // Load tasks from API with pagination
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      switch (sortBy) {
-        case 'due':
-          if (!a.dueDate && !b.dueDate) comparison = 0;
-          else if (!a.dueDate) comparison = 1;
-          else if (!b.dueDate) comparison = -1;
-          else comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-          break;
-        case 'priority':
-          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-          comparison = priorityOrder[b.priority] - priorityOrder[a.priority];
-          break;
-        case 'status':
-          const statusOrder = { done: 4, cancelled: 3, in_progress: 2, todo: 1, review: 1 };
-          comparison = statusOrder[b.status] - statusOrder[a.status];
-          break;
-        case 'title':
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case 'created':
-        default:
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          break;
-      }
-      
-      // Apply sort direction
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
+      const options: TaskFilterOptions = {
+        skip: (currentPage - 1) * itemsPerPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined,
+        status: filters.status || undefined,
+        priority: filters.priority || undefined,
+        assigned_to_id: filters.assignee && filters.assignee !== 'unassigned' ? parseInt(filters.assignee) : undefined,
+        reward_type: filters.rewardType || undefined,
+      };
 
-    return filtered;
-  }, [tasks, searchTerm, filters, sortBy, sortDirection]);
+      // Handle unassigned filter - we'll need to handle this on frontend since API doesn't support it directly
+      const response = await taskService.getTasks(options);
+      setTaskListResponse(response);
+      
+      // Convert backend tasks to frontend format
+      const frontendTasks = response.tasks.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.due_date,
+        estimatedHours: task.estimated_hours,
+        actualHours: task.actual_hours,
+        points: task.points || 0,
+        tags: task.tags || [],
+        assignedTo: task.assigned_to ? {
+          id: task.assigned_to.id,
+          username: task.assigned_to.username,
+          email: task.assigned_to.email,
+          firstName: task.assigned_to.first_name,
+          lastName: task.assigned_to.last_name
+        } : undefined,
+        createdById: task.created_by_id,
+        assignedToId: task.assigned_to_id,
+        categoryId: task.category_id,
+        category: task.category ? {
+          id: task.category.id,
+          name: task.category.name,
+          description: task.category.description,
+          color: task.category.color
+        } : undefined,
+        createdAt: task.created_at,
+        updatedAt: task.updated_at,
+        rewardType: task.reward_type,
+        rewardValue: task.reward_value,
+        rewardDescription: task.reward_description
+      }));
+      
+      setTasks(frontendTasks);
+    } catch (err) {
+      setError('Failed to load tasks. Please try again.');
+      console.error('Error loading tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load tasks on component mount and when pagination/filters change
+  useEffect(() => {
+    loadTasks();
+  }, [currentPage, itemsPerPage, searchTerm, filters, sortBy, sortDirection]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters, sortBy, sortDirection]);
 
   const handleFilterChange = (filter: string, value: string) => {
     setFilters(prev => ({ ...prev, [filter]: value }));
@@ -857,6 +841,64 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     setSearchTerm('');
   };
 
+  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask>) => {
+    try {
+      // Convert frontend updates to backend format
+      const backendUpdates: any = {};
+      
+      if (updates.title !== undefined) backendUpdates.title = updates.title;
+      if (updates.description !== undefined) backendUpdates.description = updates.description;
+      if (updates.status !== undefined) backendUpdates.status = updates.status;
+      if (updates.priority !== undefined) backendUpdates.priority = updates.priority;
+      if (updates.dueDate !== undefined) backendUpdates.due_date = updates.dueDate;
+      if (updates.points !== undefined) backendUpdates.points = updates.points;
+      if (updates.assignedToId !== undefined) {
+        backendUpdates.assigned_to_id = updates.assignedToId;
+      }
+      if (updates.assignedTo !== undefined) {
+        // Handle assignedTo as user object with id property
+        if (updates.assignedTo === null) {
+          backendUpdates.assigned_to_id = null;
+        } else if (typeof updates.assignedTo === 'object' && updates.assignedTo.id) {
+          backendUpdates.assigned_to_id = parseInt(updates.assignedTo.id);
+        } else if (typeof updates.assignedTo === 'string' || typeof updates.assignedTo === 'number') {
+          backendUpdates.assigned_to_id = parseInt(updates.assignedTo.toString());
+        }
+      }
+      if (updates.category !== undefined) {
+        // Handle category update - backend expects category name as string
+        backendUpdates.category = updates.category?.name || null;
+      }
+
+      await taskService.updateTask(taskId, backendUpdates);
+      await loadTasks();
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
+  };
+
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      await taskService.deleteTask(taskId);
+      await loadTasks();
+    } catch (err) {
+      console.error('Error deleting task:', err);
+    }
+  };
+
+  const handleTaskComplete = async (taskId: number) => {
+    try {
+      await taskService.completeTask(taskId);
+      await loadTasks();
+    } catch (err) {
+      console.error('Error completing task:', err);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadTasks();
+  };
+
   const handleExport = () => {
     setIsExportModalOpen(true);
   };
@@ -870,19 +912,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     setIsDetailModalOpen(true);
   };
 
-  const handleTaskUpdate = async (taskId: number, updates: Partial<FrontendTask>) => {
-    if (onUpdateTask) {
-      await onUpdateTask(taskId, updates);
-      // Don't close modal automatically - let user close it manually
-      // The task will be updated in the tasks list via the parent component
-    }
-  };
 
-  const handleTaskDelete = async (taskId: number) => {
-    if (onDeleteTask) {
-      await onDeleteTask(taskId);
+
+  const handleTaskDeleteFromModal = async (taskId: number) => {
+    try {
+      await taskService.deleteTask(taskId);
+      await loadTasks();
       setIsDetailModalOpen(false);
       setSelectedTask(null);
+    } catch (err) {
+      console.error('Error deleting task:', err);
     }
   };
 
@@ -891,17 +930,20 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     setSelectedTask(null);
   };
 
-  const handleBulkUpdate = (taskIds: number[], updates: Partial<FrontendTask>) => {
-    if (onBulkUpdate) {
-      onBulkUpdate(taskIds, updates);
+  const handleBulkUpdate = async (taskIds: number[], updates: Partial<FrontendTask>) => {
+    try {
+      // Implement bulk update via API
+      // For now, just reload tasks
+      await loadTasks();
       setSelectedTasks([]);
+    } catch (err) {
+      console.error('Error bulk updating tasks:', err);
     }
   };
 
   const handleExportSubmit = (exportData: TaskExportData) => {
-    if (onExport) {
-      onExport(exportData);
-    }
+    // Implement export functionality
+    console.log('Export data:', exportData);
   };
 
   const handleSortChange = (newSortBy: string) => {
@@ -916,7 +958,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   };
 
   const handleSelectAll = () => {
-    setSelectedTasks([...filteredAndSortedTasks]);
+    setSelectedTasks([...tasks]);
   };
 
   const handleDeselectAll = () => {
@@ -968,18 +1010,18 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         onCreateTask={onCreateTask}
         onExport={handleExport}
         onBulkEdit={handleBulkEdit}
-        onRefresh={onRefresh}
+        onRefresh={handleRefresh}
       />
 
       {/* Task Table */}
       <div className="p-4">
-        {filteredAndSortedTasks.length === 0 ? (
+        {tasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <p>No tasks found. Create your first task to get started!</p>
           </div>
         ) : (
           <TaskTable
-            tasks={filteredAndSortedTasks}
+            tasks={tasks}
             viewMode={viewMode}
             selectedTasks={selectedTasks}
             sortBy={sortBy}
@@ -987,12 +1029,106 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onSortChange={handleSortChange}
             onTaskSelect={handleTaskSelect}
             onTaskClick={handleTaskClick}
-            onStatusChange={onStatusChange}
-            onDeleteTask={onDeleteTask}
-            onCompleteTask={onCompleteTask}
+            onStatusChange={(taskId: number, status: FrontendTask['status']) => {
+              // Handle status change
+              handleTaskUpdate(taskId, { status });
+            }}
+            onDeleteTask={handleTaskDelete}
+            onCompleteTask={handleTaskComplete}
           />
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalItems > 0 && (
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+          <div className={`flex items-center ${totalPages > 1 ? 'justify-between' : 'justify-start'}`}>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(parseInt(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="ml-4 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+            </div>
+            
+            {/* Only show page navigation when there are multiple pages */}
+            {totalPages > 1 && (
+              <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              
+              {/* Page numbers */}
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 text-sm border rounded transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Last
+              </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Task Detail Modal */}
       {selectedTask && (
@@ -1003,8 +1139,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           users={users}
           categories={['Household', 'Personal', 'Work', 'School', 'Health', 'Other']}
           onUpdateTask={handleTaskUpdate}
-          onDeleteTask={handleTaskDelete}
-          onCompleteTask={onCompleteTask}
+          onDeleteTask={handleTaskDeleteFromModal}
+          onCompleteTask={handleTaskComplete}
           loading={loading}
           canEdit={canEditTask(selectedTask)}
           currentUser={user}

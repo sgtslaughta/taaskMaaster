@@ -444,6 +444,19 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
         if (partialUpdates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(partialUpdates.priority);
         if (partialUpdates.dueDate !== undefined) backendUpdates.due_date = partialUpdates.dueDate;
         if (partialUpdates.points !== undefined) backendUpdates.points = partialUpdates.points;
+        if (partialUpdates.assignedToId !== undefined) {
+          backendUpdates.assigned_to_id = partialUpdates.assignedToId;
+        }
+        if (partialUpdates.assignedTo !== undefined) {
+          // Handle assignedTo as user object with id property
+          if (partialUpdates.assignedTo === null) {
+            backendUpdates.assigned_to_id = null;
+          } else if (typeof partialUpdates.assignedTo === 'object' && partialUpdates.assignedTo.id) {
+            backendUpdates.assigned_to_id = parseInt(partialUpdates.assignedTo.id);
+          } else if (typeof partialUpdates.assignedTo === 'string' || typeof partialUpdates.assignedTo === 'number') {
+            backendUpdates.assigned_to_id = parseInt(partialUpdates.assignedTo.toString());
+          }
+        }
         if (partialUpdates.category !== undefined) {
           // Handle category update - backend expects category name as string
           backendUpdates.category = partialUpdates.category?.name || null;
