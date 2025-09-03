@@ -1001,6 +1001,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           onClose={handleDetailModalClose}
           task={selectedTask}
           users={users}
+          categories={['Household', 'Personal', 'Work', 'School', 'Health', 'Other']}
           onUpdateTask={handleTaskUpdate}
           onDeleteTask={handleTaskDelete}
           onCompleteTask={onCompleteTask}

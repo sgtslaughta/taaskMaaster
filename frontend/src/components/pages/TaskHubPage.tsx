@@ -460,6 +460,10 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
         backendUpdates.assigned_to_id = parseInt(updates.assignedTo) || undefined;
       }
       if (updates.parentTaskId !== undefined) backendUpdates.parent_task_id = updates.parentTaskId ? parseInt(updates.parentTaskId) : undefined;
+      if (updates.category !== undefined) {
+        // Handle category update - backend expects category name as string
+        backendUpdates.category = updates.category?.name || null;
+      }
 
       const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
       const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);

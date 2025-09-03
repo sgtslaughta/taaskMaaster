@@ -542,6 +542,30 @@ class TaskService:
             except ValueError as e:
                 raise ValueError(f"Invalid completed_at format: {e}")
 
+        # Handle category field - convert category name to category_id
+        if "category" in task_data:
+            category_name = task_data.pop("category")
+            if category_name is None or category_name == "":
+                # Clear category
+                task.category_id = None
+            else:
+                # Find category by name
+                from app.models.task import TaskCategory
+                category = self.db.query(TaskCategory).filter(TaskCategory.name == category_name).first()
+                if category:
+                    task.category_id = category.id
+                else:
+                    # Create new category if it doesn't exist
+                    new_category = TaskCategory(
+                        name=category_name,
+                        description=f"Auto-created category: {category_name}",
+                        color="#6B7280",  # Default gray color
+                        created_by_id=user_id
+                    )
+                    self.db.add(new_category)
+                    self.db.flush()  # Get the ID without committing
+                    task.category_id = new_category.id
+
         # Update remaining fields
         for field, value in task_data.items():
             if hasattr(task, field):

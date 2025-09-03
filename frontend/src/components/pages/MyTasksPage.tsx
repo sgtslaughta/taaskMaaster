@@ -444,6 +444,10 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
         if (partialUpdates.priority !== undefined) backendUpdates.priority = mapFrontendPriorityToBackend(partialUpdates.priority);
         if (partialUpdates.dueDate !== undefined) backendUpdates.due_date = partialUpdates.dueDate;
         if (partialUpdates.points !== undefined) backendUpdates.points = partialUpdates.points;
+        if (partialUpdates.category !== undefined) {
+          // Handle category update - backend expects category name as string
+          backendUpdates.category = partialUpdates.category?.name || null;
+        }
 
         const updatedBackendTask = await taskService.updateTask(taskId, backendUpdates);
         const updatedFrontendTask = adaptBackendToFrontendTask(updatedBackendTask);
@@ -705,6 +709,7 @@ export const MyTasksPage: React.FC<MyTasksPageProps> = ({
         onClose={handleCloseModal}
         task={selectedTask}
         users={users}
+        categories={['Household', 'Personal', 'Work', 'School', 'Health', 'Other']}
         onUpdateTask={handleTaskUpdate}
         loading={loading}
         canEdit={false}

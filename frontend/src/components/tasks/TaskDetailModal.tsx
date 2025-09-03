@@ -60,11 +60,19 @@ const adaptBackendToFrontendTask = (backendTask: any): Task => {
       lastName: backendTask.assigned_to.last_name
     } : undefined,
     createdById: backendTask.created_by_id,
+    assignedToId: backendTask.assigned_to_id,
+    categoryId: backendTask.category_id,
+    templateId: backendTask.template_id,
+    parentTaskId: backendTask.parent_task_id,
     createdAt: backendTask.created_at,
     updatedAt: backendTask.updated_at,
     rewardType: backendTask.reward_type,
     rewardValue: backendTask.reward_value,
+    rewardDescription: backendTask.reward_description,
     isRecurring: backendTask.is_recurring || false,
+    recurrencePattern: backendTask.recurrence_pattern,
+    category: backendTask.category,
+    template: backendTask.template,
     dependencies: backendTask.dependencies || [],
     mediaAttachments: backendTask.media_attachments || [],
     subtasks: backendTask.subtasks?.map(adaptBackendToFrontendTask) || [],
@@ -91,6 +99,10 @@ export interface TaskDetailModalProps {
    * @description Available users for assignment
    */
   users?: User[];
+  /**
+   * @description Available categories for assignment
+   */
+  categories?: string[];
   /**
    * @description Function to handle task update
    */
@@ -220,6 +232,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onClose,
   task,
   users = [],
+  categories = [],
   onUpdateTask,
   onDeleteTask,
   onCompleteTask,
@@ -233,6 +246,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'messages'>('details');
   const [messageCount, setMessageCount] = useState<number>(0);
+
+  // Default categories if none provided
+  const defaultCategories = ['Household', 'Personal', 'Work', 'School', 'Health', 'Other'];
+  const availableCategories = categories.length > 0 ? categories : defaultCategories;
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
   const [newMessageCount, setNewMessageCount] = useState<number>(0);
 
@@ -802,7 +819,34 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           </div>
 
-
+          {/* Category - Compact */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+              Category
+            </label>
+            {isEditMode ? (
+              <select
+                value={(getFieldValue('category') as any)?.name || ''}
+                onChange={(e) => {
+                  const categoryName = e.target.value;
+                  handleFieldUpdate('category', categoryName ? { name: categoryName } : null);
+                }}
+                className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Uncategorized</option>
+                {availableCategories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <TagIcon className="w-3 h-3 text-gray-400" />
+                <span className="text-sm text-gray-900 dark:text-white">
+                  {(getFieldValue('category') as any)?.name || task.category?.name || 'Uncategorized'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Tags - Compact */}
           {task.tags && task.tags.length > 0 && (
