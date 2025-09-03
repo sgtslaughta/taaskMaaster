@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/authService';
+import { tokenManager } from '../services/tokenManager';
 import { 
   saveLoginState, 
   getLoginState, 
@@ -65,6 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * @description Initialize auth state from cookies
    */
   useEffect(() => {
+    // Initialize TokenManager
+    tokenManager.initialize();
+    
+    // Setup forced logout listener
+    const handleForcedLogout = (event: any) => {
+
+      setUser(null);
+      setIsLoading(false);
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('forceLogout', handleForcedLogout);
+    }
+    
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
@@ -76,28 +91,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Set the token in auth service
           authService.setAccessToken(savedLoginState.token);
           
-          // Try to get current user
-          try {
-            const currentUser = await authService.getCurrentUser();
-            setUser({
-              id: currentUser.user_id.toString(),
-              username: currentUser.username,
-              email: currentUser.email,
-              role: currentUser.is_superuser ? 'admin' : 'user',
-            });
+          // Check if token is expired before making API calls
+          if (authService.isTokenExpired()) {
+
             
-            // Update last login time
-            saveLoginState({
-              ...savedLoginState,
-              lastLogin: Date.now(),
-            });
-            
-            console.log('User authenticated from saved session');
-          } catch (error) {
-            console.error('Failed to get current user from saved session:', error);
-            // Clear invalid login state
-            clearLoginState();
-            authService.clearAuth();
+            try {
+              const refreshToken = authService.getRefreshToken();
+              if (refreshToken) {
+                const refreshResponse = await authService.refreshToken(refreshToken);
+
+                
+                // Update the saved login state with new token
+                saveLoginState({
+                  ...savedLoginState,
+                  token: refreshResponse.access_token,
+                  lastLogin: Date.now(),
+                });
+                
+                // Now try to get current user with fresh token
+                const currentUser = await authService.getCurrentUser();
+                setUser({
+                  id: currentUser.user_id.toString(),
+                  username: currentUser.username,
+                  email: currentUser.email,
+                  role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
+                });
+              } else {
+                throw new Error('No refresh token available');
+              }
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+              // Clear invalid login state and force re-login
+              clearLoginState();
+              authService.clearAuth();
+              setUser(null);
+            }
+          } else {
+            // Token is not expired, proceed normally
+            try {
+              const currentUser = await authService.getCurrentUser();
+              setUser({
+                id: currentUser.user_id.toString(),
+                username: currentUser.username,
+                email: currentUser.email,
+                role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
+              });
+              
+              // Update last login time
+              saveLoginState({
+                ...savedLoginState,
+                lastLogin: Date.now(),
+              });
+            } catch (error) {
+              console.error('Failed to get current user from saved session:', error);
+              // Clear invalid login state
+              clearLoginState();
+              authService.clearAuth();
+              setUser(null);
+            }
           }
         }
       } catch (error) {
@@ -108,6 +159,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('forceLogout', handleForcedLogout);
+      }
+    };
   }, []);
 
   /**
@@ -125,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: response.user_id.toString(),
         username: response.username,
         email: response.email,
-        role: response.is_superuser ? 'admin' : 'user',
+        role: response.role || (response.is_superuser ? 'admin' : 'user'),
       };
       
       // Save login state to cookies
@@ -133,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: userData.id,
         username: userData.username,
         email: userData.email,
+        role: userData.role,
         token: response.access_token,
         lastLogin: Date.now(),
       });
@@ -143,8 +201,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       setUser(userData);
-      console.log('User logged in successfully');
+
     } catch (error: any) {
+      console.error('AuthContext: Login failed with error:', error);
       const errorMessage = error.message || 'Login failed';
       setError(errorMessage);
       console.error('Login failed:', error);
@@ -175,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear auth service token
       authService.clearAuth();
       
-      console.log('User logged out successfully');
+
     }
   };
 

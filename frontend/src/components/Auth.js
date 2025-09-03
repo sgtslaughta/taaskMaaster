@@ -92,6 +92,16 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+      {/* Logo */}
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3">
+          <img 
+            src="/favicon-32x32.png" 
+            alt="TaaskMaaster Logo" 
+            className="w-6 h-6"
+          />
+        </div>
+      </div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Login</h2>
       
       {error && (
@@ -136,14 +146,6 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
-        <p>Demo Credentials:</p>
-        <p>Username: admin</p>
-        <p>Password: admin123</p>
-        <p className="mt-2 text-xs text-gray-500">
-          (You may need to create a user first via the API)
-        </p>
-      </div>
     </div>
   );
 };

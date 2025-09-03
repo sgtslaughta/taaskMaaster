@@ -116,8 +116,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       <div className="max-w-md w-full">
         {/* Logo and welcome */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mb-4">
-            <span className="text-white font-bold text-2xl">T</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4">
+            <img 
+              src="/favicon-32x32.png" 
+              alt="TaaskMaaster Logo" 
+              className="w-8 h-8"
+            />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Welcome back
@@ -322,12 +326,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p className="font-medium">Demo Credentials:</p>
-          <p>Username: admin</p>
-          <p>Password: admin123</p>
-        </div>
+
       </div>
     </div>
   );

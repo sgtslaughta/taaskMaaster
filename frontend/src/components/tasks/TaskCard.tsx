@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { Card } from '../../design-system/components/Card';
 import { Button } from '../../design-system/components/Button';
 import { Task } from './TaskList';
+import { WorkflowStatusBadge, type WorkflowStatus } from '../workflow/WorkflowStatusBadge';
 
 /**
  * @description Task card component props
@@ -83,24 +84,7 @@ const getStatusColor = (status: Task['status']) => {
   }
 };
 
-/**
- * @description Get status icon
- * @param status - Task status
- * @returns Status icon
- */
-const getStatusIcon = (status: Task['status']) => {
-  switch (status) {
-    case 'completed':
-      return '✅';
-    case 'in_progress':
-      return '🔄';
-    case 'overdue':
-      return '⏰';
-    case 'pending':
-    default:
-      return '⏳';
-  }
-};
+
 
 /**
  * @description Format date
@@ -158,9 +142,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               {task.title}
             </h3>
             <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                {getStatusIcon(task.status)} {task.status.replace('_', ' ')}
-              </span>
+              <WorkflowStatusBadge 
+                status={task.status as WorkflowStatus} 
+                compact={true}
+              />
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
                 {task.priority}
               </span>
@@ -225,13 +210,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {/* Meta Information */}
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center justify-between">
-            <span>Category: {task.category}</span>
+            <span>Category: {task.category?.name || 'Uncategorized'}</span>
             <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
               {formatDate(task.dueDate)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Assigned to: {task.assignedTo}</span>
+            <span>Assigned to: {task.assignedTo?.username || 'Unassigned'}</span>
             <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
           </div>
         </div>

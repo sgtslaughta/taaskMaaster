@@ -1,6 +1,6 @@
 /**
  * @fileoverview Task Form Component for TaaskMaaster
- * @description Comprehensive task creation and editing form with validation
+ * @description Comprehensive task creation and editing form with validation and multiple reward types
  * @author TaaskMaaster Team
  * @version 2.0.0
  */
@@ -15,6 +15,16 @@ import { cn } from '../../design-system/utils/cn';
 import { User } from '../../services/userService';
 
 /**
+ * @description Reward type options
+ */
+export const REWARD_TYPES = [
+  { value: 'points', label: 'Points', description: 'Gamification points', icon: '🎯' },
+  { value: 'monetary', label: 'Money', description: 'Monetary rewards', icon: '💰' },
+  { value: 'time', label: 'Time', description: 'Time-based rewards', icon: '⏰' },
+  { value: 'custom', label: 'Custom', description: 'Custom rewards', icon: '🎁' },
+];
+
+/**
  * @description Task form data interface
  */
 export interface TaskFormData {
@@ -24,11 +34,14 @@ export interface TaskFormData {
   priority: Task['priority'];
   category: string;
   tags: string[];
-  assignedTo: string;
+  assignedTo: number;
   dueDate: string;
   points: number;
+  rewardType: string;
+  rewardValue: number;
+  rewardDescription: string;
   attachments?: File[];
-  parentTaskId?: string;
+  parentTaskId?: number;
   subtasks?: Partial<Task>[];
 }
 
@@ -80,13 +93,16 @@ export interface TaskFormProps {
 const defaultFormData: TaskFormData = {
   title: '',
   description: '',
-  status: 'pending',
+  status: 'todo',
   priority: 'medium',
   category: '',
   tags: [],
-  assignedTo: '',
+  assignedTo: 0,
   dueDate: '',
   points: 0,
+  rewardType: 'points',
+  rewardValue: 0,
+  rewardDescription: '',
   attachments: [],
   subtasks: [],
 };
@@ -125,6 +141,98 @@ const formatDateForInput = (dateString?: string): string => {
 };
 
 /**
+ * @description Reward Type Selector component
+ */
+interface RewardTypeSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+  rewardValue: number;
+  onRewardValueChange: (value: number) => void;
+  rewardDescription: string;
+  onRewardDescriptionChange: (value: string) => void;
+}
+
+const RewardTypeSelector: React.FC<RewardTypeSelectorProps> = ({
+  value,
+  onChange,
+  rewardValue,
+  onRewardValueChange,
+  rewardDescription,
+  onRewardDescriptionChange,
+}) => {
+  const selectedRewardType = REWARD_TYPES.find(type => type.value === value);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Reward Type
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {REWARD_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => onChange(type.value)}
+              className={cn(
+                "p-3 border rounded-lg text-left transition-colors",
+                value === type.value
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+              )}
+            >
+              <div className="text-lg mb-1">{type.icon}</div>
+              <div className="font-medium text-sm">{type.label}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{type.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {selectedRewardType && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {selectedRewardType.label} Amount
+            </label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                min="0"
+                step={selectedRewardType.value === 'monetary' ? '0.01' : '1'}
+                value={rewardValue}
+                onChange={(e) => onRewardValueChange(parseFloat(e.target.value) || 0)}
+                placeholder={`Enter ${selectedRewardType.label.toLowerCase()} amount`}
+                className="flex-1"
+              />
+              <span className="text-sm text-gray-500 dark:text-gray-400 min-w-fit">
+                {selectedRewardType.value === 'monetary' ? '$' : 
+                 selectedRewardType.value === 'time' ? 'min' : 
+                 selectedRewardType.value === 'points' ? 'pts' : ''}
+              </span>
+            </div>
+          </div>
+
+          {selectedRewardType.value === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Custom Reward Description
+              </label>
+              <Input
+                value={rewardDescription}
+                onChange={(e) => onRewardDescriptionChange(e.target.value)}
+                placeholder="e.g., Ice cream, Movie night, Extra screen time"
+                maxLength={255}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * @description Task form component
  * @param props - Task form component props
  * @returns Task form component
@@ -156,13 +264,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         description: task.description,
         status: task.status,
         priority: task.priority,
-        category: task.category,
-        tags: task.tags,
-        assignedTo: task.assignedTo,
-        dueDate: formatDateForInput(task.dueDate),
+        category: task.category?.name || '',
+        tags: task.tags?.map(tag => tag.name) || [],
+        assignedTo: task.assigned_to_id || 0,
+        dueDate: formatDateForInput(task.due_date),
         points: task.points,
+        rewardType: task.reward_type || 'points',
+        rewardValue: task.reward_value || 0,
+        rewardDescription: task.reward_description || '',
         attachments: [],
-        parentTaskId: task.parentTaskId,
+        parentTaskId: task.parent_task_id,
         subtasks: task.subtasks || [],
       });
     } else {
@@ -211,6 +322,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       newErrors.points = 'Points cannot be negative';
     }
 
+    if (formData.rewardValue < 0) {
+      newErrors.rewardValue = 'Reward value cannot be negative';
+    }
+
+    if (formData.rewardType === 'custom' && !formData.rewardDescription.trim()) {
+      newErrors.rewardDescription = 'Custom reward description is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -257,7 +376,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     if (title) {
       setFormData(prev => ({
         ...prev,
-        subtasks: [...(prev.subtasks || []), { title, status: 'pending' }],
+        subtasks: [...(prev.subtasks || []), { title, status: 'todo' }],
       }));
       setSubtaskInput('');
     }
@@ -299,6 +418,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={task ? 'Edit Task' : 'Create New Task'}
+      showCloseButton={true}
+      closeOnBackdropClick={true}
+      closeOnEscape={true}
       className="dark:bg-gray-800 max-w-4xl mx-auto"
     >
       <div className="max-h-[85vh] overflow-y-auto p-6">
@@ -357,10 +479,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Task['status'] }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="pending">Pending</option>
+                <option value="todo">Todo</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
-                <option value="overdue">Overdue</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
 
@@ -409,8 +531,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                 Assigned To *
               </label>
               <select
-                value={formData.assignedTo}
-                onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
+                value={formData.assignedTo || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: parseInt(e.target.value) || 0 }))}
                 className={cn(
                   'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
                   'bg-white dark:bg-gray-700 text-gray-900 dark:text-white',
@@ -476,6 +598,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             </div>
           </div>
 
+          {/* Reward Type and Value */}
+          <RewardTypeSelector
+            value={formData.rewardType}
+            onChange={(value) => setFormData(prev => ({ ...prev, rewardType: value }))}
+            rewardValue={formData.rewardValue}
+            onRewardValueChange={(value) => setFormData(prev => ({ ...prev, rewardValue: value }))}
+            rewardDescription={formData.rewardDescription}
+            onRewardDescriptionChange={(value) => setFormData(prev => ({ ...prev, rewardDescription: value }))}
+          />
+
           {/* Tags */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -526,7 +658,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
               </label>
               <select
                 value={formData.parentTaskId || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, parentTaskId: e.target.value || undefined }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, parentTaskId: parseInt(e.target.value) || undefined }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="">No parent task</option>

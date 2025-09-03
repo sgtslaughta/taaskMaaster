@@ -16,18 +16,28 @@ from fastapi.responses import JSONResponse
 # Import API routers
 from app.api import (
     auth_router,
+    comments_router,
     gamification_router,
     goals_router,
+    lists_router,
     media_router,
+    mentions_router,
+    messaging_router,
+    presence_router,
+    redis_router,
     tasks_router,
     users_router,
+    websocket_router,
+    workflow_router,
 )
+from app.api.notifications import router as notifications_router
 from app.core.logging import configure_logging, get_logger
 from app.core.monitoring import (
     MetricsMiddleware,
     get_health_status,
     get_metrics,
 )
+from app.core.rate_limiting import rate_limit_middleware
 from app.services.storage_service import MinIOStorageService
 
 # Configure logging
@@ -56,6 +66,9 @@ fastapi_app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"],
 )
+
+# Add rate limiting middleware (temporarily disabled for debugging)
+# fastapi_app.middleware("http")(rate_limit_middleware)
 
 
 @fastapi_app.middleware("http")
@@ -103,7 +116,18 @@ fastapi_app.include_router(users_router)
 fastapi_app.include_router(tasks_router)
 fastapi_app.include_router(goals_router)
 fastapi_app.include_router(gamification_router)
+fastapi_app.include_router(lists_router)
 fastapi_app.include_router(media_router)
+fastapi_app.include_router(redis_router)
+
+# New workflow and messaging routers
+fastapi_app.include_router(comments_router, prefix="/api/v1/comments", tags=["comments"])
+fastapi_app.include_router(workflow_router, prefix="/api/v1/workflow", tags=["workflow"])
+fastapi_app.include_router(messaging_router, prefix="/api/v1/messages", tags=["messaging"])
+fastapi_app.include_router(mentions_router, prefix="/api/v1/mentions", tags=["mentions"])
+fastapi_app.include_router(presence_router, prefix="/api/v1/presence", tags=["presence"])
+fastapi_app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
+fastapi_app.include_router(websocket_router, prefix="/ws", tags=["websocket"])
 
 # Create the final app with ASGI middleware
 app = MetricsMiddleware(fastapi_app)
@@ -204,9 +228,27 @@ async def initialize_minio() -> None:
         logger.info("Continuing without MinIO storage service")
 
 
+async def initialize_redis() -> None:
+    """Initialize Redis service."""
+    try:
+        from app.services.redis_service import redis_service
+        if redis_service.available:
+            logger.info("Redis service initialized successfully")
+        else:
+            logger.warning("Redis service not available")
+    except Exception as e:
+        logger.warning(f"Redis service not available: {e}")
+        logger.info("Continuing without Redis service")
+
+
 async def cleanup_minio() -> None:
     """Cleanup MinIO storage service."""
     logger.info("MinIO storage service cleanup completed")
+
+
+async def cleanup_redis() -> None:
+    """Cleanup Redis service."""
+    logger.info("Redis service cleanup completed")
 
 
 # Startup event
@@ -216,13 +258,13 @@ async def startup_event():
     logger.info("TaaskMaaster API starting up")
 
     # Initialize database
-    from app.db.session import create_tables
-
-    create_tables()
+    from app.core.database import init_database
+    
+    init_database()
     logger.info("Database tables created")
 
     # Initialize services here
-    # await initialize_redis()
+    await initialize_redis()
     await initialize_minio()
 
     logger.info("TaaskMaaster API startup complete")
@@ -236,7 +278,7 @@ async def shutdown_event():
 
     # Cleanup services here
     # await cleanup_database()
-    # await cleanup_redis()
+    await cleanup_redis()
     await cleanup_minio()
 
     logger.info("TaaskMaaster API shutdown complete")

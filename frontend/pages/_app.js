@@ -9,6 +9,7 @@ import '../src/styles/globals.css'
 import { AuthProvider } from '../src/contexts/AuthContext'
 import { ThemeProvider } from '../src/contexts/ThemeContext'
 
+
 /**
  * @description Main App component
  * @param {Object} props - Component props

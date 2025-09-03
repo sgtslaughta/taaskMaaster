@@ -210,21 +210,45 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
         {/* Backdrop */}
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-        {/* Modal */}
-        <div
-          ref={modalRef}
-          className={cn(
-            modalVariants({ size, variant }),
-            'relative z-10 max-h-[90vh] overflow-hidden',
-            className
+        {/* Modal Container with Floating Close Button */}
+        <div className="relative">
+          {/* Floating Close Button - Positioned outside and above modal */}
+          {showCloseButton && (
+            <button
+              type="button"
+              className={cn(
+                'absolute -top-3 -right-3 z-[9999] rounded-full p-2',
+                'bg-gray-700 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-700',
+                'text-white shadow-lg border-2 border-white dark:border-gray-200',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                'transition-all duration-200 transform hover:scale-105 active:scale-95',
+                'cursor-pointer select-none',
+                closeButtonClassName
+              )}
+              onClick={onClose}
+              aria-label="Close modal"
+              title="Close"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           )}
-          tabIndex={-1}
-          {...props}
-        >
-          {/* Header */}
-          {(header || title || showCloseButton) && (
-            <div className={cn('flex items-start justify-between p-6 pb-0', headerClassName)}>
-              <div className="flex-1 min-w-0">
+
+          {/* Modal */}
+          <div
+            ref={modalRef}
+            className={cn(
+              modalVariants({ size, variant }),
+              'relative z-20 max-h-[90vh] overflow-hidden dark:bg-gray-800',
+              className
+            )}
+            tabIndex={-1}
+            {...props}
+          >
+
+            {/* Header */}
+            {(header || title) && (
+              <div className={cn('flex items-start justify-between p-6 pb-0 border-b border-gray-200 dark:border-gray-700', headerClassName)}>
+                <div className="flex-1 min-w-0"> {/* Removed right padding since button is outside */}
                 {header ? (
                   header
                 ) : (
@@ -232,7 +256,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                     {title && (
                       <h2
                         id="modal-title"
-                        className="text-lg font-semibold text-gray-900"
+                        className="text-lg font-semibold text-gray-900 dark:text-white"
                       >
                         {title}
                       </h2>
@@ -240,7 +264,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                     {subtitle && (
                       <p
                         id="modal-subtitle"
-                        className="mt-1 text-sm text-gray-500"
+                        className="mt-1 text-sm text-gray-500 dark:text-gray-400"
                       >
                         {subtitle}
                       </p>
@@ -248,33 +272,21 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                   </>
                 )}
               </div>
-              {showCloseButton && (
-                <button
-                  type="button"
-                  className={cn(
-                    'ml-4 flex-shrink-0 rounded-md p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    closeButtonClassName
-                  )}
-                  onClick={onClose}
-                  aria-label="Close modal"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              )}
             </div>
           )}
 
-          {/* Body */}
-          <div className={cn('flex-1 overflow-y-auto p-6', bodyClassName)}>
-            {children}
+                      {/* Body */}
+            <div className={cn('flex-1 overflow-y-auto p-6', bodyClassName)}> {/* Removed right padding since button is outside */}
+              {children}
+            </div>
+
+            {/* Footer */}
+            {footer && (
+              <div className={cn('flex items-center justify-end gap-3 p-6 pt-0', footerClassName)}> {/* Removed right padding since button is outside */}
+                {footer}
+              </div>
+            )}
           </div>
-
-          {/* Footer */}
-          {footer && (
-            <div className={cn('flex items-center justify-end gap-3 p-6 pt-0', footerClassName)}>
-              {footer}
-            </div>
-          )}
         </div>
       </div>
     );
@@ -345,12 +357,12 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
     <div className={cn('flex items-start justify-between', className)} {...props}>
       <div className="flex-1 min-w-0">
         {title && (
-          <h2 className={cn('text-lg font-semibold text-gray-900', titleClassName)}>
+          <h2 className={cn('text-lg font-semibold text-gray-900 dark:text-white', titleClassName)}>
             {title}
           </h2>
         )}
         {subtitle && (
-          <p className={cn('mt-1 text-sm text-gray-500', subtitleClassName)}>
+          <p className={cn('mt-1 text-sm text-gray-500 dark:text-gray-400', subtitleClassName)}>
             {subtitle}
           </p>
         )}

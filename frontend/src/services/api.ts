@@ -1,11 +1,12 @@
 /**
  * @fileoverview API Service Configuration for TaaskMaaster
- * @description Main API service setup with axios, authentication, and error handling
+ * @description Main API service setup with enhanced token management and error handling
  * @author TaaskMaaster Team
  * @version 1.0.0
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { httpInterceptor } from './httpInterceptor';
 
 /**
  * @description API configuration interface
@@ -46,74 +47,16 @@ const defaultConfig: ApiConfig = {
 };
 
 /**
- * @description Create axios instance with default configuration
+ * @description Get axios instance from HTTP interceptor
  */
-const createApiInstance = (): AxiosInstance => {
-  const instance = axios.create(defaultConfig);
-
-  // Request interceptor for authentication
-  instance.interceptors.request.use(
-    (config) => {
-      // Add authentication token if available
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  // Response interceptor for error handling and token refresh
-  instance.interceptors.response.use(
-    (response: AxiosResponse) => {
-      return response;
-    },
-    async (error) => {
-      const originalRequest = error.config;
-
-      // Handle 401 Unauthorized errors
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-
-        try {
-          // Try to refresh the token
-          const refreshToken = localStorage.getItem('refresh_token');
-          if (refreshToken) {
-            const response = await axios.post(
-              `${defaultConfig.baseURL}/api/v1/auth/refresh`,
-              { refresh_token: refreshToken }
-            );
-
-            const { access_token } = response.data;
-            localStorage.setItem('access_token', access_token);
-
-            // Retry the original request with new token
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
-            return instance(originalRequest);
-          }
-        } catch (refreshError) {
-          // Refresh failed, redirect to login
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
-      }
-
-      return Promise.reject(error);
-    }
-  );
-
-  return instance;
+const getApiInstance = (): AxiosInstance => {
+  return httpInterceptor.getAxiosInstance();
 };
 
 /**
  * @description Main API instance
  */
-export const api = createApiInstance();
+export const api = getApiInstance();
 
 /**
  * @description Generic API request function
@@ -247,6 +190,15 @@ export const checkApiHealth = async (): Promise<boolean> => {
   } catch (error) {
     return false;
   }
+};
+
+/**
+ * @description Invalidate user cache to force fresh data loading
+ * @param userId - User ID to invalidate cache for
+ * @returns Promise with invalidation result
+ */
+export const invalidateUserCache = async (userId: number): Promise<ApiResponse<{ success: boolean; message: string }>> => {
+  return apiPost(`/api/v1/redis/cache/user/${userId}/invalidate`);
 };
 
 export default api;

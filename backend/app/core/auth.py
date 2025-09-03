@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ from app.services.user_service import UserService
 logger = get_logger(__name__)
 
 # Security configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -164,7 +164,7 @@ class AuthService:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             return payload
-        except JWTError:
+        except jwt.InvalidTokenError:
             return None
 
     def get_current_user(self, token: str) -> Optional[User]:
@@ -181,8 +181,13 @@ class AuthService:
         if payload is None:
             return None
 
-        user_id: int = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
+            return None
+        
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
             return None
 
         user = self.user_service.get_user(user_id)

@@ -18,9 +18,12 @@ import {
   AcademicCapIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import { getNavigationItems, updateNavigationWithBadges, type NavigationUser } from '../../utils/navigation';
 import { AppLayout, NavigationItem } from '../layout/AppLayout';
 import { cn } from '../../design-system/utils/cn';
 import { gamificationService, goalService, taskService } from '../../services';
+import { workflowStatsService, type WorkflowStats } from '../../services/workflowStatsService';
+import WorkflowStatsCards from '../workflow/WorkflowStatsCards';
 
 /**
  * @description User interface
@@ -73,67 +76,29 @@ export interface DashboardProps {
   onLogout?: () => void;
   /** Function called when navigation is requested */
   onNavigation?: (view: string) => void;
+  /** Function called when navigating from notifications */
+  onNotificationNavigation?: (pageId: string, taskId?: number) => void;
   /** Additional CSS classes */
   className?: string;
 }
 
 /**
- * @description Default navigation items for the dashboard
+ * @description Generate navigation items based on user role and task counts
+ * @param user - Current user
+ * @param taskCounts - Task counts for badges
+ * @returns Role-based navigation items
  */
-const defaultNavigationItems: NavigationItem[] = [
-  {
-    id: 'dashboard',
-    name: 'Dashboard',
-    icon: HomeIcon,
-    active: true,
-  },
-  {
-    id: 'tasks',
-    name: 'Tasks',
-    icon: CheckCircleIcon,
-    badge: 3,
-  },
-  {
-    id: 'goals',
-    name: 'Goals',
-    icon: TrophyIcon,
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    icon: UserGroupIcon,
-  },
-  {
-    id: 'achievements',
-    name: 'Achievements',
-    icon: StarIcon,
-  },
-  {
-    id: 'leaderboard',
-    name: 'Leaderboard',
-    icon: ChartBarIcon,
-  },
-  {
-    id: 'calendar',
-    name: 'Calendar',
-    icon: CalendarIcon,
-  },
-  {
-    id: 'streaks',
-    name: 'Streaks',
-    icon: FireIcon,
-  },
-  {
-    id: 'learning',
-    name: 'Learning',
-    icon: AcademicCapIcon,
-  },
-  {
-    id: 'settings',
-    name: 'Settings',
-    icon: Cog6ToothIcon,
-  },
-];
+const generateNavigationItems = (
+  user: NavigationUser | null,
+  taskCounts?: {
+    myTasks?: number;
+    allTasks?: number;
+    pendingTasks?: number;
+  }
+): NavigationItem[] => {
+  const baseItems = getNavigationItems(user, 'dashboard');
+  return updateNavigationWithBadges(baseItems, taskCounts);
+};
 
 /**
  * @description Dashboard component
@@ -151,8 +116,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onQuickAction,
   onLogout,
   onNavigation,
+  onNotificationNavigation,
   className,
 }) => {
+
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
     currentLevel: 1,
@@ -164,8 +131,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     completedGoals: 0,
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [workflowStats, setWorkflowStats] = useState<WorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [navigationItems, setNavigationItems] = useState<NavigationItem[]>(() => {
+    // Initialize with basic navigation items to prevent undefined errors
+    return generateNavigationItems(user as NavigationUser | null);
+  });
 
   /**
    * @description Load dashboard data
@@ -191,6 +163,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const tasksCompleted = tasks.filter(t => t.status === 'done').length;
       const tasksPending = tasks.filter(t => t.status !== 'done').length;
 
+      // Calculate workflow statistics
+      const workflowStatsData = workflowStatsService.calculateWorkflowStats(tasks);
+      setWorkflowStats(workflowStatsData);
+
       // Combine all stats
       setStats({
         totalPoints: gamificationStats.totalPoints,
@@ -205,6 +181,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       // Load recent activity
       await loadRecentActivity(userId);
+
+      // Generate navigation items with task counts
+      // myTasks should represent tasks that need attention (not done)
+      const myTasksCount = tasks.filter(t => t.status !== 'done').length;
+      
+      const navItems = generateNavigationItems(user as NavigationUser, {
+        myTasks: myTasksCount, // Tasks that need user attention (created by or assigned to them)
+        allTasks: tasks.length,
+        pendingTasks: tasksPending,
+      });
+      setNavigationItems(navItems);
 
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -289,6 +276,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData();
   }, [user?.id]);
 
+  // Update navigation items when user changes
+  useEffect(() => {
+    if (user) {
+      const navItems = generateNavigationItems(user as NavigationUser);
+      setNavigationItems(navItems);
+    }
+  }, [user]);
+
   /**
    * @description Get appropriate greeting based on time of day
    */
@@ -320,7 +315,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
    */
   const handleNavigation = (item: NavigationItem) => {
     if (onNavigation) {
-      onNavigation(item.id);
+      // For now, we'll implement simple routing by showing different components
+      // based on the navigation item clicked
+      switch (item.id) {
+        case 'my-tasks':
+          // This would normally be handled by a router
+          // For now, we'll just call the parent's onNavigation
+          onNavigation('my-tasks');
+          break;
+        case 'task-hub':
+          onNavigation('task-hub');
+          break;
+        default:
+          onNavigation(item.id);
+          break;
+      }
     }
   };
 
@@ -329,9 +338,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <AppLayout
         user={user}
         title="Dashboard"
-        navigationItems={defaultNavigationItems}
+        navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
+        onNotificationNavigation={onNotificationNavigation}
         className={className}
       >
         <div className="flex items-center justify-center h-64">
@@ -347,9 +357,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <AppLayout
         user={user}
         title="Dashboard"
-        navigationItems={defaultNavigationItems}
+        navigationItems={navigationItems}
         onLogout={onLogout}
         onNavigation={handleNavigation}
+        onNotificationNavigation={onNotificationNavigation}
         className={className}
       >
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -369,7 +380,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <AppLayout
       user={user}
       title="Dashboard"
-      navigationItems={defaultNavigationItems}
+      navigationItems={navigationItems}
       onLogout={onLogout}
       onNavigation={handleNavigation}
       className={className}
@@ -469,6 +480,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </button>
         </div>
+
+        {/* Workflow Statistics */}
+        {workflowStats && (
+          <WorkflowStatsCards 
+            stats={workflowStats} 
+            loading={loading}
+          />
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

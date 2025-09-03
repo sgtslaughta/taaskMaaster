@@ -6,6 +6,7 @@
  */
 
 import { apiGet, apiPost, apiPut, apiDelete } from './api';
+import { TaskTemplate } from '../components/tasks/TemplateCard';
 
 /**
  * @description Task priority enum
@@ -22,7 +23,9 @@ export enum TaskPriority {
  */
 export enum TaskStatus {
   TODO = 'todo',
+  ASSIGNED = 'assigned',
   IN_PROGRESS = 'in_progress',
+  SUBMITTED_FOR_APPROVAL = 'submitted_for_approval',
   REVIEW = 'review',
   DONE = 'done',
   CANCELLED = 'cancelled',
@@ -42,6 +45,9 @@ export interface Task {
   estimated_hours?: number;
   actual_hours?: number;
   points: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -82,22 +88,7 @@ export interface TaskTag {
   updated_at: string;
 }
 
-/**
- * @description Task template interface
- */
-export interface TaskTemplate {
-  id: number;
-  name: string;
-  description?: string;
-  estimated_hours?: number;
-  points: number;
-  category_id?: number;
-  tags?: string[];
-  is_public: boolean;
-  created_by_id: number;
-  created_at: string;
-  updated_at: string;
-}
+// TaskTemplate interface is imported from TemplateCard to avoid duplication
 
 /**
  * @description Create task request interface
@@ -110,6 +101,9 @@ export interface CreateTaskRequest {
   due_date?: string;
   estimated_hours?: number;
   points?: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring?: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -131,6 +125,9 @@ export interface UpdateTaskRequest {
   estimated_hours?: number;
   actual_hours?: number;
   points?: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
   is_recurring?: boolean;
   recurrence_pattern?: any;
   template_id?: number;
@@ -152,6 +149,69 @@ export interface TaskListResponse {
 }
 
 /**
+ * @description Task get request interface
+ */
+export interface TaskGetRequest {
+  task_id: number;
+}
+
+/**
+ * @description Task complete request interface
+ */
+export interface TaskCompleteRequest {
+  task_id: number;
+  actual_hours?: number;
+}
+
+/**
+ * @description Task update request interface
+ */
+export interface TaskUpdateRequest {
+  task_id: number;
+  updates: {
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    due_date?: string;
+    estimated_hours?: number;
+    actual_hours?: number;
+    points?: number;
+    reward_type?: string;
+    reward_value?: number;
+    reward_description?: string;
+    is_recurring?: boolean;
+    recurrence_pattern?: any;
+    template_id?: number;
+    category_id?: number;
+    assigned_to_id?: number;
+    parent_task_id?: number;
+    tags?: string[];
+  };
+}
+
+/**
+ * @description Task delete request interface
+ */
+export interface TaskDeleteRequest {
+  task_id: number;
+}
+
+/**
+ * @description Create from template request interface
+ */
+export interface CreateFromTemplateRequest {
+  template_id: number;
+  title?: string;
+  description?: string;
+  assigned_to_id?: number;
+  due_date?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  estimated_hours?: number;
+  points?: number;
+}
+
+/**
  * @description Task filter options interface
  */
 export interface TaskFilterOptions {
@@ -161,6 +221,7 @@ export interface TaskFilterOptions {
   priority?: TaskPriority;
   category_id?: number;
   assigned_to_id?: number;
+  reward_type?: string;
   search?: string;
 }
 
@@ -195,6 +256,7 @@ export class TaskService {
       if (options.priority) params.append('priority', options.priority);
       if (options.category_id) params.append('category_id', options.category_id.toString());
       if (options.assigned_to_id) params.append('assigned_to_id', options.assigned_to_id.toString());
+      if (options.reward_type) params.append('reward_type', options.reward_type);
       if (options.search) params.append('search', options.search);
 
       const url = `/api/v1/tasks?${params.toString()}`;
@@ -212,10 +274,14 @@ export class TaskService {
    */
   async getTask(taskId: number): Promise<Task> {
     try {
-      const response = await apiGet<Task>(`/api/v1/tasks/${taskId}`);
+      const request: TaskGetRequest = { task_id: taskId };
+      const response = await apiPost<Task>('/api/v1/tasks/get', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to fetch task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch task: ${error.message}`);
+      }
+      throw new Error('Failed to fetch task: Unknown error');
     }
   }
 
@@ -239,12 +305,19 @@ export class TaskService {
    * @param taskData - Task update data
    * @returns Promise with updated task
    */
-  async updateTask(taskId: number, taskData: UpdateTaskRequest): Promise<Task> {
+  async updateTask(taskId: number, taskData: Partial<Task>): Promise<Task> {
     try {
-      const response = await apiPut<Task>(`/api/v1/tasks/${taskId}`, taskData);
+      const request: TaskUpdateRequest = {
+        task_id: taskId,
+        updates: taskData
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/update', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to update task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to update task: ${error.message}`);
+      }
+      throw new Error('Failed to update task: Unknown error');
     }
   }
 
@@ -255,9 +328,13 @@ export class TaskService {
    */
   async deleteTask(taskId: number): Promise<void> {
     try {
-      await apiDelete(`/api/v1/tasks/${taskId}`);
+      const request: TaskDeleteRequest = { task_id: taskId };
+      await apiPost('/api/v1/tasks/delete', request);
     } catch (error) {
-      throw new Error('Failed to delete task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to delete task: ${error.message}`);
+      }
+      throw new Error('Failed to delete task: Unknown error');
     }
   }
 
@@ -269,11 +346,17 @@ export class TaskService {
    */
   async completeTask(taskId: number, actualHours?: number): Promise<Task> {
     try {
-      const params = actualHours ? `?actual_hours=${actualHours}` : '';
-      const response = await apiPost<Task>(`/api/v1/tasks/${taskId}/complete${params}`);
+      const request: TaskCompleteRequest = {
+        task_id: taskId,
+        actual_hours: actualHours
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/complete', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to complete task.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to complete task: ${error.message}`);
+      }
+      throw new Error('Failed to complete task: Unknown error');
     }
   }
 
@@ -370,25 +453,33 @@ export class TaskService {
   /**
    * @description Create a task from a template
    * @param templateId - Template ID
-   * @param title - Override title (optional)
-   * @param description - Override description (optional)
+   * @param customData - Custom task data to override template values
    * @returns Promise with created task
    */
   async createTaskFromTemplate(
     templateId: number,
-    title?: string,
-    description?: string
+    customData?: {
+      title?: string;
+      description?: string;
+      assigned_to_id?: number;
+      due_date?: string;
+      priority?: 'low' | 'medium' | 'high' | 'urgent';
+      estimated_hours?: number;
+      points?: number;
+    }
   ): Promise<Task> {
     try {
-      const params = new URLSearchParams();
-      if (title) params.append('title', title);
-      if (description) params.append('description', description);
-
-      const url = `/api/v1/tasks/templates/${templateId}/create?${params.toString()}`;
-      const response = await apiPost<Task>(url);
+      const request: CreateFromTemplateRequest = {
+        template_id: templateId,
+        ...customData
+      };
+      const response = await apiPost<Task>('/api/v1/tasks/templates/create-from-template', request);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to create task from template.');
+      if (error instanceof Error) {
+        throw new Error(`Failed to create task from template: ${error.message}`);
+      }
+      throw new Error('Failed to create task from template: Unknown error');
     }
   }
 
@@ -421,6 +512,88 @@ export class TaskService {
       return response.data;
     } catch (error) {
       throw new Error('Failed to create recurring tasks.');
+    }
+  }
+
+  /**
+   * @description Bulk update multiple tasks
+   * @param bulkUpdateData - Bulk update data
+   * @returns Promise with updated tasks
+   */
+  async bulkUpdateTasks(bulkUpdateData: {
+    task_ids: number[];
+    updates: Partial<Task>;
+  }): Promise<Task[]> {
+    try {
+      const response = await apiPost<Task[]>('/api/v1/tasks/bulk-update', bulkUpdateData);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to bulk update tasks.');
+    }
+  }
+
+  /**
+   * @description Export tasks in various formats
+   * @param exportRequest - Export request data
+   * @returns Promise with exported data
+   */
+  async exportTasks(exportRequest: {
+    format: string;
+    filters?: any;
+    include_completed: boolean;
+    date_range?: {
+      start: Date;
+      end: Date;
+    };
+  }): Promise<string> {
+    try {
+      const response = await apiPost<string>('/api/v1/tasks/export', exportRequest);
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to export tasks.');
+    }
+  }
+
+  /**
+   * @description Get available reward types
+   * @returns Promise with reward types
+   */
+  async getRewardTypes(): Promise<Array<{
+    value: string;
+    label: string;
+    description: string;
+  }>> {
+    try {
+      const response = await apiGet<{ reward_types: Array<{
+        value: string;
+        label: string;
+        description: string;
+      }> }>('/api/v1/tasks/reward-types');
+      return response.data.reward_types;
+    } catch (error) {
+      throw new Error('Failed to fetch reward types.');
+    }
+  }
+
+  /**
+   * @description Get users for task assignment
+   * @returns Promise with users list
+   */
+  async getUsers(): Promise<Array<{ id: number; username: string; email: string }>> {
+    try {
+      const response = await apiGet<{ 
+        users: Array<{ 
+          id: number; 
+          username: string; 
+          email: string; 
+          full_name?: string; 
+          is_active: boolean;
+        }>;
+        total: number;
+      }>('/api/v1/users/for-assignment');
+      return response.data.users;
+    } catch (error) {
+      throw new Error('Failed to fetch users for assignment.');
     }
   }
 }

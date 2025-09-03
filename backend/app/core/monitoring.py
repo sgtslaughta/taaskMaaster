@@ -115,14 +115,45 @@ def get_health_status() -> dict[str, Any]:
     Returns:
         Dictionary containing health status information
     """
+    # Check Redis health
+    try:
+        from app.services.redis_service import redis_service
+        redis_health = "healthy" if redis_service.health_check() else "unhealthy"
+    except Exception:
+        redis_health = "unavailable"
+    
+    # Check database health (basic check)
+    try:
+        from app.db.session import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            conn.commit()
+        database_health = "healthy"
+    except Exception as e:
+        database_health = "unhealthy"
+    
+    # Check MinIO health (basic check)
+    try:
+        from app.services.storage_service import MinIOStorageService
+        MinIOStorageService()
+        minio_health = "healthy"
+    except Exception:
+        minio_health = "unavailable"
+    
+    # Overall health status
+    overall_health = "healthy"
+    if database_health != "healthy":
+        overall_health = "unhealthy"
+    
     return {
-        "status": "healthy",
+        "status": overall_health,
         "timestamp": time.time(),
         "version": "0.1.0",
         "services": {
-            "database": "healthy",
-            "redis": "healthy",
-            "minio": "healthy",
+            "database": database_health,
+            "redis": redis_health,
+            "minio": minio_health,
         },
     }
 

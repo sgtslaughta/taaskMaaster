@@ -6,6 +6,8 @@
  */
 
 import { apiGet, apiPost } from './api';
+import { saveLoginState, clearLoginState, getLoginState } from '../utils/cookies';
+import { tokenManager } from './tokenManager';
 
 /**
  * @description Login request interface
@@ -28,6 +30,7 @@ export interface LoginResponse {
   username: string;
   email: string;
   full_name: string;
+  role: string;
   is_active: boolean;
   is_superuser: boolean;
 }
@@ -63,6 +66,7 @@ export interface CurrentUser {
   username: string;
   email: string;
   full_name: string;
+  role: string;
   is_active: boolean;
   is_superuser: boolean;
   timezone?: string;
@@ -96,9 +100,18 @@ export class AuthService {
     try {
       const response = await apiPost<LoginResponse>('/api/v1/auth/login', credentials);
       
-      // Store tokens in localStorage
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('refresh_token', response.data.refresh_token);
+      // Use TokenManager to securely store tokens
+      tokenManager.setTokens({
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+        expires_in: response.data.expires_in || 3600,
+        refresh_expires_in: response.data.refresh_expires_in,
+      }, {
+        userId: response.data.user_id.toString(),
+        username: response.data.username,
+        email: response.data.email,
+        role: response.data.role,
+      });
       
       // Store user info
       this.currentUser = {
@@ -106,12 +119,15 @@ export class AuthService {
         username: response.data.username,
         email: response.data.email,
         full_name: response.data.full_name,
+        role: response.data.role,
         is_active: response.data.is_active,
         is_superuser: response.data.is_superuser,
       };
 
+
       return response.data;
     } catch (error) {
+      console.error('AuthService: Login error:', error);
       throw new Error('Login failed. Please check your credentials.');
     }
   }
@@ -124,16 +140,14 @@ export class AuthService {
     try {
       const response = await apiPost<LogoutResponse>('/api/v1/auth/logout');
       
-      // Clear tokens and user data
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      // Use TokenManager to securely clear all auth data
+      tokenManager.clearTokens();
       this.currentUser = null;
 
       return response.data;
     } catch (error) {
       // Even if logout fails, clear local data
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      tokenManager.clearTokens();
       this.currentUser = null;
       
       return { message: 'Logged out successfully' };
@@ -141,27 +155,21 @@ export class AuthService {
   }
 
   /**
-   * @description Refresh access token
+   * @description Refresh access token (delegated to TokenManager)
    * @param refreshToken - Refresh token
    * @returns Promise with new access token
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
-    try {
-      const response = await apiPost<RefreshTokenResponse>('/api/v1/auth/refresh', {
-        refresh_token: refreshToken,
-      });
-      
-      // Update stored access token
-      localStorage.setItem('access_token', response.data.access_token);
-      
-      return response.data;
-    } catch (error) {
-      // Clear tokens if refresh fails
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      this.currentUser = null;
-      
-      throw new Error('Token refresh failed. Please login again.');
+    const result = await tokenManager.refreshTokens();
+    
+    if (result.success && result.tokens) {
+      return {
+        access_token: result.tokens.access_token,
+        token_type: 'bearer',
+        expires_in: result.tokens.expires_in,
+      };
+    } else {
+      throw new Error(result.error || 'Token refresh failed. Please login again.');
     }
   }
 
@@ -180,12 +188,11 @@ export class AuthService {
   }
 
   /**
-   * @description Check if user is authenticated
+   * @description Check if user is authenticated (delegated to TokenManager)
    * @returns Boolean indicating authentication status
    */
   isAuthenticated(): boolean {
-    const token = localStorage.getItem('access_token');
-    return !!token && !!this.currentUser;
+    return tokenManager.isAuthenticated();
   }
 
   /**
@@ -197,37 +204,28 @@ export class AuthService {
   }
 
   /**
-   * @description Get stored access token
+   * @description Get stored access token (delegated to TokenManager)
    * @returns Access token or null
    */
   getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
+    return tokenManager.getAccessToken();
   }
 
   /**
-   * @description Get stored refresh token
+   * @description Get stored refresh token (delegated to TokenManager)
    * @returns Refresh token or null
    */
   getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
+    return tokenManager.getRefreshToken();
   }
 
   /**
-   * @description Check if token is expired
+   * @description Check if token is expired (delegated to TokenManager)
    * @returns Boolean indicating if token is expired
    */
   isTokenExpired(): boolean {
-    const token = this.getAccessToken();
-    if (!token) return true;
-
-    try {
-      // Decode JWT token to check expiration
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Math.floor(Date.now() / 1000);
-      return payload.exp < currentTime;
-    } catch (error) {
-      return true;
-    }
+    const validation = tokenManager.validateAccessToken();
+    return validation.isExpired;
   }
 
   /**
@@ -248,19 +246,19 @@ export class AuthService {
   }
 
   /**
-   * @description Set access token from external source (e.g., cookies)
+   * @description Set access token from external source (delegated to TokenManager)
    * @param token - Access token to set
    */
   setAccessToken(token: string): void {
+    // For compatibility, but prefer using TokenManager.setTokens()
     localStorage.setItem('access_token', token);
   }
 
   /**
-   * @description Clear authentication state
+   * @description Clear authentication state (delegated to TokenManager)
    */
   clearAuth(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    tokenManager.clearTokens();
     this.currentUser = null;
   }
 }

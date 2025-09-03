@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.core.database import Base
 
 
 class TaskPriority(str, Enum):
@@ -38,10 +38,21 @@ class TaskStatus(str, Enum):
     """Task status values."""
 
     TODO = "todo"
+    ASSIGNED = "assigned"
     IN_PROGRESS = "in_progress"
-    REVIEW = "review"
+    SUBMITTED_FOR_APPROVAL = "submitted_for_approval"
+    REVIEW = "review"  # Legacy status, kept for backward compatibility
     DONE = "done"
     CANCELLED = "cancelled"
+
+
+class RewardType(str, Enum):
+    """Reward types for task completion."""
+
+    POINTS = "points"
+    MONETARY = "monetary"
+    TIME = "time"
+    CUSTOM = "custom"
 
 
 class RecurrenceType(str, Enum):
@@ -69,7 +80,10 @@ class Task(Base):
         completed_at: Completion timestamp
         estimated_hours: Estimated time to complete
         actual_hours: Actual time spent
-        points: Points awarded for completion
+        points: Points awarded for completion (legacy field)
+        reward_type: Type of reward for task completion
+        reward_value: Value of the reward (amount, points, time, etc.)
+        reward_description: Description of custom rewards
         is_recurring: Whether task repeats
         recurrence_pattern: JSON pattern for recurring tasks
         template_id: Reference to task template
@@ -94,7 +108,10 @@ class Task(Base):
     completed_at = Column(DateTime, nullable=True)
     estimated_hours = Column(Float, default=0.0)
     actual_hours = Column(Float, default=0.0)
-    points = Column(Integer, default=0)
+    points = Column(Integer, default=0)  # Legacy field for backward compatibility
+    reward_type = Column(SQLEnum(RewardType), default=RewardType.POINTS, index=True)
+    reward_value = Column(Float, default=0.0)  # Amount, points, time in minutes, etc.
+    reward_description = Column(String(255), nullable=True)  # For custom rewards
     is_recurring = Column(Boolean, default=False)
     recurrence_pattern = Column(JSON, nullable=True)
     template_id = Column(
@@ -106,6 +123,12 @@ class Task(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     assigned_to_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    
+    # New workflow fields
+    submitted_for_approval_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -140,12 +163,95 @@ class Task(Base):
         foreign_keys="Task.parent_task_id",
     )
     media_attachments = relationship("MediaAttachment", back_populates="task")
+    lists = relationship(
+        "TaskList",
+        secondary="task_list_associations",
+        back_populates="tasks"
+    )
+    
+    # New workflow and messaging relationships
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
+    status_history = relationship("TaskStatusHistory", back_populates="task", cascade="all, delete-orphan")
+    chat_messages = relationship("TaskChatMessage", back_populates="task", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         """String representation of Task."""
         return (
             f"<Task(id={self.id}, title='{self.title}', "
             f"status='{self.status}')>"
+        )
+
+
+class TaskList(Base):
+    """
+    Task list model for organizing tasks into custom groups.
+
+    Attributes:
+        id: Primary key
+        name: List name
+        description: List description
+        color: List color for visual identification
+        is_public: Whether list is public/shared
+        is_archived: Whether list is archived
+        created_by_id: User who created the list
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+    """
+
+    __tablename__ = "task_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    color = Column(String(7), default="#3B82F6")  # Hex color code
+    is_public = Column(Boolean, default=False)
+    is_archived = Column(Boolean, default=False)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    created_by = relationship("User", back_populates="created_lists")
+    tasks = relationship(
+        "Task",
+        secondary="task_list_associations",
+        back_populates="lists"
+    )
+
+    def __repr__(self) -> str:
+        """String representation of TaskList."""
+        return f"<TaskList(id={self.id}, name='{self.name}')>"
+
+
+class TaskListAssociation(Base):
+    """
+    Association table for many-to-many relationship between tasks and lists.
+    Includes position for ordering tasks within lists.
+
+    Attributes:
+        id: Primary key
+        task_id: Reference to task
+        list_id: Reference to list
+        position: Position of task within the list (for ordering)
+        added_at: When task was added to list
+    """
+
+    __tablename__ = "task_list_associations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    list_id = Column(Integer, ForeignKey("task_lists.id"), nullable=False)
+    position = Column(Integer, default=0)  # For ordering tasks within list
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        """String representation of TaskListAssociation."""
+        return (
+            f"<TaskListAssociation(task_id={self.task_id}, "
+            f"list_id={self.list_id}, position={self.position})>"
         )
 
 

@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cn } from '../../design-system/utils/cn';
 import { useTheme } from '../../contexts/ThemeContext';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 /**
  * @description Header component props interface
@@ -45,6 +46,8 @@ export interface HeaderProps {
   showNotifications?: boolean;
   /** Function called when notifications are toggled */
   onNotificationsToggle?: () => void;
+  /** Function called when navigating from notifications */
+  onNavigation?: (pageId: string, taskId?: number) => void;
   /** Whether the sidebar is open (for mobile) */
   sidebarOpen?: boolean;
   /** Function to toggle sidebar */
@@ -69,12 +72,14 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   showSearch = true,
   onSearch,
-  showNotifications: initialShowNotifications = false,
+  showNotifications: initialShowNotifications = !!user, // Show notifications when user is logged in
   onNotificationsToggle,
+  onNavigation,
   sidebarOpen = false,
   onSidebarToggle,
   className,
 }) => {
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(initialShowNotifications);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -131,9 +136,9 @@ export const Header: React.FC<HeaderProps> = ({
    * @description Handle user menu toggle
    */
   const handleUserMenuToggle = () => {
-    console.log('User menu toggle clicked, current state:', showUserMenu);
+
     setShowUserMenu(!showUserMenu);
-    console.log('New state will be:', !showUserMenu);
+
   };
 
   /**
@@ -262,8 +267,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Logo */}
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg mr-3">
-              <span className="text-white font-bold text-sm">T</span>
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3">
+              <img 
+                src="/favicon-16x16.png" 
+                alt="TaaskMaaster Logo" 
+                className="w-4 h-4"
+              />
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               TaaskMaaster
@@ -316,22 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications */}
           {showNotifications && (
-            <button
-              type="button"
-              onClick={handleNotificationsToggle}
-              className={cn(
-                'p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100',
-                'dark:text-gray-300 dark:hover:text-gray-200 dark:hover:bg-gray-800',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                'transition-all duration-200',
-                'relative'
-              )}
-              aria-label="Toggle notifications"
-            >
-              <BellIcon className="h-5 w-5" />
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell onNavigation={onNavigation} />
           )}
 
           {/* User Menu */}

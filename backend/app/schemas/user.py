@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
+from app.models.user import UserRole
 
 
 class UserBase(BaseModel):
@@ -27,6 +28,7 @@ class UserCreate(UserBase):
     """Schema for creating a new user."""
 
     password: str = Field(..., min_length=8, description="User password")
+    role: Optional[UserRole] = Field(default=UserRole.USER, description="User role")
 
 
 class UserUpdate(BaseModel):
@@ -45,6 +47,7 @@ class UserResponse(UserBase):
     """Schema for user response data."""
 
     id: int
+    role: UserRole
     is_active: bool
     is_superuser: bool
     profile_picture: Optional[str] = None
