@@ -326,12 +326,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p className="font-medium">Demo Credentials:</p>
-          <p>Username: admin</p>
-          <p>Password: admin123</p>
-        </div>
+
       </div>
     </div>
   );

@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/authService';
+import { tokenManager } from '../services/tokenManager';
 import { 
   saveLoginState, 
   getLoginState, 
@@ -65,6 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * @description Initialize auth state from cookies
    */
   useEffect(() => {
+    // Initialize TokenManager
+    tokenManager.initialize();
+    
+    // Setup forced logout listener
+    const handleForcedLogout = (event: any) => {
+      console.log('🚪 Forced logout triggered:', event.detail);
+      setUser(null);
+      setIsLoading(false);
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('forceLogout', handleForcedLogout);
+    }
+    
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
@@ -144,6 +159,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('forceLogout', handleForcedLogout);
+      }
+    };
   }, []);
 
   /**

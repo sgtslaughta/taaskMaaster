@@ -146,14 +146,6 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
-        <p>Demo Credentials:</p>
-        <p>Username: admin</p>
-        <p>Password: admin123</p>
-        <p className="mt-2 text-xs text-gray-500">
-          (You may need to create a user first via the API)
-        </p>
-      </div>
     </div>
   );
 };
