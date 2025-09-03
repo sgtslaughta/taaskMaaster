@@ -76,28 +76,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Set the token in auth service
           authService.setAccessToken(savedLoginState.token);
           
-          // Try to get current user
-          try {
-            const currentUser = await authService.getCurrentUser();
-            setUser({
-              id: currentUser.user_id.toString(),
-              username: currentUser.username,
-              email: currentUser.email,
-              role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
-            });
+          // Check if token is expired before making API calls
+          if (authService.isTokenExpired()) {
+            console.log('Access token is expired, attempting refresh...');
             
-            // Update last login time
-            saveLoginState({
-              ...savedLoginState,
-              lastLogin: Date.now(),
-            });
-            
-      
-          } catch (error) {
-            console.error('Failed to get current user from saved session:', error);
-            // Clear invalid login state
-            clearLoginState();
-            authService.clearAuth();
+            try {
+              const refreshToken = authService.getRefreshToken();
+              if (refreshToken) {
+                const refreshResponse = await authService.refreshToken(refreshToken);
+                console.log('Token refresh successful');
+                
+                // Update the saved login state with new token
+                saveLoginState({
+                  ...savedLoginState,
+                  token: refreshResponse.access_token,
+                  lastLogin: Date.now(),
+                });
+                
+                // Now try to get current user with fresh token
+                const currentUser = await authService.getCurrentUser();
+                setUser({
+                  id: currentUser.user_id.toString(),
+                  username: currentUser.username,
+                  email: currentUser.email,
+                  role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
+                });
+              } else {
+                throw new Error('No refresh token available');
+              }
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+              // Clear invalid login state and force re-login
+              clearLoginState();
+              authService.clearAuth();
+              setUser(null);
+            }
+          } else {
+            // Token is not expired, proceed normally
+            try {
+              const currentUser = await authService.getCurrentUser();
+              setUser({
+                id: currentUser.user_id.toString(),
+                username: currentUser.username,
+                email: currentUser.email,
+                role: currentUser.role || (currentUser.is_superuser ? 'admin' : 'user'),
+              });
+              
+              // Update last login time
+              saveLoginState({
+                ...savedLoginState,
+                lastLogin: Date.now(),
+              });
+            } catch (error) {
+              console.error('Failed to get current user from saved session:', error);
+              // Clear invalid login state
+              clearLoginState();
+              authService.clearAuth();
+              setUser(null);
+            }
           }
         }
       } catch (error) {

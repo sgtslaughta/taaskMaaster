@@ -239,18 +239,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
    * @description Handle notification click
    */
   const handleClick = () => {
-    console.log('🔔 NotificationItem: handleClick called for notification:', notification.id);
-    console.log('🔔 NotificationItem: onNavigate function available:', !!onNavigate);
     if (!notification.read) {
       onMarkAsRead(notification.id);
     }
     if (notification.actionUrl) {
-      console.log('🔔 NotificationItem: Calling onNavigate with:', notification.actionUrl);
-      console.log('🔔 NotificationItem: About to call onNavigate...');
       onNavigate(notification.actionUrl);
-      console.log('🔔 NotificationItem: onNavigate call completed');
-    } else {
-      console.log('🔔 NotificationItem: No actionUrl available');
     }
   };
 
@@ -399,8 +392,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className, o
    * @description Handle navigation to notification URL
    */
   const handleNavigate = (url: string) => {
-    console.log('🔔 NotificationBell: handleNavigate called with URL:', url);
-    console.log('🔔 NotificationBell: Using context navigation function');
     setIsOpen(false);
     
     // Use navigation function from context instead of props

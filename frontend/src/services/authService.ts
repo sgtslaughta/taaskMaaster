@@ -110,6 +110,7 @@ export class AuthService {
         userId: response.data.user_id.toString(),
         username: response.data.username,
         email: response.data.email,
+        role: response.data.role,
         token: response.data.access_token,
         lastLogin: Date.now(),
       });
@@ -120,6 +121,7 @@ export class AuthService {
         username: response.data.username,
         email: response.data.email,
         full_name: response.data.full_name,
+        role: response.data.role,
         is_active: response.data.is_active,
         is_superuser: response.data.is_superuser,
       };

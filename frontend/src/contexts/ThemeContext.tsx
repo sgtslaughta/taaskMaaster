@@ -72,7 +72,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       
       setIsDarkMode(actualDarkMode);
-      console.log('Theme initialized:', { preference: savedTheme, actual: actualDarkMode ? 'dark' : 'light' });
     } catch (error) {
       console.error('Failed to initialize theme:', error);
       // Fallback to system theme
@@ -155,7 +154,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     setIsDarkMode(actualDarkMode);
-    console.log('Theme preference changed:', { preference: newTheme, actual: actualDarkMode ? 'dark' : 'light' });
   };
 
   /**

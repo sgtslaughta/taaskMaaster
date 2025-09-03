@@ -286,14 +286,10 @@ export const TaskHubPage: React.FC<TaskHubPageProps> = ({
 
   // Handle auto-opening task modal from notification navigation
   useEffect(() => {
-    console.log('TaskHubPage: Auto-open effect triggered. initialTaskId:', initialTaskId, 'notificationTrigger:', notificationTrigger, 'tasks.length:', tasks.length);
     if (initialTaskId && tasks.length > 0 && notificationTrigger !== undefined) {
-      console.log('TaskHubPage: Auto-opening task from notification:', initialTaskId, 'trigger:', notificationTrigger);
       // Switch to tasks tab and pass the initialTaskId down
       setActiveTab('tasks');
       // TODO: Pass initialTaskId and notificationTrigger to TasksTab component to auto-open modal
-    } else if (initialTaskId && notificationTrigger !== undefined) {
-      console.log('TaskHubPage: initialTaskId provided but no tasks loaded yet:', initialTaskId, 'trigger:', notificationTrigger);
     }
   }, [notificationTrigger, tasks]); // Changed dependency from initialTaskId to notificationTrigger
 

@@ -121,7 +121,6 @@ export const NotificationProvider: React.FC<{
     try {
       const loginState = getLoginState();
       if (!loginState || !loginState.userId) {
-        console.log('🔔 No authenticated user, skipping stored notification fetch');
         return;
       }
 
@@ -177,7 +176,6 @@ export const NotificationProvider: React.FC<{
         role: loginState.role || 'user'
       };
 
-      console.log('🔔 Marking stored notifications as read:', storedIds);
       await notificationService.markNotificationsRead(user, storedIds);
       
       // Update local state
@@ -189,7 +187,7 @@ export const NotificationProvider: React.FC<{
         )
       );
 
-      console.log('🔔 Marked', storedIds.length, 'stored notifications as read');
+
     } catch (error) {
       console.error('Error marking stored notifications as read:', error);
     }
@@ -213,7 +211,6 @@ export const NotificationProvider: React.FC<{
         role: loginState.role || 'user'
       };
 
-      console.log('🔔 Deleting stored notifications:', storedIds);
       await notificationService.deleteNotifications(user, storedIds);
       
       // Remove from local state
@@ -223,7 +220,7 @@ export const NotificationProvider: React.FC<{
         )
       );
 
-      console.log('🔔 Deleted', storedIds.length, 'stored notifications');
+
     } catch (error) {
       console.error('Error deleting stored notifications:', error);
     }
@@ -233,12 +230,8 @@ export const NotificationProvider: React.FC<{
    * @description Handle navigation from notification action URL
    */
   const handleNotificationNavigation = (actionUrl: string) => {
-    console.log('🔔 NotificationContext: handleNotificationNavigation called with:', actionUrl);
-    console.log('🔔 NotificationContext: onNavigation function available:', !!onNavigation);
-    
     if (!onNavigation) {
       // Fallback to direct navigation if no handler provided
-      console.log('🔔 NotificationContext: No navigation handler, using window.location');
       window.location.href = actionUrl;
       return;
     }
@@ -253,7 +246,6 @@ export const NotificationProvider: React.FC<{
       // (either they created them, are assigned to them, or need to take action)
       const targetPage = 'my-tasks';
       
-      console.log('🔔 Task notification -> routing to my-tasks with taskId:', taskId);
       onNavigation(targetPage, taskId);
       return;
     }
@@ -262,10 +254,8 @@ export const NotificationProvider: React.FC<{
     const pathMatch = actionUrl.match(/\/(.+)/);
     if (pathMatch) {
       const pageId = pathMatch[1];
-      console.log('🔔 NotificationContext: Calling onNavigation with:', pageId);
       onNavigation(pageId);
     } else {
-      console.log('🔔 NotificationContext: Calling onNavigation with: dashboard');
       onNavigation('dashboard');
     }
   };
@@ -281,42 +271,33 @@ export const NotificationProvider: React.FC<{
    */
   function handleWebSocketMessage(data: any) {
     try {
-      console.log('📡 WebSocket message received:', data);
-      
       // Handle different types of real-time updates
       switch (data.type) {
         case 'task_comment':
-          console.log('📡 Processing task_comment notification');
           handleTaskCommentNotification(data);
           break;
         case 'task_assigned':
         case 'task_reassigned':
         case 'task_created':
-          console.log('📡 Processing task_assigned notification');
           handleTaskAssignedNotification(data);
           break;
         case 'task_completed':
-          console.log('📡 Processing task_completed notification');
           handleTaskCompletedNotification(data);
           break;
         case 'task_status_changed':
         case 'task_updated':
-          console.log('📡 Processing workflow_transition notification');
           handleWorkflowTransitionNotification(data);
           break;
         case 'task_approval_request':
         case 'task_approved':
         case 'task_rejected':
-          console.log('📡 Processing approval_request notification');
           handleApprovalRequestNotification(data);
           break;
         case 'direct_message':
         case 'task_chat_message':
-          console.log('📡 Processing message notification');
           handleMessageNotification(data);
           break;
         case 'user_mentioned':
-          console.log('📡 Processing mention notification');
           handleMentionNotification(data);
           break;
         case 'task_deleted':
@@ -324,11 +305,8 @@ export const NotificationProvider: React.FC<{
         case 'task_overdue':
         case 'media_attached':
         case 'system_announcement':
-          console.log('📡 Processing general notification');
           handleGeneralNotification(data);
           break;
-        default:
-          console.log('📡 Unknown notification type:', data.type, data);
       }
     } catch (error) {
       console.error('Error handling WebSocket message:', error);
@@ -339,8 +317,6 @@ export const NotificationProvider: React.FC<{
    * @description Handle task comment notifications
    */
   function handleTaskCommentNotification(data: any) {
-    console.log('🔔 Received task comment notification:', data);
-    
     // Extract the actual data from the notification object
     const notificationData = data.data || data;
     
@@ -356,11 +332,9 @@ export const NotificationProvider: React.FC<{
       actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
     };
 
-    console.log('🔔 Adding notification to bell:', notification);
     addNotification(notification);
     
     // Show toast for immediate feedback
-    console.log('🔔 Showing toast for comment notification');
     showToast({
       type: 'info',
       title: 'New Comment',
@@ -413,8 +387,6 @@ export const NotificationProvider: React.FC<{
    * @description Handle task completed notifications
    */
   function handleTaskCompletedNotification(data: any) {
-    console.log('🔔 Received task completed notification:', data);
-    
     const notificationData = data.data || data;
     
     const notification: NotificationData = {
@@ -429,7 +401,6 @@ export const NotificationProvider: React.FC<{
       actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
     };
 
-    console.log('🔔 Adding task completed notification to bell:', notification);
     addNotification(notification);
     
     // Show toast for immediate feedback
@@ -451,8 +422,6 @@ export const NotificationProvider: React.FC<{
    * @description Handle workflow transition notifications
    */
   function handleWorkflowTransitionNotification(data: any) {
-    console.log('🔔 Received workflow transition notification:', data);
-    
     // Extract the actual data from the notification object
     const notificationData = data.data || data;
     
@@ -468,7 +437,6 @@ export const NotificationProvider: React.FC<{
       actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
     };
 
-    console.log('🔔 Adding workflow notification to bell:', notification);
     addNotification(notification);
   }
 
@@ -567,8 +535,6 @@ export const NotificationProvider: React.FC<{
    * @description Handle general notifications (deleted, due soon, overdue, media, system)
    */
   function handleGeneralNotification(data: any) {
-    console.log('🔔 Received general notification:', data);
-    
     const notificationData = data.data || data;
     
     // Map notification types to display types
@@ -592,7 +558,6 @@ export const NotificationProvider: React.FC<{
       actionUrl: data.action_url || (notificationData.task_id ? `/tasks/${notificationData.task_id}` : '/dashboard')
     };
 
-    console.log('🔔 Adding general notification to bell:', notification);
     addNotification(notification);
     
     // Show toast for immediate feedback
