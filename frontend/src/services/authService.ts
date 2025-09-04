@@ -98,7 +98,7 @@ export class AuthService {
    */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      const response = await apiPost<LoginResponse>('/api/v1/auth/login', credentials);
+      const response = await apiPost<LoginResponse>('/auth/login', credentials);
       
       // Use TokenManager to securely store tokens
       tokenManager.setTokens({
@@ -138,7 +138,7 @@ export class AuthService {
    */
   async logout(): Promise<LogoutResponse> {
     try {
-      const response = await apiPost<LogoutResponse>('/api/v1/auth/logout');
+      const response = await apiPost<LogoutResponse>('/auth/logout');
       
       // Use TokenManager to securely clear all auth data
       tokenManager.clearTokens();
@@ -179,7 +179,7 @@ export class AuthService {
    */
   async getCurrentUser(): Promise<CurrentUser> {
     try {
-      const response = await apiGet<CurrentUser>('/api/v1/auth/me');
+      const response = await apiGet<CurrentUser>('/auth/me');
       this.currentUser = response.data;
       return response.data;
     } catch (error) {

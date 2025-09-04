@@ -5,6 +5,7 @@ This module contains the main FastAPI application with health checks,
 monitoring, and basic API endpoints.
 """
 
+import os
 import time
 from typing import Any
 
@@ -55,16 +56,24 @@ fastapi_app = FastAPI(
 )
 
 # Add FastAPI middleware
+# Get CORS origins from environment variable
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+trusted_hosts = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,taaskmaaster-backend").split(",")
+
+# Add backend service name for internal Docker communication
+if "backend" not in trusted_hosts:
+    trusted_hosts.append("backend")
+
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[origin.strip() for origin in cors_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 fastapi_app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["localhost", "127.0.0.1", "taaskmaaster-backend"],
+    allowed_hosts=[host.strip() for host in trusted_hosts],
 )
 
 # Add rate limiting middleware (temporarily disabled for debugging)

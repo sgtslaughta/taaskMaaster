@@ -360,7 +360,7 @@ export class TokenManager {
     try {
       this.refreshRetryCount++;
       
-      const response = await fetch('http://localhost:8000/api/v1/auth/refresh', {
+      const response = await fetch('/api/proxy/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

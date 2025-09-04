@@ -31,6 +31,8 @@ services:
       MINIO_SECURE: ${MINIO_SECURE:-false}
       DISABLE_RATE_LIMITING: ${DISABLE_RATE_LIMITING:-false}
       DISABLE_LOGIN_RATE_LIMIT: ${DISABLE_LOGIN_RATE_LIMIT:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.95:3000}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1,192.168.1.95,backend,taaskmaaster-backend}
     volumes:
       - ./backend:/app
       - backend_data:/app/data
@@ -58,10 +60,11 @@ services:
         - BUILDKIT_INLINE_CACHE=1
     container_name: taaskmaaster-frontend
     ports:
-      - "${FRONTEND_PORT:-127.0.0.1:3000}:3000"
+      - "${FRONTEND_PORT:-0.0.0.0:3000}:3000"
     environment:
       <<: *common-env
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: /api/proxy  # Now points to internal proxy
+      BACKEND_INTERNAL_URL: http://backend:8000  # Internal Docker network URL
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TaaskMaaster}
       NODE_ENV: ${NODE_ENV:-development}
     volumes:

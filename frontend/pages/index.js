@@ -3,19 +3,12 @@ import { useState } from 'react'
 import { Container, Title, Text, Button, Stack, Center, Paper, Group, Badge } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { MyHub } from '../src/components/pages/MyHub'
+import { AuthGuard } from '../src/components/auth'
+import { useAuth } from '../src/contexts/AuthContext'
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState('hub')
-
-  // Mock user data
-  const mockUser = {
-    id: '1',
-    username: 'john_doe',
-    email: 'john@example.com',
-    role: 'Parent',
-    points: 1250,
-    level: 5
-  }
+  const { user, logout } = useAuth()
 
   const handleNavigation = (pageId) => {
     setCurrentPage(pageId)
@@ -36,12 +29,21 @@ export default function Home() {
     }
   }
 
-  const handleLogout = () => {
-    notifications.show({
-      title: 'Logout',
-      message: 'Logged out successfully',
-      color: 'green',
-    })
+  const handleLogout = async () => {
+    try {
+      await logout()
+      notifications.show({
+        title: 'Goodbye!',
+        message: 'You have been successfully logged out.',
+        color: 'blue',
+      })
+    } catch (error) {
+      notifications.show({
+        title: 'Logout Error',
+        message: 'There was an issue logging you out. Please try again.',
+        color: 'red',
+      })
+    }
   }
 
 
@@ -62,12 +64,14 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <MyHub
-        currentPage={currentPage}
-        onNavigate={handleNavigation}
-        user={mockUser}
-        onLogout={handleLogout}
-      />
+      <AuthGuard>
+        <MyHub
+          currentPage={currentPage}
+          onNavigate={handleNavigation}
+          user={user}
+          onLogout={handleLogout}
+        />
+      </AuthGuard>
     </>
   )
 }

@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
+    "start:next": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
@@ -38,7 +39,9 @@
     "zod": "^3.23.8",
     "date-fns": "^3.6.0",
     "recharts": "^2.12.7",
-    "dayjs": "^1.11.10"
+    "dayjs": "^1.11.10",
+    "ogl": "^1.0.6",
+    "http-proxy-middleware": "^2.0.6"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

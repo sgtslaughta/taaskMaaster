@@ -39,7 +39,7 @@ export interface ApiResponse<T = any> {
  * @description Default API configuration
  */
 const defaultConfig: ApiConfig = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api/proxy',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
