@@ -75,7 +75,7 @@ export class TaskHistoryService {
     try {
       const headers = createUserDataHeader(user);
       const response = await api.get<TaskHistoryResponse>(
-        `/api/v1/workflow/history/${taskId}?skip=${skip}&limit=${limit}`,
+        `/workflow/history/${taskId}?skip=${skip}&limit=${limit}`,
         { headers }
       );
       return response.data;

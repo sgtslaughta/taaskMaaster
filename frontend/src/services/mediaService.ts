@@ -65,7 +65,7 @@ class MediaService {
       formData.append('description', options.description);
     }
 
-    const response = await apiClient.post('/api/v1/media/upload', formData, {
+    const response = await apiClient.post('/media/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -115,7 +115,7 @@ class MediaService {
       formData.append('is_public', options.is_public.toString());
     }
 
-    const response = await apiClient.post('/api/v1/media/upload/bulk', formData, {
+    const response = await apiClient.post('/media/upload/bulk', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -128,7 +128,7 @@ class MediaService {
    * Get media by ID
    */
   async getMedia(mediaId: number): Promise<{ media: MediaAttachment }> {
-    const response = await apiClient.get(`/api/v1/media/${mediaId}`);
+    const response = await apiClient.get(`/media/${mediaId}`);
     return response.data;
   }
 
@@ -136,7 +136,7 @@ class MediaService {
    * Get media list
    */
   async getMediaList(params?: MediaQueryParams): Promise<MediaResponse> {
-    const response = await apiClient.get('/api/v1/media', { params });
+    const response = await apiClient.get('/media', { params });
     return response.data;
   }
 
@@ -153,7 +153,7 @@ class MediaService {
     if (options?.thumbnail) params.append('thumbnail', 'true');
     if (options?.size) params.append('size', options.size);
 
-    const response = await apiClient.get(`/api/v1/media/${mediaId}/url?${params}`);
+    const response = await apiClient.get(`/media/${mediaId}/url?${params}`);
     return response.data.url;
   }
 
@@ -182,7 +182,7 @@ class MediaService {
     is_public?: boolean;
     folder_id?: number;
   }): Promise<{ media: MediaAttachment; success: boolean }> {
-    const response = await apiClient.put(`/api/v1/media/${mediaId}`, updates);
+    const response = await apiClient.put(`/media/${mediaId}`, updates);
     return response.data;
   }
 
@@ -190,7 +190,7 @@ class MediaService {
    * Delete media
    */
   async deleteMedia(mediaId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/media/${mediaId}`);
+    const response = await apiClient.delete(`/media/${mediaId}`);
     return response.data;
   }
 
@@ -214,7 +214,7 @@ class MediaService {
     total_count: number;
     search_time_ms: number;
   }> {
-    const response = await apiClient.get('/api/v1/media/search', { params });
+    const response = await apiClient.get('/media/search', { params });
     return response.data;
   }
 
@@ -227,7 +227,7 @@ class MediaService {
     user_id?: number;
     folder_id?: number;
   }): Promise<MediaStatistics> {
-    const response = await apiClient.get('/api/v1/media/stats', { params });
+    const response = await apiClient.get('/media/stats', { params });
     return response.data;
   }
 
@@ -250,7 +250,7 @@ class MediaService {
     };
     success: boolean;
   }> {
-    const response = await apiClient.post('/api/v1/media/folders', folder);
+    const response = await apiClient.post('/media/folders', folder);
     return response.data;
   }
 
@@ -271,7 +271,7 @@ class MediaService {
       created_at: string;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/media/folders', { params });
+    const response = await apiClient.get('/media/folders', { params });
     return response.data;
   }
 
@@ -284,7 +284,7 @@ class MediaService {
     parent_folder_id?: number;
     is_public?: boolean;
   }): Promise<{ success: boolean }> {
-    const response = await apiClient.put(`/api/v1/media/folders/${folderId}`, updates);
+    const response = await apiClient.put(`/media/folders/${folderId}`, updates);
     return response.data;
   }
 
@@ -295,7 +295,7 @@ class MediaService {
     move_media_to_folder_id?: number;
     delete_media?: boolean;
   }): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/media/folders/${folderId}`, {
+    const response = await apiClient.delete(`/media/folders/${folderId}`, {
       data: options
     });
     return response.data;
@@ -312,7 +312,7 @@ class MediaService {
       usage_count: number;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/media/tags');
+    const response = await apiClient.get('/media/tags');
     return response.data;
   }
 
@@ -330,7 +330,7 @@ class MediaService {
     };
     success: boolean;
   }> {
-    const response = await apiClient.post('/api/v1/media/tags', tag);
+    const response = await apiClient.post('/media/tags', tag);
     return response.data;
   }
 
@@ -338,7 +338,7 @@ class MediaService {
    * Add tags to media
    */
   async addTagsToMedia(mediaId: number, tagIds: number[]): Promise<{ success: boolean }> {
-    const response = await apiClient.post(`/api/v1/media/${mediaId}/tags`, {
+    const response = await apiClient.post(`/media/${mediaId}/tags`, {
       tag_ids: tagIds
     });
     return response.data;
@@ -348,7 +348,7 @@ class MediaService {
    * Remove tags from media
    */
   async removeTagsFromMedia(mediaId: number, tagIds: number[]): Promise<{ success: boolean }> {
-    const response = await apiClient.delete(`/api/v1/media/${mediaId}/tags`, {
+    const response = await apiClient.delete(`/media/${mediaId}/tags`, {
       data: { tag_ids: tagIds }
     });
     return response.data;
@@ -376,7 +376,7 @@ class MediaService {
     };
     success: boolean;
   }> {
-    const response = await apiClient.post(`/api/v1/media/${mediaId}/share`, shareSettings);
+    const response = await apiClient.post(`/media/${mediaId}/share`, shareSettings);
     return response.data;
   }
 
@@ -401,7 +401,7 @@ class MediaService {
     }>;
   }> {
     const params = mediaId ? { media_id: mediaId } : {};
-    const response = await apiClient.get('/api/v1/media/shares', { params });
+    const response = await apiClient.get('/media/shares', { params });
     return response.data;
   }
 
@@ -409,7 +409,7 @@ class MediaService {
    * Revoke media share
    */
   async revokeShare(shareId: number): Promise<{ success: boolean }> {
-    const response = await apiClient.delete(`/api/v1/media/shares/${shareId}`);
+    const response = await apiClient.delete(`/media/shares/${shareId}`);
     return response.data;
   }
 
@@ -422,7 +422,7 @@ class MediaService {
     failed_count: number;
     errors: string[];
   }> {
-    const response = await apiClient.post('/api/v1/media/bulk-delete', {
+    const response = await apiClient.post('/media/bulk-delete', {
       media_ids: mediaIds
     });
     return response.data;
@@ -434,7 +434,7 @@ class MediaService {
     failed_count: number;
     errors: string[];
   }> {
-    const response = await apiClient.post('/api/v1/media/bulk-move', {
+    const response = await apiClient.post('/media/bulk-move', {
       media_ids: mediaIds,
       destination_folder_id: destinationFolderId
     });
@@ -447,7 +447,7 @@ class MediaService {
     failed_count: number;
     errors: string[];
   }> {
-    const response = await apiClient.post('/api/v1/media/bulk-tag', {
+    const response = await apiClient.post('/media/bulk-tag', {
       media_ids: mediaIds,
       tag_ids: tagIds
     });
@@ -465,7 +465,7 @@ class MediaService {
     thumbnail_url: string;
     success: boolean;
   }> {
-    const response = await apiClient.post(`/api/v1/media/${mediaId}/thumbnail`, options);
+    const response = await apiClient.post(`/media/${mediaId}/thumbnail`, options);
     return response.data;
   }
 
@@ -481,7 +481,7 @@ class MediaService {
       error_message?: string;
     }>;
   }> {
-    const response = await apiClient.get(`/api/v1/media/${mediaId}/processing`);
+    const response = await apiClient.get(`/media/${mediaId}/processing`);
     return response.data;
   }
 
@@ -495,7 +495,7 @@ class MediaService {
     date_from?: string;
     date_to?: string;
   }): Promise<{ download_url: string; expires_at: string }> {
-    const response = await apiClient.post('/api/v1/media/export', params);
+    const response = await apiClient.post('/media/export', params);
     return response.data;
   }
 }

@@ -72,7 +72,7 @@ class CommentService {
       queryParams.append('include_system', params.include_system.toString());
     }
 
-    const url = `/api/v1/comments/task/${taskId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const url = `/comments/task/${taskId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
     // Add user data header
     const userDataHeader = this.getUserDataHeader();
@@ -88,7 +88,7 @@ class CommentService {
    */
   async createComment(commentData: CommentCreate): Promise<Comment> {
     const userDataHeader = this.getUserDataHeader();
-    const response = await apiPost<Comment>('/api/v1/comments/', commentData, {
+    const response = await apiPost<Comment>('/comments/', commentData, {
       headers: userDataHeader
     });
     
@@ -100,7 +100,7 @@ class CommentService {
    */
   async updateComment(commentId: number, updateData: CommentUpdate): Promise<Comment> {
     const userDataHeader = this.getUserDataHeader();
-    const response = await apiPut<Comment>(`/api/v1/comments/${commentId}`, updateData, {
+    const response = await apiPut<Comment>(`/comments/${commentId}`, updateData, {
       headers: userDataHeader
     });
     
@@ -112,7 +112,7 @@ class CommentService {
    */
   async deleteComment(commentId: number): Promise<void> {
     const userDataHeader = this.getUserDataHeader();
-    await apiDelete(`/api/v1/comments/${commentId}`, {
+    await apiDelete(`/comments/${commentId}`, {
       headers: userDataHeader
     });
   }
@@ -122,7 +122,7 @@ class CommentService {
    */
   async getComment(commentId: number): Promise<Comment> {
     const userDataHeader = this.getUserDataHeader();
-    const response = await apiGet<Comment>(`/api/v1/comments/${commentId}`, {
+    const response = await apiGet<Comment>(`/comments/${commentId}`, {
       headers: userDataHeader
     });
     

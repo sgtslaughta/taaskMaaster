@@ -63,10 +63,13 @@ services:
       - "${FRONTEND_PORT:-0.0.0.0:3000}:3000"
     environment:
       <<: *common-env
-      NEXT_PUBLIC_API_URL: /api/proxy  # Now points to internal proxy
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/proxy}  # Now points to internal proxy
       BACKEND_INTERNAL_URL: http://backend:8000  # Internal Docker network URL
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TaaskMaaster}
       NODE_ENV: ${NODE_ENV:-development}
+      # WebSocket and HMR configuration
+      WATCHPACK_POLLING: true
+      CHOKIDAR_USEPOLLING: true
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -102,7 +102,7 @@ export class ListService {
       include_archived: includeArchived.toString(),
     });
 
-    const response = await api.get(`/api/v1/lists/?${params}`);
+    const response = await api.get(`/lists/?${params}`);
     return response.data;
   }
 
@@ -112,7 +112,7 @@ export class ListService {
    * @returns Promise with created task list
    */
   static async createTaskList(taskList: TaskListCreate): Promise<TaskList> {
-    const response = await api.post('/api/v1/lists/', taskList);
+    const response = await api.post('/lists/', taskList);
     return response.data;
   }
 
@@ -122,7 +122,7 @@ export class ListService {
    * @returns Promise with task list and tasks
    */
   static async getTaskList(listId: number): Promise<TaskListWithTasks> {
-    const response = await api.get(`/api/v1/lists/${listId}`);
+    const response = await api.get(`/lists/${listId}`);
     return response.data;
   }
 
@@ -136,7 +136,7 @@ export class ListService {
     listId: number,
     taskListUpdate: TaskListUpdate
   ): Promise<TaskList> {
-    const response = await api.put(`/api/v1/lists/${listId}`, taskListUpdate);
+    const response = await api.put(`/lists/${listId}`, taskListUpdate);
     return response.data;
   }
 
@@ -146,7 +146,7 @@ export class ListService {
    * @returns Promise
    */
   static async deleteTaskList(listId: number): Promise<void> {
-    await api.delete(`/api/v1/lists/${listId}`);
+    await api.delete(`/lists/${listId}`);
   }
 
   /**
@@ -159,7 +159,7 @@ export class ListService {
     listId: number,
     association: TaskListAssociation
   ): Promise<any> {
-    const response = await api.post(`/api/v1/lists/${listId}/tasks`, association);
+    const response = await api.post(`/lists/${listId}/tasks`, association);
     return response.data;
   }
 
@@ -170,7 +170,7 @@ export class ListService {
    * @returns Promise
    */
   static async removeTaskFromList(listId: number, taskId: number): Promise<void> {
-    await api.delete(`/api/v1/lists/${listId}/tasks/${taskId}`);
+    await api.delete(`/lists/${listId}/tasks/${taskId}`);
   }
 
   /**
@@ -183,7 +183,7 @@ export class ListService {
     listId: number,
     bulkUpdate: TaskListBulkUpdate
   ): Promise<any[]> {
-    const response = await api.put(`/api/v1/lists/${listId}/tasks/reorder`, bulkUpdate);
+    const response = await api.put(`/lists/${listId}/tasks/reorder`, bulkUpdate);
     return response.data;
   }
 
@@ -192,7 +192,7 @@ export class ListService {
    * @returns Promise with list statistics
    */
   static async getListStats(): Promise<TaskListStats> {
-    const response = await api.get('/api/v1/lists/stats/overview');
+    const response = await api.get('/lists/stats/overview');
     return response.data;
   }
 

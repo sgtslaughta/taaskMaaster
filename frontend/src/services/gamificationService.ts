@@ -177,7 +177,7 @@ export class GamificationService {
    */
   async getUserPointsSummary(userId: number): Promise<UserPointsSummary> {
     try {
-      const response = await apiGet<UserPointsSummary>(`/api/v1/gamification/points/summary/${userId}`);
+      const response = await apiGet<UserPointsSummary>(`/gamification/points/summary/${userId}`);
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch user points summary.');
@@ -199,7 +199,7 @@ export class GamificationService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/gamification/points/history/${userId}?${params.toString()}`;
+      const url = `/gamification/points/history/${userId}?${params.toString()}`;
       const response = await apiGet<PointsListResponse>(url);
       return response.data;
     } catch (error) {
@@ -234,7 +234,7 @@ export class GamificationService {
       if (referenceId) params.append('reference_id', referenceId.toString());
       if (referenceType) params.append('reference_type', referenceType);
 
-      const url = `/api/v1/gamification/points/award?${params.toString()}`;
+      const url = `/gamification/points/award?${params.toString()}`;
       const response = await apiPost<PointsTransaction>(url);
       return response.data;
     } catch (error) {
@@ -249,7 +249,7 @@ export class GamificationService {
    */
   async getUserAchievements(userId: number): Promise<UserAchievement[]> {
     try {
-      const response = await apiGet<UserAchievement[]>(`/api/v1/gamification/achievements/user/${userId}`);
+      const response = await apiGet<UserAchievement[]>(`/gamification/achievements/user/${userId}`);
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch user achievements.');
@@ -264,7 +264,7 @@ export class GamificationService {
   async checkAndAwardAchievements(userId: number): Promise<{ message: string; new_achievements: Array<{ id: number; name: string }> }> {
     try {
       const response = await apiPost<{ message: string; new_achievements: Array<{ id: number; name: string }> }>(
-        `/api/v1/gamification/achievements/check/${userId}`
+        `/gamification/achievements/check/${userId}`
       );
       return response.data;
     } catch (error) {
@@ -287,7 +287,7 @@ export class GamificationService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/gamification/streaks/user/${userId}?${params.toString()}`;
+      const url = `/gamification/streaks/user/${userId}?${params.toString()}`;
       const response = await apiGet<StreakListResponse>(url);
       return response.data;
     } catch (error) {
@@ -307,7 +307,7 @@ export class GamificationService {
       params.append('user_id', userId.toString());
       params.append('streak_type', streakType);
 
-      const url = `/api/v1/gamification/streaks/update?${params.toString()}`;
+      const url = `/gamification/streaks/update?${params.toString()}`;
       const response = await apiPost<Streak>(url);
       return response.data;
     } catch (error) {
@@ -330,7 +330,7 @@ export class GamificationService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/gamification/leaderboards/${leaderboardId}/entries?${params.toString()}`;
+      const url = `/gamification/leaderboards/${leaderboardId}/entries?${params.toString()}`;
       const response = await apiGet<LeaderboardEntryListResponse>(url);
       return response.data;
     } catch (error) {

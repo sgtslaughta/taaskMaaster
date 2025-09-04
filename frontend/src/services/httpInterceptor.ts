@@ -300,7 +300,7 @@ export class HttpInterceptor {
     
     // Only login and refresh don't need authentication tokens
     // logout DOES need authentication
-    const noAuthEndpoints = ['/api/v1/auth/login', '/api/v1/auth/refresh'];
+    const noAuthEndpoints = ['/auth/login', '/auth/refresh'];
     return noAuthEndpoints.some(endpoint => url.includes(endpoint));
   }
 
@@ -331,7 +331,7 @@ export class HttpInterceptor {
     }
 
     // Don't retry logout specifically
-    if (config.url?.includes('/api/v1/auth/logout')) {
+    if (config.url?.includes('/auth/logout')) {
       return false;
     }
 

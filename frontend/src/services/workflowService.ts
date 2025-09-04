@@ -76,7 +76,7 @@ export class WorkflowService {
    */
   async transitionTaskStatus(request: WorkflowTransitionRequest, user: WorkflowUser): Promise<WorkflowTransitionResponse> {
     try {
-      const response = await api.post<WorkflowTransitionResponse>('/api/v1/workflow/transition', request, {
+      const response = await api.post<WorkflowTransitionResponse>('/workflow/transition', request, {
         headers: {
           'X-User-Data': this.createUserDataHeader(user)
         }
@@ -102,7 +102,7 @@ export class WorkflowService {
    */
   async approveTask(taskId: number, user: WorkflowUser, comment?: string): Promise<WorkflowTransitionResponse> {
     try {
-      const response = await api.post<WorkflowTransitionResponse>('/api/v1/workflow/approve', {
+      const response = await api.post<WorkflowTransitionResponse>('/workflow/approve', {
         task_id: taskId,
         comment
       }, {
@@ -132,7 +132,7 @@ export class WorkflowService {
    */
   async rejectTask(taskId: number, user: WorkflowUser, reason: string, comment?: string): Promise<WorkflowTransitionResponse> {
     try {
-      const response = await api.post<WorkflowTransitionResponse>('/api/v1/workflow/reject', {
+      const response = await api.post<WorkflowTransitionResponse>('/workflow/reject', {
         task_id: taskId,
         reason,
         comment

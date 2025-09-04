@@ -87,7 +87,7 @@ export interface NotificationStats {
  * Notification service class
  */
 export class NotificationService {
-  private baseUrl = '/api/v1/notifications';
+  private baseUrl = '/notifications';
 
   /**
    * Create user data header for API requests

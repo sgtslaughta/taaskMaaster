@@ -259,7 +259,7 @@ export class TaskService {
       if (options.reward_type) params.append('reward_type', options.reward_type);
       if (options.search) params.append('search', options.search);
 
-      const url = `/api/v1/tasks?${params.toString()}`;
+      const url = `/tasks?${params.toString()}`;
       const response = await apiGet<TaskListResponse>(url);
       return response.data;
     } catch (error) {
@@ -275,7 +275,7 @@ export class TaskService {
   async getTask(taskId: number): Promise<Task> {
     try {
       const request: TaskGetRequest = { task_id: taskId };
-      const response = await apiPost<Task>('/api/v1/tasks/get', request);
+      const response = await apiPost<Task>('/tasks/get', request);
       return response.data;
     } catch (error) {
       if (error instanceof Error) {
@@ -292,7 +292,7 @@ export class TaskService {
    */
   async createTask(taskData: CreateTaskRequest): Promise<Task> {
     try {
-      const response = await apiPost<Task>('/api/v1/tasks', taskData);
+      const response = await apiPost<Task>('/tasks', taskData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to create task.');
@@ -311,7 +311,7 @@ export class TaskService {
         task_id: taskId,
         updates: taskData
       };
-      const response = await apiPost<Task>('/api/v1/tasks/update', request);
+      const response = await apiPost<Task>('/tasks/update', request);
       return response.data;
     } catch (error) {
       if (error instanceof Error) {
@@ -329,7 +329,7 @@ export class TaskService {
   async deleteTask(taskId: number): Promise<void> {
     try {
       const request: TaskDeleteRequest = { task_id: taskId };
-      await apiPost('/api/v1/tasks/delete', request);
+      await apiPost('/tasks/delete', request);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to delete task: ${error.message}`);
@@ -350,7 +350,7 @@ export class TaskService {
         task_id: taskId,
         actual_hours: actualHours
       };
-      const response = await apiPost<Task>('/api/v1/tasks/complete', request);
+      const response = await apiPost<Task>('/tasks/complete', request);
       return response.data;
     } catch (error) {
       if (error instanceof Error) {
@@ -366,7 +366,7 @@ export class TaskService {
    */
   async getCategories(): Promise<TaskCategory[]> {
     try {
-      const response = await apiGet<TaskCategory[]>('/api/v1/tasks/categories');
+      const response = await apiGet<TaskCategory[]>('/tasks/categories');
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch task categories.');
@@ -380,7 +380,7 @@ export class TaskService {
    */
   async createCategory(categoryData: { name: string; description?: string; color?: string }): Promise<TaskCategory> {
     try {
-      const response = await apiPost<TaskCategory>('/api/v1/tasks/categories', categoryData);
+      const response = await apiPost<TaskCategory>('/tasks/categories', categoryData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to create task category.');
@@ -393,7 +393,7 @@ export class TaskService {
    */
   async getTags(): Promise<TaskTag[]> {
     try {
-      const response = await apiGet<TaskTag[]>('/api/v1/tasks/tags');
+      const response = await apiGet<TaskTag[]>('/tasks/tags');
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch task tags.');
@@ -407,7 +407,7 @@ export class TaskService {
    */
   async createTag(tagData: { name: string; color?: string }): Promise<TaskTag> {
     try {
-      const response = await apiPost<TaskTag>('/api/v1/tasks/tags', tagData);
+      const response = await apiPost<TaskTag>('/tasks/tags', tagData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to create task tag.');
@@ -421,7 +421,7 @@ export class TaskService {
    */
   async getTemplates(includePublic: boolean = true): Promise<TaskTemplate[]> {
     try {
-      const response = await apiGet<TaskTemplate[]>(`/api/v1/tasks/templates?include_public=${includePublic}`);
+      const response = await apiGet<TaskTemplate[]>(`/tasks/templates?include_public=${includePublic}`);
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch task templates.');
@@ -443,7 +443,7 @@ export class TaskService {
     is_public: boolean;
   }): Promise<TaskTemplate> {
     try {
-      const response = await apiPost<TaskTemplate>('/api/v1/tasks/templates', templateData);
+      const response = await apiPost<TaskTemplate>('/tasks/templates', templateData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to create task template.');
@@ -473,7 +473,7 @@ export class TaskService {
         template_id: templateId,
         ...customData
       };
-      const response = await apiPost<Task>('/api/v1/tasks/templates/create-from-template', request);
+      const response = await apiPost<Task>('/tasks/templates/create-from-template', request);
       return response.data;
     } catch (error) {
       if (error instanceof Error) {
@@ -494,7 +494,7 @@ export class TaskService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/tasks/recurring?${params.toString()}`;
+      const url = `/tasks/recurring?${params.toString()}`;
       const response = await apiGet<Task[]>(url);
       return response.data;
     } catch (error) {
@@ -508,7 +508,7 @@ export class TaskService {
    */
   async createRecurringTasks(): Promise<{ message: string; created_count: number }> {
     try {
-      const response = await apiPost<{ message: string; created_count: number }>('/api/v1/tasks/recurring/create');
+      const response = await apiPost<{ message: string; created_count: number }>('/tasks/recurring/create');
       return response.data;
     } catch (error) {
       throw new Error('Failed to create recurring tasks.');
@@ -525,7 +525,7 @@ export class TaskService {
     updates: Partial<Task>;
   }): Promise<Task[]> {
     try {
-      const response = await apiPost<Task[]>('/api/v1/tasks/bulk-update', bulkUpdateData);
+      const response = await apiPost<Task[]>('/tasks/bulk-update', bulkUpdateData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to bulk update tasks.');
@@ -547,7 +547,7 @@ export class TaskService {
     };
   }): Promise<string> {
     try {
-      const response = await apiPost<string>('/api/v1/tasks/export', exportRequest);
+      const response = await apiPost<string>('/tasks/export', exportRequest);
       return response.data;
     } catch (error) {
       throw new Error('Failed to export tasks.');
@@ -568,7 +568,7 @@ export class TaskService {
         value: string;
         label: string;
         description: string;
-      }> }>('/api/v1/tasks/reward-types');
+      }> }>('/tasks/reward-types');
       return response.data.reward_types;
     } catch (error) {
       throw new Error('Failed to fetch reward types.');
@@ -590,7 +590,7 @@ export class TaskService {
           is_active: boolean;
         }>;
         total: number;
-      }>('/api/v1/users/for-assignment');
+      }>('/users/for-assignment');
       return response.data.users;
     } catch (error) {
       throw new Error('Failed to fetch users for assignment.');

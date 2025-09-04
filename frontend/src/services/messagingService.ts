@@ -76,7 +76,7 @@ class MessagingService {
     search?: string;
     type?: 'direct' | 'group';
   }): Promise<ConversationsResponse> {
-    const response = await apiClient.get('/api/v1/messages/conversations', { params });
+    const response = await apiClient.get('/messages/conversations', { params });
     return response.data;
   }
 
@@ -84,7 +84,7 @@ class MessagingService {
    * Create a new conversation
    */
   async createConversation(request: CreateConversationRequest): Promise<ConversationResponse> {
-    const response = await apiClient.post('/api/v1/messages/conversations', request);
+    const response = await apiClient.post('/messages/conversations', request);
     return response.data;
   }
 
@@ -101,7 +101,7 @@ class MessagingService {
     }
   ): Promise<ConversationMessagesResponse> {
     const response = await apiClient.get(
-      `/api/v1/messages/conversations/${conversationId}/messages`,
+      `/messages/conversations/${conversationId}/messages`,
       { params }
     );
     return response.data;
@@ -111,7 +111,7 @@ class MessagingService {
    * Send a direct message
    */
   async sendDirectMessage(request: SendDirectMessageRequest): Promise<MessageResponse> {
-    const response = await apiClient.post('/api/v1/messages/direct', request);
+    const response = await apiClient.post('/messages/direct', request);
     return response.data;
   }
 
@@ -119,7 +119,7 @@ class MessagingService {
    * Update a direct message
    */
   async updateDirectMessage(messageId: number, request: UpdateMessageRequest): Promise<MessageResponse> {
-    const response = await apiClient.put(`/api/v1/messages/direct/${messageId}`, request);
+    const response = await apiClient.put(`/messages/direct/${messageId}`, request);
     return response.data;
   }
 
@@ -127,7 +127,7 @@ class MessagingService {
    * Delete a direct message
    */
   async deleteDirectMessage(messageId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/messages/direct/${messageId}`);
+    const response = await apiClient.delete(`/messages/direct/${messageId}`);
     return response.data;
   }
 
@@ -135,7 +135,7 @@ class MessagingService {
    * Mark conversation as read
    */
   async markConversationAsRead(conversationId: number): Promise<{ success: boolean }> {
-    const response = await apiClient.post(`/api/v1/messages/conversations/${conversationId}/read`);
+    const response = await apiClient.post(`/messages/conversations/${conversationId}/read`);
     return response.data;
   }
 
@@ -153,7 +153,7 @@ class MessagingService {
       sort_order?: 'asc' | 'desc';
     }
   ): Promise<TaskChatMessagesResponse> {
-    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}`, { params });
+    const response = await apiClient.get(`/messages/task-chat/${taskId}`, { params });
     return response.data;
   }
 
@@ -161,7 +161,7 @@ class MessagingService {
    * Send a task chat message
    */
   async sendTaskChatMessage(request: SendTaskChatMessageRequest): Promise<MessageResponse> {
-    const response = await apiClient.post('/api/v1/messages/task-chat', request);
+    const response = await apiClient.post('/messages/task-chat', request);
     return response.data;
   }
 
@@ -169,7 +169,7 @@ class MessagingService {
    * Update a task chat message
    */
   async updateTaskChatMessage(messageId: number, request: UpdateMessageRequest): Promise<MessageResponse> {
-    const response = await apiClient.put(`/api/v1/messages/task-chat/${messageId}`, request);
+    const response = await apiClient.put(`/messages/task-chat/${messageId}`, request);
     return response.data;
   }
 
@@ -177,7 +177,7 @@ class MessagingService {
    * Delete a task chat message
    */
   async deleteTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/messages/task-chat/${messageId}`);
+    const response = await apiClient.delete(`/messages/task-chat/${messageId}`);
     return response.data;
   }
 
@@ -185,7 +185,7 @@ class MessagingService {
    * Pin a task chat message
    */
   async pinTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`/api/v1/messages/task-chat/${messageId}/pin`);
+    const response = await apiClient.post(`/messages/task-chat/${messageId}/pin`);
     return response.data;
   }
 
@@ -193,7 +193,7 @@ class MessagingService {
    * Unpin a task chat message
    */
   async unpinTaskChatMessage(messageId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/messages/task-chat/${messageId}/pin`);
+    const response = await apiClient.delete(`/messages/task-chat/${messageId}/pin`);
     return response.data;
   }
 
@@ -201,7 +201,7 @@ class MessagingService {
    * Get task chat participants
    */
   async getTaskChatParticipants(taskId: number): Promise<TaskChatParticipantsResponse> {
-    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}/participants`);
+    const response = await apiClient.get(`/messages/task-chat/${taskId}/participants`);
     return response.data;
   }
 
@@ -209,7 +209,7 @@ class MessagingService {
    * Add participant to task chat
    */
   async addTaskChatParticipant(taskId: number, userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`/api/v1/messages/task-chat/${taskId}/participants`, {
+    const response = await apiClient.post(`/messages/task-chat/${taskId}/participants`, {
       user_id: userId
     });
     return response.data;
@@ -219,7 +219,7 @@ class MessagingService {
    * Remove participant from task chat
    */
   async removeTaskChatParticipant(taskId: number, userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/messages/task-chat/${taskId}/participants/${userId}`);
+    const response = await apiClient.delete(`/messages/task-chat/${taskId}/participants/${userId}`);
     return response.data;
   }
 
@@ -238,7 +238,7 @@ class MessagingService {
     task_chat_messages: TaskChatMessage[];
     total_count: number;
   }> {
-    const response = await apiClient.get('/api/v1/messages/search', { params });
+    const response = await apiClient.get('/messages/search', { params });
     return response.data;
   }
 
@@ -249,7 +249,7 @@ class MessagingService {
     parent_message: DirectMessage | TaskChatMessage;
     replies: (DirectMessage | TaskChatMessage)[];
   }> {
-    const response = await apiClient.get(`/api/v1/messages/${messageType}/${messageId}/thread`);
+    const response = await apiClient.get(`/messages/${messageType}/${messageId}/thread`);
     return response.data;
   }
 
@@ -261,7 +261,7 @@ class MessagingService {
     messageType: 'direct' | 'task_chat',
     reaction: string
   ): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`/api/v1/messages/${messageType}/${messageId}/react`, {
+    const response = await apiClient.post(`/messages/${messageType}/${messageId}/react`, {
       reaction
     });
     return response.data;
@@ -276,7 +276,7 @@ class MessagingService {
     reaction: string
   ): Promise<{ success: boolean; message: string }> {
     const response = await apiClient.delete(
-      `/api/v1/messages/${messageType}/${messageId}/react/${reaction}`
+      `/messages/${messageType}/${messageId}/react/${reaction}`
     );
     return response.data;
   }
@@ -304,7 +304,7 @@ class MessagingService {
       messages_received: number;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/messages/stats', { params });
+    const response = await apiClient.get('/messages/stats', { params });
     return response.data;
   }
 
@@ -318,7 +318,7 @@ class MessagingService {
     date_from?: string;
     date_to?: string;
   }): Promise<{ download_url: string; expires_at: string }> {
-    const response = await apiClient.post('/api/v1/messages/export', params);
+    const response = await apiClient.post('/messages/export', params);
     return response.data;
   }
 
@@ -326,7 +326,7 @@ class MessagingService {
    * Get typing indicators for conversation
    */
   async getTypingUsers(conversationId: number): Promise<{ typing_users: User[] }> {
-    const response = await apiClient.get(`/api/v1/messages/conversations/${conversationId}/typing`);
+    const response = await apiClient.get(`/messages/conversations/${conversationId}/typing`);
     return response.data;
   }
 
@@ -334,7 +334,7 @@ class MessagingService {
    * Get typing indicators for task chat
    */
   async getTaskChatTypingUsers(taskId: number): Promise<{ typing_users: User[] }> {
-    const response = await apiClient.get(`/api/v1/messages/task-chat/${taskId}/typing`);
+    const response = await apiClient.get(`/messages/task-chat/${taskId}/typing`);
     return response.data;
   }
 
@@ -342,7 +342,7 @@ class MessagingService {
    * Update user's online status
    */
   async updateOnlineStatus(isOnline: boolean): Promise<{ success: boolean }> {
-    const response = await apiClient.post('/api/v1/messages/status', {
+    const response = await apiClient.post('/messages/status', {
       is_online: isOnline
     });
     return response.data;
@@ -352,7 +352,7 @@ class MessagingService {
    * Get online users
    */
   async getOnlineUsers(): Promise<{ online_users: User[] }> {
-    const response = await apiClient.get('/api/v1/messages/online-users');
+    const response = await apiClient.get('/messages/online-users');
     return response.data;
   }
 
@@ -365,7 +365,7 @@ class MessagingService {
     failed_count: number;
     errors: string[];
   }> {
-    const response = await apiClient.post('/api/v1/messages/bulk-delete', {
+    const response = await apiClient.post('/messages/bulk-delete', {
       message_ids: messageIds,
       message_type: messageType
     });
@@ -378,7 +378,7 @@ class MessagingService {
     failed_count: number;
     errors: string[];
   }> {
-    const response = await apiClient.post('/api/v1/messages/bulk-mark-read', {
+    const response = await apiClient.post('/messages/bulk-mark-read', {
       conversation_ids: conversationIds
     });
     return response.data;
@@ -396,7 +396,7 @@ class MessagingService {
       is_public: boolean;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/messages/templates');
+    const response = await apiClient.get('/messages/templates');
     return response.data;
   }
 
@@ -406,7 +406,7 @@ class MessagingService {
     category: string;
     is_public?: boolean;
   }): Promise<{ success: boolean; template_id: number }> {
-    const response = await apiClient.post('/api/v1/messages/templates', template);
+    const response = await apiClient.post('/messages/templates', template);
     return response.data;
   }
 
@@ -423,12 +423,12 @@ class MessagingService {
     success: boolean;
     scheduled_message_id: number;
   }> {
-    const response = await apiClient.post('/api/v1/messages/schedule', params);
+    const response = await apiClient.post('/messages/schedule', params);
     return response.data;
   }
 
   async cancelScheduledMessage(scheduledMessageId: number): Promise<{ success: boolean }> {
-    const response = await apiClient.delete(`/api/v1/messages/scheduled/${scheduledMessageId}`);
+    const response = await apiClient.delete(`/messages/scheduled/${scheduledMessageId}`);
     return response.data;
   }
 
@@ -442,7 +442,7 @@ class MessagingService {
       status: 'pending' | 'sent' | 'cancelled';
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/messages/scheduled');
+    const response = await apiClient.get('/messages/scheduled');
     return response.data;
   }
 
@@ -450,7 +450,7 @@ class MessagingService {
    * Read receipts and message status
    */
   async markMessageAsRead(messageId: number, messageType: 'direct' | 'task_chat'): Promise<{ success: boolean }> {
-    const response = await apiClient.post('/api/v1/messages/mark-read', {
+    const response = await apiClient.post('/messages/mark-read', {
       message_id: messageId,
       message_type: messageType
     });
@@ -458,7 +458,7 @@ class MessagingService {
   }
 
   async getMessageDeliveryStatus(messageId: number): Promise<MessageDeliveryStatus> {
-    const response = await apiClient.get(`/api/v1/messages/${messageId}/delivery-status`);
+    const response = await apiClient.get(`/messages/${messageId}/delivery-status`);
     return response.data;
   }
 
@@ -466,7 +466,7 @@ class MessagingService {
     success: boolean;
     marked_count: number;
   }> {
-    const response = await apiClient.post('/api/v1/messages/mark-multiple-read', {
+    const response = await apiClient.post('/messages/mark-multiple-read', {
       message_ids: messageIds,
       message_type: messageType
     });
@@ -481,7 +481,7 @@ class MessagingService {
     if (conversationId) params.conversation_id = conversationId;
     if (taskId) params.task_id = taskId;
     
-    const response = await apiClient.get('/api/v1/messages/unread-count', { params });
+    const response = await apiClient.get('/messages/unread-count', { params });
     return response.data;
   }
 
@@ -496,7 +496,7 @@ class MessagingService {
     delivered_to: User[];
     total_recipients: number;
   }> {
-    const response = await apiClient.get(`/api/v1/messages/${messageId}/read-receipts`);
+    const response = await apiClient.get(`/messages/${messageId}/read-receipts`);
     return response.data;
   }
 
@@ -526,7 +526,7 @@ class MessagingService {
     per_page: number;
     has_more: boolean;
   }> {
-    const response = await apiClient.get('/api/v1/messages/direct/search', { params });
+    const response = await apiClient.get('/messages/direct/search', { params });
     return response.data;
   }
 
@@ -553,7 +553,7 @@ class MessagingService {
     per_page: number;
     has_more: boolean;
   }> {
-    const response = await apiClient.get('/api/v1/messages/task-chat/search', { params });
+    const response = await apiClient.get('/messages/task-chat/search', { params });
     return response.data;
   }
 
@@ -579,7 +579,7 @@ class MessagingService {
     per_page: number;
     has_more: boolean;
   }> {
-    const response = await apiClient.get('/api/v1/messages/search', { params });
+    const response = await apiClient.get('/messages/search', { params });
     return response.data;
   }
 }

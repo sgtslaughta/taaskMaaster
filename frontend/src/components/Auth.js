@@ -28,7 +28,7 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
     setError(null);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/v1/auth/login`, loginData);
+      const response = await axios.post(`${API_BASE_URL}/api/proxy/auth/login`, loginData);
       
       // Store tokens in localStorage (in production, use secure storage)
       localStorage.setItem('access_token', response.data.access_token);
@@ -57,7 +57,7 @@ const Auth = ({ onLogin, onLogout, isAuthenticated, user }) => {
   const handleLogout = async () => {
     try {
       // Call logout endpoint
-      await axios.post(`${API_BASE_URL}/api/v1/auth/logout`);
+      await axios.post(`${API_BASE_URL}/api/proxy/auth/logout`);
     } catch (err) {
       console.error('Logout error:', err);
     } finally {

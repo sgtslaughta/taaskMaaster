@@ -198,7 +198,7 @@ export const checkApiHealth = async (): Promise<boolean> => {
  * @returns Promise with invalidation result
  */
 export const invalidateUserCache = async (userId: number): Promise<ApiResponse<{ success: boolean; message: string }>> => {
-  return apiPost(`/api/v1/redis/cache/user/${userId}/invalidate`);
+  return apiPost(`/redis/cache/user/${userId}/invalidate`);
 };
 
 export default api;

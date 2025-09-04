@@ -30,7 +30,7 @@ const TaskList = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/v1/tasks/`);
+      const response = await axios.get(`${API_BASE_URL}/api/proxy/tasks/`);
       setTasks(response.data.tasks || []);
       setError(null);
     } catch (err) {
@@ -47,7 +47,7 @@ const TaskList = () => {
   const createTask = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/v1/tasks/`, newTask);
+      const response = await axios.post(`${API_BASE_URL}/api/proxy/tasks/`, newTask);
       setTasks([...tasks, response.data]);
       setNewTask({
         title: '',
@@ -67,7 +67,7 @@ const TaskList = () => {
    */
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/v1/tasks/${taskId}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/proxy/tasks/${taskId}`, {
         status: newStatus
       });
       setTasks(tasks.map(task => 
@@ -85,7 +85,7 @@ const TaskList = () => {
    */
   const deleteTask = async (taskId) => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/v1/tasks/${taskId}`);
+      await axios.delete(`${API_BASE_URL}/api/proxy/tasks/${taskId}`);
       setTasks(tasks.filter(task => task.id !== taskId));
       setError(null);
     } catch (err) {

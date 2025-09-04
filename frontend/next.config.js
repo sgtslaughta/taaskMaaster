@@ -3,19 +3,28 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  
   // Environment variables
   env: {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'TaaskMaaster',
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api/proxy',
+  },
+  
+  // Configure webpack dev server for HMR over network
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.devServer = {
+        ...config.devServer,
+        host: '0.0.0.0',
+        allowedHosts: 'all',
+      };
+    }
+    return config;
   },
 
-  // WebSocket and API Proxy
+  // WebSocket Proxy (API proxy handled by pages/api/proxy/[...path].ts)
   async rewrites() {
     return [
-      {
-        source: '/api/proxy/:path*',
-        destination: `${process.env.BACKEND_INTERNAL_URL || 'http://backend:8000'}/api/v1/:path*`,
-      },
       {
         source: '/ws/:path*',
         destination: `${process.env.BACKEND_INTERNAL_URL || 'http://backend:8000'}/ws/:path*`,

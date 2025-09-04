@@ -51,7 +51,12 @@ app.prepare().then(() => {
     if (req.url.startsWith('/ws/')) {
       console.log('[WebSocket Proxy] Handling upgrade for:', req.url);
       wsProxy.upgrade(req, socket, head);
+    } else if (req.url.includes('/_next/webpack-hmr')) {
+      // Handle Next.js HMR WebSocket connections
+      console.log('[HMR WebSocket] Next.js HMR connection attempt - allowing');
+      // Don't destroy HMR connections, let them pass through
     } else {
+      console.log('[WebSocket] Unknown WebSocket connection, destroying:', req.url);
       socket.destroy();
     }
   });

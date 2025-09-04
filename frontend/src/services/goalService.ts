@@ -150,7 +150,7 @@ export class GoalService {
       if (options.goal_type) params.append('goal_type', options.goal_type);
       if (options.is_completed !== undefined) params.append('is_completed', options.is_completed.toString());
 
-      const url = `/api/v1/goals?${params.toString()}`;
+      const url = `/goals?${params.toString()}`;
       const response = await apiGet<GoalListResponse>(url);
       return response.data;
     } catch (error) {
@@ -165,7 +165,7 @@ export class GoalService {
    */
   async getGoal(goalId: number): Promise<Goal> {
     try {
-      const response = await apiGet<Goal>(`/api/v1/goals/${goalId}`);
+      const response = await apiGet<Goal>(`/goals/${goalId}`);
       return response.data;
     } catch (error) {
       throw new Error('Failed to fetch goal.');
@@ -179,7 +179,7 @@ export class GoalService {
    */
   async createGoal(goalData: GoalCreateRequest): Promise<Goal> {
     try {
-      const response = await apiPost<Goal>('/api/v1/goals', goalData);
+      const response = await apiPost<Goal>('/goals', goalData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to create goal.');
@@ -194,7 +194,7 @@ export class GoalService {
    */
   async updateGoal(goalId: number, goalData: GoalUpdateRequest): Promise<Goal> {
     try {
-      const response = await apiPut<Goal>(`/api/v1/goals/${goalId}`, goalData);
+      const response = await apiPut<Goal>(`/goals/${goalId}`, goalData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to update goal.');
@@ -208,7 +208,7 @@ export class GoalService {
    */
   async deleteGoal(goalId: number): Promise<void> {
     try {
-      await apiDelete(`/api/v1/goals/${goalId}`);
+      await apiDelete(`/goals/${goalId}`);
     } catch (error) {
       throw new Error('Failed to delete goal.');
     }
@@ -229,7 +229,7 @@ export class GoalService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/goals/${goalId}/progress?${params.toString()}`;
+      const url = `/goals/${goalId}/progress?${params.toString()}`;
       const response = await apiGet<GoalProgressListResponse>(url);
       return response.data;
     } catch (error) {
@@ -245,7 +245,7 @@ export class GoalService {
    */
   async addGoalProgress(goalId: number, progressData: GoalProgressCreateRequest): Promise<GoalProgress> {
     try {
-      const response = await apiPost<GoalProgress>(`/api/v1/goals/${goalId}/progress`, progressData);
+      const response = await apiPost<GoalProgress>(`/goals/${goalId}/progress`, progressData);
       return response.data;
     } catch (error) {
       throw new Error('Failed to add goal progress.');
@@ -265,7 +265,7 @@ export class GoalService {
       if (options.skip !== undefined) params.append('skip', options.skip.toString());
       if (options.limit !== undefined) params.append('limit', options.limit.toString());
 
-      const url = `/api/v1/goals/progress?${params.toString()}`;
+      const url = `/goals/progress?${params.toString()}`;
       const response = await apiGet<GoalProgressListResponse>(url);
       return response.data;
     } catch (error) {

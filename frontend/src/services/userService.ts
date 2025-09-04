@@ -49,7 +49,7 @@ class UserService {
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
   }): Promise<UsersResponse> {
-    const response = await apiClient.get('/api/v1/users', { params });
+    const response = await apiClient.get('/users', { params });
     return response.data;
   }
 
@@ -57,7 +57,7 @@ class UserService {
    * Get user by ID
    */
   async getUser(userId: number): Promise<UserResponse> {
-    const response = await apiClient.get(`/api/v1/users/${userId}`);
+    const response = await apiClient.get(`/users/${userId}`);
     return response.data;
   }
 
@@ -65,7 +65,7 @@ class UserService {
    * Get current user profile
    */
   async getCurrentUser(): Promise<UserResponse> {
-    const response = await apiClient.get('/api/v1/users/me');
+    const response = await apiClient.get('/users/me');
     return response.data;
   }
 
@@ -87,7 +87,7 @@ class UserService {
       }
     });
 
-    const response = await apiClient.put(`/api/v1/users/${userId}`, formData, {
+    const response = await apiClient.put(`/users/${userId}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -113,7 +113,7 @@ class UserService {
       }
     });
 
-    const response = await apiClient.put('/api/v1/users/me', formData, {
+    const response = await apiClient.put('/users/me', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -130,7 +130,7 @@ class UserService {
     role?: string;
     is_active?: boolean;
   }): Promise<UsersResponse> {
-    const response = await apiClient.get('/api/v1/users/search', {
+    const response = await apiClient.get('/users/search', {
       params: { query, ...params }
     });
     return response.data;
@@ -144,7 +144,7 @@ class UserService {
     last_seen: string;
     status_message?: string;
   }> {
-    const response = await apiClient.get(`/api/v1/users/${userId}/status`);
+    const response = await apiClient.get(`/users/${userId}/status`);
     return response.data;
   }
 
@@ -155,7 +155,7 @@ class UserService {
     is_online: boolean;
     status_message?: string;
   }): Promise<{ success: boolean }> {
-    const response = await apiClient.post('/api/v1/users/me/status', status);
+    const response = await apiClient.post('/users/me/status', status);
     return response.data;
   }
 
@@ -169,7 +169,7 @@ class UserService {
       status_message?: string;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/users/online');
+    const response = await apiClient.get('/users/online');
     return response.data;
   }
 
@@ -181,7 +181,7 @@ class UserService {
     new_password: string;
     confirm_password: string;
   }): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post('/api/v1/users/me/change-password', data);
+    const response = await apiClient.post('/users/me/change-password', data);
     return response.data;
   }
 
@@ -209,7 +209,7 @@ class UserService {
       };
     };
   }> {
-    const response = await apiClient.get('/api/v1/users/me/preferences');
+    const response = await apiClient.get('/users/me/preferences');
     return response.data;
   }
 
@@ -235,7 +235,7 @@ class UserService {
       allow_direct_messages?: boolean;
     };
   }): Promise<{ success: boolean }> {
-    const response = await apiClient.put('/api/v1/users/me/preferences', preferences);
+    const response = await apiClient.put('/users/me/preferences', preferences);
     return response.data;
   }
 
@@ -260,7 +260,7 @@ class UserService {
     }>;
     total_count: number;
   }> {
-    const endpoint = userId ? `/api/v1/users/${userId}/activity` : '/api/v1/users/me/activity';
+    const endpoint = userId ? `/users/${userId}/activity` : '/users/me/activity';
     const response = await apiClient.get(endpoint, { params });
     return response.data;
   }
@@ -281,7 +281,7 @@ class UserService {
       total_time_logged: number; // in minutes
     };
   }> {
-    const endpoint = userId ? `/api/v1/users/${userId}/stats` : '/api/v1/users/me/stats';
+    const endpoint = userId ? `/users/${userId}/stats` : '/users/me/stats';
     const response = await apiClient.get(endpoint);
     return response.data;
   }
@@ -290,12 +290,12 @@ class UserService {
    * Block/unblock user
    */
   async blockUser(userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`/api/v1/users/${userId}/block`);
+    const response = await apiClient.post(`/users/${userId}/block`);
     return response.data;
   }
 
   async unblockUser(userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/users/${userId}/block`);
+    const response = await apiClient.delete(`/users/${userId}/block`);
     return response.data;
   }
 
@@ -308,7 +308,7 @@ class UserService {
       blocked_at: string;
     }>;
   }> {
-    const response = await apiClient.get('/api/v1/users/me/blocked');
+    const response = await apiClient.get('/users/me/blocked');
     return response.data;
   }
 
@@ -316,12 +316,12 @@ class UserService {
    * Follow/unfollow user
    */
   async followUser(userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`/api/v1/users/${userId}/follow`);
+    const response = await apiClient.post(`/users/${userId}/follow`);
     return response.data;
   }
 
   async unfollowUser(userId: number): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.delete(`/api/v1/users/${userId}/follow`);
+    const response = await apiClient.delete(`/users/${userId}/follow`);
     return response.data;
   }
 
@@ -332,7 +332,7 @@ class UserService {
     followers: User[];
     total_count: number;
   }> {
-    const response = await apiClient.get(`/api/v1/users/${userId}/followers`);
+    const response = await apiClient.get(`/users/${userId}/followers`);
     return response.data;
   }
 
@@ -340,7 +340,7 @@ class UserService {
     following: User[];
     total_count: number;
   }> {
-    const response = await apiClient.get(`/api/v1/users/${userId}/following`);
+    const response = await apiClient.get(`/users/${userId}/following`);
     return response.data;
   }
 
@@ -351,7 +351,7 @@ class UserService {
     download_url: string;
     expires_at: string;
   }> {
-    const response = await apiClient.post('/api/v1/users/me/export', { format });
+    const response = await apiClient.post('/users/me/export', { format });
     return response.data;
   }
 
@@ -362,7 +362,7 @@ class UserService {
     success: boolean;
     message: string;
   }> {
-    const response = await apiClient.delete('/api/v1/users/me', {
+    const response = await apiClient.delete('/users/me', {
       data: { password }
     });
     return response.data;
@@ -380,7 +380,7 @@ class UserService {
       joined_at: string;
     }>;
   }> {
-    const endpoint = userId ? `/api/v1/users/${userId}/teams` : '/api/v1/users/me/teams';
+    const endpoint = userId ? `/users/${userId}/teams` : '/users/me/teams';
     const response = await apiClient.get(endpoint);
     return response.data;
   }
@@ -398,7 +398,7 @@ class UserService {
       created_at: string;
     }>;
   }> {
-    const endpoint = userId ? `/api/v1/users/${userId}/recent-activity` : '/api/v1/users/me/recent-activity';
+    const endpoint = userId ? `/users/${userId}/recent-activity` : '/users/me/recent-activity';
     const response = await apiClient.get(endpoint, { params: { limit } });
     return response.data;
   }
@@ -413,7 +413,7 @@ class UserService {
     const formData = new FormData();
     formData.append('avatar', avatarFile);
 
-    const response = await apiClient.post('/api/v1/users/me/avatar', formData, {
+    const response = await apiClient.post('/users/me/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -425,7 +425,7 @@ class UserService {
    * Remove user avatar
    */
   async removeAvatar(): Promise<{ success: boolean }> {
-    const response = await apiClient.delete('/api/v1/users/me/avatar');
+    const response = await apiClient.delete('/users/me/avatar');
     return response.data;
   }
 
@@ -437,7 +437,7 @@ class UserService {
     search?: string;
     exclude_inactive?: boolean;
   }): Promise<User[]> {
-    const response = await apiClient.get('/api/v1/users/for-assignment', { params });
+    const response = await apiClient.get('/users/for-assignment', { params });
     return response.data.users || response.data;
   }
 }
