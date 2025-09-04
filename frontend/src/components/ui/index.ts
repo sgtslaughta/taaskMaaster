@@ -7,6 +7,8 @@ export * from './Select';
 export * from './Badge';
 export * from './Progress';
 export * from './Avatar';
+export * from './UserButton';
+export * from './UserMenu';
 
 // Re-export commonly used Mantine components
 export {

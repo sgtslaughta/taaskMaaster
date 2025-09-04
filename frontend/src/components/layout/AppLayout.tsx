@@ -6,12 +6,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AppShell, Burger, Group, Text, ActionIcon, useMantineColorScheme } from '@mantine/core';
+import { AppShell, Burger, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { NavbarNested } from '../navigation/NavbarNested';
 import { NavbarMinimal } from '../navigation/NavbarMinimal';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { IconSun, IconMoon } from '@tabler/icons-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -37,13 +36,6 @@ export function AppLayout({
 }: AppLayoutProps) {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch by only rendering theme toggle after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   return (
     <AppShell
@@ -81,18 +73,6 @@ export function AppLayout({
           </Group>
 
           <Group gap="sm">
-            {/* Theme Toggle */}
-            {mounted && (
-              <ActionIcon
-                variant="subtle"
-                size="lg"
-                onClick={() => toggleColorScheme()}
-                title={colorScheme === 'dark' ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
-              </ActionIcon>
-            )}
-
             {/* Notifications */}
             <NotificationBell />
 

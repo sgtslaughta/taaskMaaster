@@ -22,7 +22,7 @@ function AppContent({ Component, pageProps }) {
   const { mantineTheme: dynamicTheme, isDarkMode } = useTheme();
   
   return (
-    <MantineProvider theme={dynamicTheme} defaultColorScheme={isDarkMode ? 'dark' : 'light'}>
+    <MantineProvider theme={dynamicTheme} forceColorScheme={isDarkMode ? 'dark' : 'light'}>
       <Notifications />
       <AuthProvider>
         <Component {...pageProps} />

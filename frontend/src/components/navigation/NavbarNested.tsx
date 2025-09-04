@@ -7,8 +7,9 @@ import {
   IconBell,
   IconShield,
 } from '@tabler/icons-react';
-import { Group, ScrollArea, Text, Avatar, Box, Menu } from '@mantine/core';
+import { Group, ScrollArea } from '@mantine/core';
 import { LinksGroup } from './NavbarLinksGroup';
+import { UserMenu } from '../ui/UserMenu';
 import classes from './NavbarNested.module.css';
 
 const navigationData = [
@@ -69,88 +70,16 @@ export function NavbarNested({ currentPage = 'dashboard', onNavigate, user, onLo
       {/* User Menu Section */}
       <div className={classes.footer}>
         {user && (
-          <Menu 
-            withArrow 
-            width={250} 
-            position="top-end" 
-            offset={5}
-            withinPortal
-            transitionProps={{ transition: 'pop-top-right' }}
-          >
-            <Menu.Target>
-              <Group 
-                p="xs" 
-                style={{ 
-                  cursor: 'pointer',
-                  borderRadius: 'var(--mantine-radius-sm)',
-                  '&:hover': {
-                    backgroundColor: 'var(--mantine-color-gray-0)',
-                  }
-                }}
-                onClick={() => {}} // Menu handles the click
-              >
-                <Avatar
-                  radius="xl"
-                  color="primary"
-                  size="sm"
-                  name={user.username}
-                >
-                  {user.username?.charAt(0).toUpperCase() || 'U'}
-                </Avatar>
-                <Box style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {user.username}
-                  </Text>
-                  <Text size="xs" c="dimmed" truncate>
-                    {user.role}
-                    {user.points !== undefined && (
-                      <> • {user.points} pts</>
-                    )}
-                    {user.level !== undefined && (
-                      <> • Level {user.level}</>
-                    )}
-                  </Text>
-                </Box>
-              </Group>
-            </Menu.Target>
-
-            <Menu.Dropdown>
-              <Menu.Item 
-                leftSection={<IconUser size={16} stroke={1.5} />}
-                onClick={() => console.log('Profile clicked')}
-              >
-                Profile
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconSettings size={16} stroke={1.5} />}
-                onClick={() => console.log('Settings clicked')}
-              >
-                Settings
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconBell size={16} stroke={1.5} />}
-                onClick={() => console.log('Notifications clicked')}
-              >
-                Notifications
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconShield size={16} stroke={1.5} />}
-                onClick={() => console.log('Privacy clicked')}
-              >
-                Privacy
-              </Menu.Item>
-              <Menu.Divider />
-              {onLogout && (
-                <Menu.Item 
-                  color="red" 
-                  leftSection={<IconLogout size={16} stroke={1.5} />}
-                  onClick={onLogout}
-                >
-                  Logout
-                </Menu.Item>
-              )}
-            </Menu.Dropdown>
-          </Menu>
+          <UserMenu
+            user={{ ...user, email: user.email || `${user.username}@example.com` }}
+            position="top-end"
+            width={280}
+            onLogout={onLogout}
+            onProfileClick={() => console.log('Profile clicked')}
+            onSettingsClick={() => console.log('Settings clicked')}
+            onNotificationsClick={() => console.log('Notifications clicked')}
+            size="sm"
+          />
         )}
       </div>
     </nav>

@@ -6,7 +6,8 @@
       "mcp__mantine-ui__list_components",
       "mcp__mantine-ui__search_components",
       "mcp__mantine-ui__get_component_docs",
-      "mcp__mantine-ui__get_component_docs"
+      "mcp__mantine-ui__get_component_docs",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

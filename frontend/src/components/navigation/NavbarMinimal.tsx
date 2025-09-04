@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { Tooltip, UnstyledButton, Stack, rem, Menu, Avatar, Text } from '@mantine/core';
+import { Tooltip, UnstyledButton, Stack, rem } from '@mantine/core';
 import {
   IconHome,
   IconChecklist,
-  IconSettings,
-  IconUser,
-  IconLogout,
-  IconBell,
-  IconShield,
 } from '@tabler/icons-react';
+import { UserMenu } from '../ui/UserMenu';
 import classes from './NavbarMinimal.module.css';
 
 const navigationData = [
@@ -58,69 +54,23 @@ export function NavbarMinimal({ currentPage = 'dashboard', onNavigate, user, onL
 
       {user && (
         <div className={classes.footer}>
-          <Menu 
-            withArrow 
-            width={250} 
-            position="top-end" 
-            offset={5}
-            withinPortal
-            transitionProps={{ transition: 'pop-top-right' }}
+          <Tooltip
+            label={user.username}
+            position="right"
+            transitionProps={{ duration: 0 }}
           >
-            <Menu.Target>
-              <Tooltip
-                label={user.username}
-                position="right"
-                transitionProps={{ duration: 0 }}
-              >
-                <UnstyledButton className={classes.link}>
-                  <Avatar
-                    radius="xl"
-                    color="primary"
-                    size={rem(24)}
-                  >
-                    {user.username?.charAt(0).toUpperCase() || 'U'}
-                  </Avatar>
-                </UnstyledButton>
-              </Tooltip>
-            </Menu.Target>
-
-            <Menu.Dropdown>
-              <Menu.Item 
-                leftSection={<IconUser size={16} stroke={1.5} />}
-                onClick={() => console.log('Profile clicked')}
-              >
-                Profile
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconSettings size={16} stroke={1.5} />}
-                onClick={() => console.log('Settings clicked')}
-              >
-                Settings
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconBell size={16} stroke={1.5} />}
-                onClick={() => console.log('Notifications clicked')}
-              >
-                Notifications
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconShield size={16} stroke={1.5} />}
-                onClick={() => console.log('Privacy clicked')}
-              >
-                Privacy
-              </Menu.Item>
-              <Menu.Divider />
-              {onLogout && (
-                <Menu.Item 
-                  color="red" 
-                  leftSection={<IconLogout size={16} stroke={1.5} />}
-                  onClick={onLogout}
-                >
-                  Logout
-                </Menu.Item>
-              )}
-            </Menu.Dropdown>
-          </Menu>
+            <UserMenu
+              user={{ ...user, email: user.email || `${user.username}@example.com` }}
+              position="top-end"
+              width={280}
+              onLogout={onLogout}
+              onProfileClick={() => console.log('Profile clicked')}
+              onSettingsClick={() => console.log('Settings clicked')}
+              onNotificationsClick={() => console.log('Notifications clicked')}
+              size="sm"
+              compact={true}
+            />
+          </Tooltip>
         </div>
       )}
     </nav>
