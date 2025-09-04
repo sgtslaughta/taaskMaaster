@@ -21,8 +21,14 @@ import {
   Divider,
   Center,
   Badge,
-  Gradient
+  Progress,
+  RingProgress,
+  SimpleGrid,
+  Box
 } from '@mantine/core';
+import { LineChart, DonutChart, BarChart, AreaChart, PieChart } from '@mantine/charts';
+import '@mantine/charts/styles.css';
+import '@mantine/dates/styles.css';
 import { 
   IconHome,
   IconCheckbox,
@@ -33,12 +39,22 @@ import {
   IconStar,
   IconFlame,
   IconSchool,
-  IconSettings
+  IconSettings,
+  IconArrowUpRight,
+  IconArrowDownRight,
+  IconClock,
+  IconFolderOpen,
+  IconProgress,
+  IconTargetArrow,
+  IconTrendingUp,
+  IconTrendingDown
 } from '@tabler/icons-react';
 import { AppLayout } from '../layout/AppLayout';
 import { gamificationService, goalService, taskService } from '../../services';
 import { workflowStatsService, type WorkflowStats } from '../../services/workflowStatsService';
 import WorkflowStatsCards from '../workflow/WorkflowStatsCards';
+import BlurText from '../ui/BlurText';
+import TaskCalendar from '../calendar/TaskCalendar';
 
 /**
  * @description User interface
@@ -135,6 +151,83 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [workflowStats, setWorkflowStats] = useState<WorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<any>({
+    categoryBreakdown: [],
+    priorityDistribution: [],
+    statusFlow: [],
+    timeMetrics: [],
+    trendData: []
+  });
+  const [userTasks, setUserTasks] = useState<any[]>([]);
+
+  /**
+   * @description Calculate analytics from task data
+   */
+  const calculateAnalytics = (tasks: any[]) => {
+    // Category breakdown
+    const categoryMap = new Map();
+    const priorityMap = new Map();
+    const statusMap = new Map();
+    
+    tasks.forEach(task => {
+      // Category breakdown
+      const category = task.category?.name || 'Uncategorized';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+      
+      // Priority distribution
+      priorityMap.set(task.priority, (priorityMap.get(task.priority) || 0) + 1);
+      
+      // Status distribution
+      statusMap.set(task.status, (statusMap.get(task.status) || 0) + 1);
+    });
+
+    const categoryBreakdown = Array.from(categoryMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+      color: `#${Math.floor(Math.random()*16777215).toString(16)}`
+    }));
+
+    const priorityDistribution = Array.from(priorityMap.entries()).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+      color: name === 'urgent' ? '#fa5252' : name === 'high' ? '#fd7e14' : name === 'medium' ? '#fab005' : '#51cf66'
+    }));
+
+    const statusFlow = Array.from(statusMap.entries()).map(([name, value]) => ({
+      name: name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      value,
+      percentage: Math.round((value / tasks.length) * 100)
+    }));
+
+    // Time metrics calculations
+    const completedTasks = tasks.filter(task => task.status === 'done' && task.completed_at);
+    const avgCompletionTime = completedTasks.length > 0 
+      ? completedTasks.reduce((acc, task) => {
+          const created = new Date(task.created_at);
+          const completed = new Date(task.completed_at);
+          return acc + (completed.getTime() - created.getTime());
+        }, 0) / completedTasks.length / (1000 * 60 * 60 * 24)
+      : 0;
+
+    const timeMetrics = [
+      { label: 'Avg Completion Time', value: Math.round(avgCompletionTime * 10) / 10, unit: 'days', icon: 'IconClock', trend: 'down', change: 12 },
+      { label: 'Tasks This Week', value: tasks.filter(t => {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return new Date(t.created_at) > weekAgo;
+      }).length, unit: 'tasks', icon: 'IconTrendingUp', trend: 'up', change: 23 },
+      { label: 'Completion Rate', value: Math.round((completedTasks.length / Math.max(tasks.length, 1)) * 100), unit: '%', icon: 'IconTargetArrow', trend: 'up', change: 8 },
+      { label: 'Active Categories', value: categoryMap.size, unit: 'cats', icon: 'IconFolderOpen', trend: 'neutral', change: 0 }
+    ];
+
+    setAnalyticsData({
+      categoryBreakdown,
+      priorityDistribution,
+      statusFlow,
+      timeMetrics,
+      trendData: [] // Will be populated with real trend data later
+    });
+  };
 
   /**
    * @description Load dashboard data
@@ -163,12 +256,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         task.created_by_id === userId || task.assigned_to_id === userId
       );
       
+      // Store user tasks for calendar
+      setUserTasks(userTasks);
+      
       const tasksCompleted = userTasks.filter(t => t.status === 'done').length;
       const tasksPending = userTasks.filter(t => t.status !== 'done').length;
 
       // Calculate workflow statistics (use user tasks only)
       const workflowStatsData = workflowStatsService.calculateWorkflowStats(userTasks);
       setWorkflowStats(workflowStatsData);
+
+      // Calculate analytics data
+      calculateAnalytics(userTasks);
 
       // Combine all stats
       setStats({
@@ -340,226 +439,376 @@ export const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
+  // Prepare chart data
+  const taskProgressData = [
+    { name: 'Completed', value: stats.tasksCompleted, color: '#51cf66' },
+    { name: 'Pending', value: stats.tasksPending, color: '#ffd43b' }
+  ];
+
+  const weeklyData = [
+    { day: 'Mon', tasks: 5, points: 250 },
+    { day: 'Tue', tasks: 3, points: 150 },
+    { day: 'Wed', tasks: 8, points: 400 },
+    { day: 'Thu', tasks: 4, points: 200 },
+    { day: 'Fri', tasks: 6, points: 300 },
+    { day: 'Sat', tasks: 2, points: 100 },
+    { day: 'Sun', tasks: 7, points: 350 }
+  ];
+
+  const monthlyGoalProgress = (stats.completedGoals / (stats.activeGoals + stats.completedGoals)) * 100 || 0;
+
   return renderContent(
-    <Stack gap="xl">
-        {/* Welcome Section */}
-        <Paper
-          p="xl"
-          radius="md"
-          style={{
-            background: 'linear-gradient(135deg, var(--mantine-color-blue-6) 0%, var(--mantine-color-blue-7) 100%)',
-            color: 'white'
-          }}
-        >
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Title order={2} mb="sm" c="white">
-                {getGreeting()}! 👋
-              </Title>
-              <Text c="blue.1">
-                Ready to tackle today's tasks and earn some points?
-              </Text>
+    <Stack gap="md">
+      {/* Compact Header with Animated Welcome */}
+      <Paper p="md" radius="md" withBorder>
+        <Group justify="space-between" align="center">
+          <div>
+            <div style={{ fontSize: 'var(--mantine-font-size-lg)', fontWeight: 700, marginBottom: '4px' }}>
+              <BlurText 
+                text={`${getGreeting()}! 👋`}
+                delay={100}
+                animateBy="words"
+                direction="top"
+                className=""
+                onAnimationComplete={() => console.log('Welcome animation complete!')}
+              />
             </div>
-            <Group gap="xl" visibleFrom="md">
-              <Stack align="center" gap={4}>
-                <Text size="xl" fw={700} c="white">{stats.totalPoints}</Text>
-                <Text size="sm" c="blue.1">Total Points</Text>
-              </Stack>
-              <Stack align="center" gap={4}>
-                <Text size="xl" fw={700} c="white">{stats.currentLevel}</Text>
-                <Text size="sm" c="blue.1">Level</Text>
-              </Stack>
-            </Group>
+            <div style={{ fontSize: 'var(--mantine-font-size-sm)', color: 'var(--mantine-color-dimmed)' }}>
+              <BlurText 
+                text="Ready to tackle today's tasks?"
+                delay={80}
+                animateBy="words"
+                direction="top"
+                className=""
+              />
+            </div>
+          </div>
+          <Group gap="lg" visibleFrom="md">
+            <div style={{ textAlign: 'center' }}>
+              <Text size="xl" fw={700} c="blue">{stats.totalPoints}</Text>
+              <Text size="xs" c="dimmed">Points</Text>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <Text size="xl" fw={700} c="violet">Level {stats.currentLevel}</Text>
+              <Text size="xs" c="dimmed">Current</Text>
+            </div>
           </Group>
-        </Paper>
+        </Group>
+      </Paper>
 
-        {/* Quick Actions */}
-        <Grid>
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card 
-              shadow="sm" 
-              padding="lg" 
-              radius="md" 
-              withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => onQuickAction?.('tasks')}
-            >
-              <Group>
-                <ThemeIcon size="lg" color="blue" variant="light">
-                  <IconCheckbox size={24} />
-                </ThemeIcon>
-                <div>
-                  <Text fw={500} size="sm">Create Task</Text>
-                  <Text size="xs" c="dimmed">Add a new task</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
+      {/* Task Calendar - Full Width */}
+      <Box style={{ width: '100%' }}>
+        <TaskCalendar 
+          tasks={userTasks}
+          onTaskClick={(task) => console.log('Clicked task:', task.title)}
+        />
+      </Box>
 
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card 
-              shadow="sm" 
-              padding="lg" 
-              radius="md" 
-              withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => onQuickAction?.('goals')}
-            >
-              <Group>
-                <ThemeIcon size="lg" color="yellow" variant="light">
-                  <IconTrophy size={24} />
-                </ThemeIcon>
-                <div>
-                  <Text fw={500} size="sm">Set Goal</Text>
-                  <Text size="xs" c="dimmed">Create a new goal</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
-
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card 
-              shadow="sm" 
-              padding="lg" 
-              radius="md" 
-              withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => onQuickAction?.('family')}
-            >
-              <Group>
-                <ThemeIcon size="lg" color="green" variant="light">
-                  <IconUsers size={24} />
-                </ThemeIcon>
-                <div>
-                  <Text fw={500} size="sm">Family</Text>
-                  <Text size="xs" c="dimmed">View family members</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
-
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card 
-              shadow="sm" 
-              padding="lg" 
-              radius="md" 
-              withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => onQuickAction?.('achievements')}
-            >
-              <Group>
-                <ThemeIcon size="lg" color="violet" variant="light">
-                  <IconStar size={24} />
-                </ThemeIcon>
-                <div>
-                  <Text fw={500} size="sm">Achievements</Text>
-                  <Text size="xs" c="dimmed">View your badges</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
-        </Grid>
-
-        {/* Workflow Statistics */}
-        {workflowStats && (
-          <WorkflowStatsCards 
-            stats={workflowStats} 
-            loading={loading}
+      {/* Primary Stats Grid */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">Tasks Done</Text>
+            <ThemeIcon size="sm" color="green" variant="light">
+              <IconCheckbox size={16} />
+            </ThemeIcon>
+          </Group>
+          <Text size="xl" fw={700}>{stats.tasksCompleted}</Text>
+          <Progress 
+            value={Math.min((stats.tasksCompleted / (stats.tasksCompleted + stats.tasksPending)) * 100, 100)} 
+            color="green" 
+            size="xs" 
+            mt="xs" 
           />
-        )}
+        </Card>
 
-        {/* Stats Grid */}
-        <Grid>
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group>
-                <ThemeIcon size="md" color="green" variant="light">
-                  <IconCheckbox size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>Tasks Completed</Text>
-                  <Text size="xl" fw={700}>{stats.tasksCompleted}</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">Streak</Text>
+            <ThemeIcon size="sm" color="orange" variant="light">
+              <IconFlame size={16} />
+            </ThemeIcon>
+          </Group>
+          <Text size="xl" fw={700}>{stats.streakDays}</Text>
+          <Text size="xs" c="dimmed" mt="xs">days active</Text>
+        </Card>
 
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group>
-                <ThemeIcon size="md" color="orange" variant="light">
-                  <IconFlame size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>Streak</Text>
-                  <Text size="xl" fw={700}>{stats.streakDays} days</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">Goals</Text>
+            <ThemeIcon size="sm" color="yellow" variant="light">
+              <IconTrophy size={16} />
+            </ThemeIcon>
+          </Group>
+          <Text size="xl" fw={700}>{stats.completedGoals}/{stats.activeGoals + stats.completedGoals}</Text>
+          <Progress 
+            value={monthlyGoalProgress} 
+            color="yellow" 
+            size="xs" 
+            mt="xs" 
+          />
+        </Card>
 
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group>
-                <ThemeIcon size="md" color="yellow" variant="light">
-                  <IconStar size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>Achievements</Text>
-                  <Text size="xl" fw={700}>{stats.achievements}</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Group justify="space-between" mb="xs">
+            <Text size="sm" c="dimmed">Achievements</Text>
+            <ThemeIcon size="sm" color="violet" variant="light">
+              <IconStar size={16} />
+            </ThemeIcon>
+          </Group>
+          <Text size="xl" fw={700}>{stats.achievements}</Text>
+          <Text size="xs" c="dimmed" mt="xs">unlocked</Text>
+        </Card>
+      </SimpleGrid>
 
-          <Grid.Col span={{ base: 12, sm: 6, lg: 3 }}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group>
-                <ThemeIcon size="md" color="blue" variant="light">
-                  <IconChartBar size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" fw={500}>Pending Tasks</Text>
-                  <Text size="xl" fw={700}>{stats.tasksPending}</Text>
-                </div>
-              </Group>
-            </Card>
-          </Grid.Col>
-        </Grid>
-
-        {/* Recent Activity */}
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-          <Title order={3} mb="md">Recent Activity</Title>
-          <Divider mb="md" />
-          <Stack gap="md">
-            {recentActivity.length > 0 ? (
-              recentActivity.map((activity) => (
-                <Group key={activity.id} justify="space-between" align="flex-start">
-                  <Group align="flex-start" gap="sm">
-                    <ThemeIcon
-                      size="xs"
-                      radius="xl"
-                      color={
-                        activity.type === 'task_completed' ? 'green' :
-                        activity.type === 'points_earned' ? 'blue' :
-                        activity.type === 'achievement_unlocked' ? 'yellow' :
-                        'violet'
-                      }
-                    />
-                    <Text size="sm">{activity.title}</Text>
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    {formatTimestamp(activity.timestamp)}
-                  </Text>
+      {/* Analytics Grid - StatsGrid Pattern */}
+      <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Group justify="space-between" mb="md">
+          <Text fw={500}>Task Analytics</Text>
+          <Badge color="blue" variant="light" size="sm">Real-time</Badge>
+        </Group>
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+          {analyticsData.timeMetrics.map((metric: any, index: number) => {
+            const IconComponent = {
+              'IconClock': IconClock,
+              'IconTrendingUp': IconTrendingUp,
+              'IconTargetArrow': IconTargetArrow,
+              'IconFolderOpen': IconFolderOpen
+            }[metric.icon] || IconClock;
+            
+            const TrendIcon = metric.trend === 'up' ? IconArrowUpRight : 
+                             metric.trend === 'down' ? IconArrowDownRight : null;
+            
+            return (
+              <Paper key={index} withBorder p="md" radius="md">
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">{metric.label}</Text>
+                  <IconComponent size={16} color="var(--mantine-color-blue-6)" />
                 </Group>
-              ))
+                
+                <Group align="flex-end" gap="xs">
+                  <Text size="xl" fw={700}>{metric.value}</Text>
+                  <Text size="xs" c="dimmed" pb={4}>{metric.unit}</Text>
+                </Group>
+                
+                {TrendIcon && metric.change > 0 && (
+                  <Group gap="xs" mt="xs">
+                    <Group gap={2} align="center">
+                      <TrendIcon size={14} color={metric.trend === 'up' ? 'var(--mantine-color-teal-6)' : 'var(--mantine-color-red-6)'} />
+                      <Text size="xs" c={metric.trend === 'up' ? 'teal' : 'red'} fw={700}>
+                        {metric.change}%
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed">vs last period</Text>
+                  </Group>
+                )}
+              </Paper>
+            );
+          })}
+        </SimpleGrid>
+      </Card>
+
+      {/* Status Flow - StatsSegments Pattern */}
+      <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Group justify="space-between" mb="md">
+          <Text fw={500}>Task Status Flow</Text>
+          <Group gap="xs">
+            <Text size="sm" c="dimmed">Total:</Text>
+            <Text size="sm" fw={700}>{stats.tasksCompleted + stats.tasksPending}</Text>
+          </Group>
+        </Group>
+        
+        <Progress.Root size="xl" mb="md">
+          {analyticsData.statusFlow.map((status: any, index: number) => (
+            <Progress.Section
+              key={index}
+              value={status.percentage}
+              color={
+                status.name.includes('Done') ? 'green' :
+                status.name.includes('Progress') ? 'blue' :
+                status.name.includes('Review') ? 'yellow' :
+                status.name.includes('Todo') ? 'gray' : 'violet'
+              }
+            >
+              {status.percentage > 10 && (
+                <Progress.Label>{status.percentage}%</Progress.Label>
+              )}
+            </Progress.Section>
+          ))}
+        </Progress.Root>
+        
+        <SimpleGrid cols={{ base: 2, sm: analyticsData.statusFlow.length }} spacing="xs">
+          {analyticsData.statusFlow.map((status: any, index: number) => (
+            <Group key={index} gap="xs" justify="center">
+              <ThemeIcon
+                size="xs"
+                color={
+                  status.name.includes('Done') ? 'green' :
+                  status.name.includes('Progress') ? 'blue' :
+                  status.name.includes('Review') ? 'yellow' :
+                  status.name.includes('Todo') ? 'gray' : 'violet'
+                }
+              />
+              <div>
+                <Text size="xs" fw={500}>{status.name}</Text>
+                <Text size="xs" c="dimmed">{status.value} tasks</Text>
+              </div>
+            </Group>
+          ))}
+        </SimpleGrid>
+      </Card>
+
+      {/* Charts Section */}
+      <Grid>
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Group justify="space-between" mb="md">
+              <Text fw={500}>Priority Distribution</Text>
+              <Badge color="orange" variant="light" size="sm">Active</Badge>
+            </Group>
+            {analyticsData.priorityDistribution.length > 0 ? (
+              <PieChart
+                h={180}
+                data={analyticsData.priorityDistribution}
+                withTooltip
+                tooltipDataSource="segment"
+                mx="auto"
+              />
             ) : (
-              <Center py="xl">
-                <Text size="sm" c="dimmed">No recent activity</Text>
+              <Center h={180}>
+                <Text size="sm" c="dimmed">No priority data</Text>
               </Center>
             )}
-          </Stack>
-        </Card>
+          </Card>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Group justify="space-between" mb="md">
+              <Text fw={500}>Category Breakdown</Text>
+              <Badge color="violet" variant="light" size="sm">All time</Badge>
+            </Group>
+            {analyticsData.categoryBreakdown.length > 0 ? (
+              <DonutChart
+                h={180}
+                data={analyticsData.categoryBreakdown}
+                withTooltip
+                tooltipDataSource="segment"
+                mx="auto"
+              />
+            ) : (
+              <Center h={180}>
+                <Text size="sm" c="dimmed">No category data</Text>
+              </Center>
+            )}
+          </Card>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Group justify="space-between" mb="md">
+              <Text fw={500}>Weekly Activity</Text>
+              <Badge color="blue" variant="light" size="sm">Last 7 days</Badge>
+            </Group>
+            <AreaChart
+              h={180}
+              data={weeklyData}
+              dataKey="day"
+              series={[
+                { name: 'tasks', color: 'blue.6' },
+                { name: 'points', color: 'violet.6' }
+              ]}
+              curveType="natural"
+              gridAxis="xy"
+              tickLine="xy"
+              withXAxis={false}
+            />
+          </Card>
+        </Grid.Col>
+      </Grid>
+
+      {/* Workflow Statistics */}
+      {workflowStats && (
+        <WorkflowStatsCards 
+          stats={workflowStats} 
+          loading={loading}
+        />
+      )}
+
+      {/* Quick Actions & Recent Activity */}
+      <Grid>
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Text fw={500} mb="md">Quick Actions</Text>
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+              <Button 
+                variant="light" 
+                leftSection={<IconCheckbox size={16} />}
+                size="sm"
+                onClick={() => onQuickAction?.('tasks')}
+              >
+                New Task
+              </Button>
+              <Button 
+                variant="light" 
+                leftSection={<IconTrophy size={16} />}
+                size="sm"
+                color="yellow"
+                onClick={() => onQuickAction?.('goals')}
+              >
+                Set Goal
+              </Button>
+              <Button 
+                variant="light" 
+                leftSection={<IconUsers size={16} />}
+                size="sm"
+                color="green"
+                onClick={() => onQuickAction?.('family')}
+              >
+                Family
+              </Button>
+              <Button 
+                variant="light" 
+                leftSection={<IconStar size={16} />}
+                size="sm"
+                color="violet"
+                onClick={() => onQuickAction?.('achievements')}
+              >
+                Achievements
+              </Button>
+            </SimpleGrid>
+          </Card>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Text fw={500} mb="md">Recent Activity</Text>
+            <Stack gap="xs">
+              {recentActivity.slice(0, 3).map((activity) => (
+                <Group key={activity.id} gap="xs">
+                  <ThemeIcon
+                    size={16}
+                    radius="xl"
+                    color={
+                      activity.type === 'task_completed' ? 'green' :
+                      activity.type === 'points_earned' ? 'blue' :
+                      activity.type === 'achievement_unlocked' ? 'yellow' :
+                      'violet'
+                    }
+                  />
+                  <div style={{ flex: 1 }}>
+                    <Text size="xs" lineClamp={1}>{activity.title}</Text>
+                    <Text size="xs" c="dimmed">{formatTimestamp(activity.timestamp)}</Text>
+                  </div>
+                </Group>
+              ))}
+              {recentActivity.length === 0 && (
+                <Text size="xs" c="dimmed" ta="center" py="md">No recent activity</Text>
+              )}
+            </Stack>
+          </Card>
+        </Grid.Col>
+      </Grid>
     </Stack>
   );
 };

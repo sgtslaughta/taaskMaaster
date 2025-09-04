@@ -13,7 +13,8 @@
       "Bash(docker-compose:*)",
       "Bash(docker-compose up:*)",
       "Bash(docker compose:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "WebFetch(domain:mantine.dev)"
     ],
     "deny": [],
     "ask": []

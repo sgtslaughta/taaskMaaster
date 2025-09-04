@@ -1,0 +1,84 @@
+.calendar {
+  width: 100%;
+}
+
+.calendarContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dayCell {
+  height: 80px;
+  padding: 4px;
+  min-width: 120px;
+  width: 14.28%; /* 7 days = 100% / 7 */
+  position: relative;
+  border-right: 1px solid var(--mantine-color-gray-3);
+  border-bottom: 1px solid var(--mantine-color-gray-3);
+}
+
+.dayCell[data-today="true"] {
+  background-color: var(--mantine-color-blue-0);
+  border: 1px solid var(--mantine-color-blue-3);
+}
+
+.dayCell:last-child {
+  border-right: none;
+}
+
+.taskBadge {
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px 6px;
+  margin: 1px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.taskBadgeStart {
+  width: calc(100% + 6px); /* Extend to connect with next day */
+  margin-right: -6px;
+}
+
+.taskBadgeMiddle {
+  width: calc(100% + 12px); /* Extend both sides */
+  margin-left: -6px;
+  margin-right: -6px;
+}
+
+.taskBadgeEnd {
+  width: calc(100% + 6px); /* Extend from previous day */
+  margin-left: -6px;
+}
+
+.taskBadgeSingle {
+  width: 100%; /* Normal width for single-day tasks */
+}
+
+.taskBadgeCompleted {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.taskContainer {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: visible; /* Allow badges to extend beyond container */
+  z-index: 2; /* Ensure tasks appear above day borders */
+}
+
+.moreText {
+  font-size: 10px;
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+  margin-top: 2px;
+}
