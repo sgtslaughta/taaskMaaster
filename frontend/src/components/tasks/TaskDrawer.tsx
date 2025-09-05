@@ -26,7 +26,13 @@ import {
   Alert,
   Stepper,
   Tabs,
-  Tooltip
+  Tooltip,
+  SimpleGrid,
+  Card,
+  Center,
+  Transition,
+  Box,
+  Menu
 } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import {
@@ -41,13 +47,15 @@ import {
   IconInfoCircle,
   IconChecklist,
   IconMessage,
-  IconHistory
+  IconHistory,
+  IconChevronDown
 } from '@tabler/icons-react';
 import { Task as TypesTask, TaskStatus, TaskPriority, TaskType, TaskCreateRequest, TaskUpdateRequest } from '../../types/task';
 import { Task as ServiceTask } from '../../services/taskService';
 import { User } from '../../types/user';
 import { TaskMetadata } from './TaskMetadata';
 import { userService, taskService } from '../../services';
+import { SplitButton } from '../common/SplitButton/SplitButton';
 
 interface TaskDrawerProps {
   /** Whether the drawer is open */
@@ -149,7 +157,7 @@ export function TaskDrawer({
   });
 
   const [activeTab, setActiveTab] = useState<string>('details');
-  const [isEditMode, setIsEditMode] = useState(mode === 'create' || mode === 'edit');
+  const [isEditMode, setIsEditMode] = useState(mode === 'create');
   const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [task, setTask] = useState<ServiceTask | null>(null);
@@ -191,7 +199,7 @@ export function TaskDrawer({
     if (task) {
       setFormData({
         title: task.title,
-        description: task.description,
+        description: task.description || '',
         status: task.status,
         priority: task.priority,
         type: (task.category?.name as TaskType) || 'feature',
@@ -258,8 +266,8 @@ export function TaskDrawer({
         due_date: task.due_date,
         tags: task.tags?.map(tag => tag.name) || []
       });
-      // Reset edit mode when task changes (unless explicitly in edit mode from props)
-      setIsEditMode(mode === 'edit' || mode === 'create');
+      // Always start in view mode for existing tasks - user must click edit
+      setIsEditMode(false);
     } else if (mode === 'create') {
       setFormData({
         title: '',
@@ -349,36 +357,7 @@ export function TaskDrawer({
       position="right"
       size="xl"
       title={
-        <Group justify="space-between" w="100%">
-          <Title order={3}>{getDrawerTitle()}</Title>
-          <Group gap="xs">
-            {task && (
-              <>
-                {/* Edit button - only show if user has permission and not already editing */}
-                {!isEditMode && canEditTask() && (
-                  <ActionIcon
-                    variant="subtle"
-                    onClick={handleEnterEditMode}
-                    title="Edit task"
-                  >
-                    <IconEdit size={16} />
-                  </ActionIcon>
-                )}
-                {/* Delete button - only show if user has permission */}
-                {canDeleteTask() && (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    onClick={handleDelete}
-                    title="Delete task"
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                )}
-              </>
-            )}
-          </Group>
-        </Group>
+        <Title order={3}>{getDrawerTitle()}</Title>
       }
       scrollAreaComponent={ScrollArea.Autosize}
     >
@@ -454,178 +433,327 @@ export function TaskDrawer({
           );
         })()}
 
-        {/* Task Details Tabs */}
+        {/* Task Details Tabs with Actions */}
         <Tabs value={activeTab} onChange={(value) => value && setActiveTab(value)}>
-          <Tabs.List>
-            <Tabs.Tab value="details" leftSection={<IconInfoCircle size={16} />}>
-              Details
-            </Tabs.Tab>
-            {task && (
-              <>
-                <Tabs.Tab value="comments" leftSection={<IconMessage size={16} />}>
-                  Comments (0)
-                </Tabs.Tab>
-                <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
-                  History
-                </Tabs.Tab>
-              </>
-            )}
-          </Tabs.List>
-
-          <Tabs.Panel value="details" pt="md">
-            <Stack gap="md">
-              {/* Title */}
-              <TextInput
-                label="Title"
-                placeholder="Enter task title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                required
-                readOnly={!isEditMode || !canEditTask()}
-                leftSection={<IconChecklist size={16} />}
-              />
-
-              {/* Description */}
-              <Textarea
-                label="Description"
-                resize="vertical"
-                placeholder="Enter task description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                minRows={3}
-                maxRows={8}
-                autosize
-                readOnly={!isEditMode || !canEditTask()}
-              />
-
-              {/* Status, Priority, Type Row */}
-              <Group grow>
-                <Select
-                  label="Status"
-                  value={formData.status}
-                  onChange={(value) => setFormData(prev => ({ ...prev, status: value as TaskStatus }))}
-                  data={[
-                    { value: 'todo', label: 'To Do' },
-                    { value: 'assigned', label: 'Assigned' },
-                    { value: 'in_progress', label: 'In Progress' },
-                    { value: 'review', label: 'Review' },
-                    { value: 'submitted_for_approval', label: 'Submitted for Approval' },
-                    { value: 'done', label: 'Done' },
-                    { value: 'cancelled', label: 'Cancelled' }
-                  ]}
-                  readOnly={!isEditMode || !canEditTask()}
-                  leftSection={
-                    <Badge
-                      size="xs"
-                      color={statusColors[formData.status as keyof typeof statusColors]}
-                    />
-                  }
-                />
-
-                <Select
-                  label="Priority"
-                  value={formData.priority}
-                  onChange={(value) => setFormData(prev => ({ ...prev, priority: value as TaskPriority }))}
-                  data={[
-                    { value: 'low', label: 'Low' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'high', label: 'High' },
-                    { value: 'urgent', label: 'Urgent' }
-                  ]}
-                  readOnly={!isEditMode || !canEditTask()}
-                  leftSection={
-                    <IconFlag
-                      size={16}
-                      color={`var(--mantine-color-${priorityColors[formData.priority as keyof typeof priorityColors]}-6)`}
-                    />
-                  }
-                />
-
-                <Select
-                  label="Type"
-                  value={formData.type}
-                  onChange={(value) => setFormData(prev => ({ ...prev, type: value as TaskType }))}
-                  data={[
-                    { value: 'feature', label: 'Feature' },
-                    { value: 'bug', label: 'Bug Fix' },
-                    { value: 'improvement', label: 'Improvement' },
-                    { value: 'documentation', label: 'Documentation' },
-                    { value: 'maintenance', label: 'Maintenance' }
-                  ]}
-                  readOnly={!isEditMode || !canEditTask()}
-                />
-              </Group>
-
-              {/* Assignment and Due Date Row */}
-              <Group grow>
-                <Select
-                  label="Assigned To"
-                  placeholder={usersLoading ? "Loading users..." : "Select user"}
-                  value={formData.assigned_to_id?.toString()}
-                  onChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    assigned_to_id: value ? parseInt(value) : undefined 
-                  }))}
-                  data={fetchedUsers.map(user => ({
-                    value: user.id.toString(),
-                    label: user.username,
-                  }))}
-                  readOnly={!isEditMode || !canEditTask() || usersLoading}
-                  leftSection={<IconUser size={16} />}
-                  clearable
-                />
-
-                <DateTimePicker
-                  label="Due Date & Time"
-                  placeholder="Select due date and time"
-                  value={formData.due_date || null}
-                  onChange={(date: string | null) => setFormData(prev => ({ 
-                    ...prev, 
-                    due_date: date || undefined 
-                  }))}
-                  readOnly={!isEditMode || !canEditTask()}
-                  leftSection={<IconCalendar size={16} />}
-                  clearable
-                />
-              </Group>
-
-
-              {/* Tags */}
-              <MultiSelect
-                label="Tags"
-                placeholder="Add tags"
-                value={formData.tags}
-                onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
-                data={[]} // TODO: Load available tags from API
-                searchable
-                readOnly={!isEditMode || !canEditTask()}
-                leftSection={<IconTag size={16} />}
-              />
-
-              {/* Task metadata for existing tasks */}
+          <Group justify="space-between" align="center">
+            <Tabs.List>
+              <Tabs.Tab value="details" leftSection={<IconInfoCircle size={16} />}>
+                Details
+              </Tabs.Tab>
               {task && (
                 <>
-                  <Divider />
-                  <Group justify="apart">
-                    <div>
-                      <Text size="sm" c="dimmed">Assigned to</Text>
-                      <Group gap="xs">
-                        <Avatar size="sm" name={task.assigned_user?.username || 'Unassigned'} />
-                        <Text size="sm">{task.assigned_user?.username || 'Unassigned'}</Text>
-                      </Group>
-                    </div>
-                    <div>
-                      <Text size="sm" c="dimmed">Created</Text>
-                      <Text size="sm">{new Date(task.created_at).toLocaleDateString()}</Text>
-                    </div>
-                    <div>
-                      <Text size="sm" c="dimmed">Updated</Text>
-                      <Text size="sm">{new Date(task.updated_at).toLocaleDateString()}</Text>
-                    </div>
-                  </Group>
+                  <Tabs.Tab value="comments" leftSection={<IconMessage size={16} />}>
+                    Comments (0)
+                  </Tabs.Tab>
+                  <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
+                    History
+                  </Tabs.Tab>
                 </>
               )}
-            </Stack>
+            </Tabs.List>
+
+            {/* Edit/Delete SplitButton - only show for existing tasks on details tab */}
+            {task && !isEditMode && activeTab === 'details' && (canEditTask() || canDeleteTask()) && (
+              <SplitButton
+                onClick={handleEnterEditMode}
+                leftSection={<IconEdit size={16} />}
+                disabled={!canEditTask()}
+                size="sm"
+                variant="filled"
+                menuItems={[
+                  ...(canDeleteTask() ? [{
+                    label: 'Delete Task',
+                    leftSection: <IconTrash size={16} />,
+                    onClick: handleDelete,
+                    color: 'red'
+                  }] : [])
+                ]}
+              >
+                Edit
+              </SplitButton>
+            )}
+          </Group>
+
+          <Tabs.Panel value="details" pt="md">
+            {!isEditMode ? (
+              /* Display Mode - Single attractive card layout */
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  {/* Task Header with Title and Badges */}
+                  <Group justify="space-between" align="flex-start">
+                    <div style={{ flex: 1 }}>
+                      <Title order={2} size="h2" fw={700} mb="xs">
+                        {formData.title || 'Untitled Task'}
+                      </Title>
+                      {formData.description && (
+                        <Text size="md" c="dimmed" lh={1.5} style={{ maxWidth: '600px' }}>
+                          {formData.description}
+                        </Text>
+                      )}
+                    </div>
+                    <Group gap="sm" align="flex-start">
+                      <Badge
+                        size="lg"
+                        variant="light"
+                        color={statusColors[(formData.status || 'todo') as keyof typeof statusColors]}
+                        style={{ fontSize: '0.75rem', height: '28px' }}
+                      >
+                        {(formData.status || 'todo').replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      <Badge
+                        size="lg"
+                        variant="filled"
+                        color={priorityColors[(formData.priority || 'medium') as keyof typeof priorityColors]}
+                        style={{ fontSize: '0.75rem', height: '28px' }}
+                      >
+                        {(formData.priority || 'medium').toUpperCase()}
+                      </Badge>
+                    </Group>
+                  </Group>
+
+                  <Divider />
+
+                  {/* Task Details in Clean Grid */}
+                  <SimpleGrid cols={3} spacing="xl" style={{ alignItems: 'flex-start' }}>
+                    {/* Assignment */}
+                    <div>
+                      <Group gap="xs" mb="xs">
+                        <IconUser size={18} color="var(--mantine-color-blue-6)" />
+                        <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                          Assigned To
+                        </Text>
+                      </Group>
+                      {task?.assigned_user ? (
+                        <Group gap="sm">
+                          <Avatar size="sm" name={task.assigned_user.username} />
+                          <Text fw={500} size="sm">
+                            {task.assigned_user.username}
+                          </Text>
+                        </Group>
+                      ) : (
+                        <Text c="dimmed" size="sm" fs="italic">
+                          Unassigned
+                        </Text>
+                      )}
+                    </div>
+
+                    {/* Due Date */}
+                    <div>
+                      <Group gap="xs" mb="xs">
+                        <IconCalendar size={18} color="var(--mantine-color-orange-6)" />
+                        <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                          Due Date
+                        </Text>
+                      </Group>
+                      {formData.due_date ? (
+                        <div>
+                          <Text fw={500} size="sm">
+                            {new Date(formData.due_date).toLocaleDateString()}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {new Date(formData.due_date).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </Text>
+                        </div>
+                      ) : (
+                        <Text c="dimmed" size="sm" fs="italic">
+                          No due date
+                        </Text>
+                      )}
+                    </div>
+
+                    {/* Type */}
+                    <div>
+                      <Group gap="xs" mb="xs">
+                        <IconChecklist size={18} color="var(--mantine-color-green-6)" />
+                        <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                          Type
+                        </Text>
+                      </Group>
+                      <Text fw={500} size="sm" tt="capitalize">
+                        {formData.type}
+                      </Text>
+                    </div>
+                  </SimpleGrid>
+
+                  {/* Timeline Section */}
+                  {task && (
+                    <>
+                      <Divider />
+                      <div>
+                        <Group gap="xs" mb="sm">
+                          <IconClock size={18} color="var(--mantine-color-purple-6)" />
+                          <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                            Timeline
+                          </Text>
+                        </Group>
+                        <Group gap="xl">
+                          <div>
+                            <Text size="xs" c="dimmed" mb={4}>Created</Text>
+                            <Text size="sm" fw={500}>
+                              {new Date(task.created_at).toLocaleDateString()}
+                            </Text>
+                          </div>
+                          <div>
+                            <Text size="xs" c="dimmed" mb={4}>Last Updated</Text>
+                            <Text size="sm" fw={500}>
+                              {new Date(task.updated_at).toLocaleDateString()}
+                            </Text>
+                          </div>
+                        </Group>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Tags Section */}
+                  {formData.tags && formData.tags.length > 0 && (
+                    <>
+                      <Divider />
+                      <div>
+                        <Group gap="xs" mb="sm">
+                          <IconTag size={18} color="var(--mantine-color-teal-6)" />
+                          <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
+                            Tags
+                          </Text>
+                        </Group>
+                        <Group gap="xs">
+                          {formData.tags.map((tag, index) => (
+                            <Badge key={index} variant="outline" size="md" radius="sm">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </div>
+                    </>
+                  )}
+                </Stack>
+              </Paper>
+            ) : (
+              /* Edit Mode - Form components */
+              <Stack gap="md">
+                {/* Title */}
+                <TextInput
+                  label="Title"
+                  placeholder="Enter task title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  required
+                  leftSection={<IconChecklist size={16} />}
+                />
+
+                {/* Description */}
+                <Textarea
+                  label="Description"
+                  resize="vertical"
+                  placeholder="Enter task description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  minRows={3}
+                  maxRows={8}
+                  autosize
+                />
+
+                {/* Status, Priority, Type Row */}
+                <SimpleGrid cols={3}>
+                  <Select
+                    label="Status"
+                    value={formData.status}
+                    onChange={(value) => setFormData(prev => ({ ...prev, status: value as TaskStatus }))}
+                    data={[
+                      { value: 'todo', label: 'To Do' },
+                      { value: 'assigned', label: 'Assigned' },
+                      { value: 'in_progress', label: 'In Progress' },
+                      { value: 'review', label: 'Review' },
+                      { value: 'submitted_for_approval', label: 'Submitted for Approval' },
+                      { value: 'done', label: 'Done' },
+                      { value: 'cancelled', label: 'Cancelled' }
+                    ]}
+                    leftSection={
+                      <Badge
+                        size="xs"
+                        color={statusColors[(formData.status || 'todo') as keyof typeof statusColors]}
+                      />
+                    }
+                  />
+
+                  <Select
+                    label="Priority"
+                    value={formData.priority}
+                    onChange={(value) => setFormData(prev => ({ ...prev, priority: value as TaskPriority }))}
+                    data={[
+                      { value: 'low', label: 'Low' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'high', label: 'High' },
+                      { value: 'urgent', label: 'Urgent' }
+                    ]}
+                    leftSection={
+                      <IconFlag
+                        size={16}
+                        color={`var(--mantine-color-${priorityColors[formData.priority as keyof typeof priorityColors]}-6)`}
+                      />
+                    }
+                  />
+
+                  <Select
+                    label="Type"
+                    value={formData.type}
+                    onChange={(value) => setFormData(prev => ({ ...prev, type: value as TaskType }))}
+                    data={[
+                      { value: 'feature', label: 'Feature' },
+                      { value: 'bug', label: 'Bug Fix' },
+                      { value: 'improvement', label: 'Improvement' },
+                      { value: 'documentation', label: 'Documentation' },
+                      { value: 'maintenance', label: 'Maintenance' }
+                    ]}
+                  />
+                </SimpleGrid>
+
+                {/* Assignment and Due Date Row */}
+                <SimpleGrid cols={2}>
+                  <Select
+                    label="Assigned To"
+                    placeholder={usersLoading ? "Loading users..." : "Select user"}
+                    value={formData.assigned_to_id?.toString()}
+                    onChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      assigned_to_id: value ? parseInt(value) : undefined 
+                    }))}
+                    data={fetchedUsers.map(user => ({
+                      value: user.id.toString(),
+                      label: user.username,
+                    }))}
+                    disabled={usersLoading}
+                    leftSection={<IconUser size={16} />}
+                    clearable
+                  />
+
+                  <DateTimePicker
+                    label="Due Date & Time"
+                    placeholder="Select due date and time"
+                    value={formData.due_date || null}
+                    onChange={(date: string | null) => setFormData(prev => ({ 
+                      ...prev, 
+                      due_date: date || undefined 
+                    }))}
+                    leftSection={<IconCalendar size={16} />}
+                    clearable
+                  />
+                </SimpleGrid>
+
+                {/* Tags */}
+                <MultiSelect
+                  label="Tags"
+                  placeholder="Add tags"
+                  value={formData.tags}
+                  onChange={(value) => setFormData(prev => ({ ...prev, tags: value }))}
+                  data={[]} // TODO: Load available tags from API
+                  searchable
+                  leftSection={<IconTag size={16} />}
+                />
+              </Stack>
+            )}
           </Tabs.Panel>
 
           {task && (
@@ -642,19 +770,18 @@ export function TaskDrawer({
         </Tabs>
 
         {/* Action buttons */}
-        {(mode === 'create' || (isEditMode && canEditTask())) && (
-          <Group justify="flex-end" pt="md">
-            {mode !== 'create' && (
-              <Button variant="subtle" onClick={handleCancelEdit}>
-                Cancel
-              </Button>
-            )}
-            {mode === 'create' && (
-              <Button variant="subtle" onClick={onClose}>
-                Cancel
-              </Button>
-            )}
-            <Button onClick={handleSave} loading={loading}>
+        {isEditMode && (
+          <Group justify="flex-end" pt="md" gap="sm">
+            <Button 
+              variant="default" 
+              onClick={mode === 'create' ? onClose : handleCancelEdit}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              loading={loading}
+            >
               {mode === 'create' ? 'Create Task' : 'Save Changes'}
             </Button>
           </Group>
