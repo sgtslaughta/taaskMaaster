@@ -249,6 +249,22 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
     setDrawerOpened(false);
     setSelectedTaskId(null);
     setError('');
+    
+    // Trigger a refresh to get any task updates that happened during the drawer session
+    // We create a dummy task with the selected task ID to trigger onTaskUpdate
+    if (selectedTaskId && onTaskUpdate) {
+      // Fetch the updated task to trigger parent refresh
+      taskService.getTask(selectedTaskId)
+        .then((updatedTask) => {
+          onTaskUpdate(updatedTask);
+        })
+        .catch((err) => {
+          console.warn('Failed to refresh task after drawer close:', err);
+          // Even if fetch fails, we can trigger a refresh with a minimal task object
+          // The parent component should handle this appropriately
+          onTaskUpdate({ id: selectedTaskId } as Task);
+        });
+    }
   };
 
   // Navigate months

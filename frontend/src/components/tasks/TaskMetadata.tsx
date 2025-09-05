@@ -5,11 +5,13 @@
  * @version 1.0.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Group, Text, Avatar } from '@mantine/core';
 import { IconCalendar, IconUser, IconClock, IconAlertTriangle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Task } from '../../types/task';
+import { User } from '../../types/user';
+import { userService } from '../../services';
 import classes from './TaskMetadata.module.css';
 
 interface TaskMetadataProps {
@@ -17,20 +19,69 @@ interface TaskMetadataProps {
 }
 
 export function TaskMetadata({ task }: TaskMetadataProps) {
-  // Calculate days remaining or overdue
+  const [createdByUser, setCreatedByUser] = useState<User | null>(task.created_by ?? null);
+  const [userLoading, setUserLoading] = useState(false);
+
+  // Debug task structure
+  useEffect(() => {
+    console.log('🔍 TaskMetadata task structure:', task);
+  }, [task]);
+
+  // Fetch user details if not already populated
+  useEffect(() => {
+    console.log('🔍 TaskMetadata useEffect RUNNING!');
+    const fetchUser = async () => {
+      console.log('🔍 TaskMetadata useEffect conditions:', {
+        hasCreatedBy: !!task.created_by,
+        hasCreatedById: !!task.created_by_id,
+        userLoading,
+        hasCreatedByUser: !!createdByUser,
+        createdByUserValue: createdByUser,
+        shouldFetch: !task.created_by && task.created_by_id && !userLoading && !createdByUser
+      });
+      
+      if (!task.created_by && task.created_by_id && !userLoading && !createdByUser) {
+        console.log('🔍 TaskMetadata fetching user:', task.created_by_id);
+        try {
+          setUserLoading(true);
+          const userResponse = await userService.getUser(task.created_by_id);
+          console.log('🔍 TaskMetadata user response:', userResponse);
+          // API returns user directly, not wrapped in userResponse.user
+          const user = userResponse.user || userResponse;
+          setCreatedByUser(user);
+          console.log('🔍 TaskMetadata user set:', user);
+        } catch (error) {
+          console.error('❌ Failed to fetch user for TaskMetadata:', error);
+          // Keep createdByUser as null to show fallback
+        } finally {
+          setUserLoading(false);
+        }
+      }
+    };
+
+    fetchUser();
+  }, [task.created_by, task.created_by_id]);
+  // Calculate days remaining or overdue (fixed logic matching TaskDrawer)
   const getDaysStatus = () => {
     if (!task.due_date) return null;
     
-    const now = dayjs();
-    const dueDate = dayjs(task.due_date);
-    const diffDays = dueDate.diff(now, 'day');
+    const now = new Date();
+    const due = new Date(task.due_date);
     
-    if (diffDays > 0) {
+    // Set time to start of day for comparison (ignore time component for day calculation)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    
+    const diffTime = dueDateOnly.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      const daysPast = Math.abs(diffDays);
       return {
-        label: 'Days Remaining',
-        value: `${diffDays} day${diffDays !== 1 ? 's' : ''}`,
-        color: diffDays <= 3 ? 'orange' : 'blue',
-        icon: IconClock
+        label: 'Overdue',
+        value: `${daysPast} day${daysPast !== 1 ? 's' : ''}`,
+        color: 'red',
+        icon: IconAlertTriangle
       };
     } else if (diffDays === 0) {
       return {
@@ -41,23 +92,30 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
       };
     } else {
       return {
-        label: 'Overdue',
-        value: `${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`,
-        color: 'red',
-        icon: IconAlertTriangle
+        label: 'Days Remaining',
+        value: `${diffDays} day${diffDays !== 1 ? 's' : ''}`,
+        color: diffDays <= 3 ? 'orange' : 'blue',
+        icon: IconClock
       };
     }
   };
 
   const daysStatus = getDaysStatus();
   
+  console.log('🔍 TaskMetadata render values:', {
+    createdByUser,
+    userLoading,
+    taskCreatedById: task.created_by_id,
+    taskCreatedBy: task.created_by
+  });
+
   const metadata = [
     {
       label: 'Created By',
-      value: task.created_by?.username || 'Unknown',
+      value: createdByUser?.full_name || createdByUser?.username || (userLoading ? 'Loading...' : `User ${task.created_by_id}`),
       color: 'blue',
       icon: IconUser,
-      showAvatar: true as boolean | undefined
+      showAvatar: !!createdByUser
     },
     {
       label: 'Created Date',
@@ -82,7 +140,7 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
   return (
     <Box className={classes.container}>
       <Group gap="md" wrap="nowrap" justify="space-between">
-        {metadata.map((stat, index) => {
+        {metadata.map((stat) => {
           const IconComponent = stat.icon;
           return (
             <Box 
@@ -103,11 +161,12 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
 
               <Group justify="space-between" align="flex-end" gap="xs">
                 <Group gap="xs" style={{ minWidth: 0 }}>
-                  {stat.showAvatar && task.created_by && (
+                  {stat.showAvatar && createdByUser && (
                     <Avatar 
                       size="xs" 
-                      name={task.created_by.username}
+                      name={createdByUser.full_name || createdByUser.username}
                       color="blue"
+                      src={createdByUser.avatar_url}
                     />
                   )}
                   <Text fw={500} size="sm" truncate>

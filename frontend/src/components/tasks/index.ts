@@ -6,5 +6,4 @@
  */
 
 export { TaskDrawer } from './TaskDrawer';
-export { TaskDrawerExample } from './TaskDrawerExample';
 export { TaskMetadata } from './TaskMetadata';

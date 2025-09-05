@@ -79,7 +79,21 @@ interface TaskDrawerProps {
 }
 
 // Dynamic stepper configuration based on task status
-const getDynamicSteps = (taskStatus: TaskStatus) => {
+const getDynamicSteps = (taskStatus: TaskStatus, currentUser?: User | null, assignedUserId?: number, createdById?: number) => {
+  // Fix type mismatch: currentUser.id might be string, assignedUserId is number
+  const isAssignedToCurrentUser = currentUser && assignedUserId === Number(currentUser.id);
+  const isCreatedByCurrentUser = currentUser && createdById === Number(currentUser.id);
+  
+  console.log('🔍 getDynamicSteps debug:', {
+    taskStatus,
+    currentUserId: currentUser?.id,
+    assignedUserId,
+    createdById,
+    isAssignedToCurrentUser,
+    isCreatedByCurrentUser,
+    currentUser: currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null
+  });
+  
   const steps = [
     {
       key: 'start',
@@ -88,18 +102,31 @@ const getDynamicSteps = (taskStatus: TaskStatus) => {
       icon: taskStatus === 'todo' || taskStatus === 'assigned' ? IconUser : IconClock,
       active: taskStatus !== 'todo',
       completed: taskStatus !== 'todo' && taskStatus !== 'assigned',
-      clickable: taskStatus === 'assigned',
+      clickable: (taskStatus === 'assigned' || taskStatus === 'todo') && isAssignedToCurrentUser,
       nextStatus: 'in_progress' as TaskStatus
     },
     {
       key: 'complete', 
-      label: taskStatus === 'in_progress' ? 'Complete' : taskStatus === 'review' || taskStatus === 'submitted_for_approval' ? 'Pending' : 'Reviewed',
-      tooltip: taskStatus === 'in_progress' ? 'Submit for review' : taskStatus === 'review' || taskStatus === 'submitted_for_approval' ? 'Awaiting approval' : 'Review completed',
+      label: (() => {
+        if (taskStatus === 'in_progress') return 'Complete';
+        if (taskStatus === 'review' || taskStatus === 'submitted_for_approval') {
+          return isCreatedByCurrentUser ? 'Approve?' : 'Pending';
+        }
+        return 'Reviewed';
+      })(),
+      tooltip: (() => {
+        if (taskStatus === 'in_progress') return 'Submit for review';
+        if (taskStatus === 'review' || taskStatus === 'submitted_for_approval') {
+          return isCreatedByCurrentUser ? 'Click to approve and complete task' : 'Awaiting approval';
+        }
+        return 'Review completed';
+      })(),
       icon: taskStatus === 'in_progress' ? IconFlag : taskStatus === 'review' || taskStatus === 'submitted_for_approval' ? IconClock : IconCheck,
       active: taskStatus === 'in_progress' || taskStatus === 'review' || taskStatus === 'submitted_for_approval',
       completed: taskStatus === 'done',
-      clickable: taskStatus === 'in_progress',
-      nextStatus: 'review' as TaskStatus
+      clickable: (taskStatus === 'in_progress' && isAssignedToCurrentUser) || 
+                 ((taskStatus === 'review' || taskStatus === 'submitted_for_approval') && isCreatedByCurrentUser),
+      nextStatus: (taskStatus === 'in_progress') ? 'review' as TaskStatus : 'done' as TaskStatus
     },
     {
       key: 'done',
@@ -112,6 +139,13 @@ const getDynamicSteps = (taskStatus: TaskStatus) => {
       nextStatus: 'done' as TaskStatus
     }
   ];
+  
+  console.log('🔍 Generated steps:', steps.map(s => ({
+    key: s.key,
+    label: s.label,
+    clickable: s.clickable,
+    nextStatus: s.nextStatus
+  })));
   
   return steps;
 };
@@ -131,6 +165,48 @@ const statusColors = {
   submitted_for_approval: 'purple',
   done: 'green',
   cancelled: 'red'
+};
+
+// Helper function to determine due date status
+const getDueDateStatus = (dueDate: string | undefined) => {
+  if (!dueDate) return null;
+  
+  const now = new Date();
+  const due = new Date(dueDate);
+  
+  // Set time to start of day for comparison (ignore time component for day calculation)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dueDateOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  
+  const diffTime = dueDateOnly.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    const daysPast = Math.abs(diffDays);
+    return {
+      status: 'overdue',
+      text: daysPast === 1 ? '1 day overdue' : `${daysPast} days overdue`,
+      color: 'red'
+    };
+  } else if (diffDays === 0) {
+    return {
+      status: 'due-today',
+      text: 'Due today',
+      color: 'orange'
+    };
+  } else if (diffDays === 1) {
+    return {
+      status: 'due-tomorrow',
+      text: 'Due tomorrow',
+      color: 'yellow'
+    };
+  } else {
+    return {
+      status: 'upcoming',
+      text: `Due in ${diffDays} days`,
+      color: 'blue'
+    };
+  }
 };
 
 export function TaskDrawer({
@@ -317,23 +393,41 @@ export function TaskDrawer({
 
   // Handle step click to progress task status
   const handleStepClick = async (step: ReturnType<typeof getDynamicSteps>[0]) => {
-    if (!step.clickable || !task || mode === 'view') return;
+    console.log('🔍 handleStepClick called:', {
+      stepKey: step.key,
+      stepClickable: step.clickable,
+      taskExists: !!task,
+      nextStatus: step.nextStatus
+    });
     
-    // Update task status in form data
-    const updateData = {
-      ...formData,
-      status: step.nextStatus
-    };
+    if (!step.clickable || !task) {
+      console.log('🚫 Step click blocked:', { clickable: step.clickable, taskExists: !!task });
+      return;
+    }
     
-    setFormData(updateData);
-    
-    // If we have an onSave callback, use it to persist the change immediately
-    if (onSave) {
-      try {
-        await onSave(updateData);
-      } catch (err) {
-        console.error('Failed to update task status:', err);
-      }
+    try {
+      // Update task status directly via taskService
+      console.log('🔍 Updating task status to:', step.nextStatus);
+      
+      const updateData = {
+        ...formData,
+        status: step.nextStatus
+      };
+      
+      // Update task in database directly
+      const updatedTask = await taskService.updateTask(task.id, updateData);
+      console.log('🔍 Task status updated successfully:', updatedTask);
+      
+      // Update local state
+      setFormData(updateData);
+      setTask(updatedTask);
+      
+      // Don't call onSave for stepper updates as it may close the drawer
+      // The parent will be notified of changes when the drawer is closed
+      console.log('🔍 Task status updated locally, drawer staying open');
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      // TODO: Show error notification to user
     }
   };
 
@@ -356,9 +450,7 @@ export function TaskDrawer({
       onClose={onClose}
       position="right"
       size="xl"
-      title={
-        <Title order={3}>{getDrawerTitle()}</Title>
-      }
+      title={getDrawerTitle()}
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <Stack gap="md">
@@ -383,33 +475,75 @@ export function TaskDrawer({
 
         {/* Task Progress Stepper - only show for existing tasks */}
         {task && (() => {
-          const steps = getDynamicSteps(task.status);
+          const steps = getDynamicSteps(task.status, currentUser, task.assigned_to_id, task.created_by_id);
           const currentStep = getCurrentStep(steps);
+          
+          console.log('🔍 Stepper render debug:', {
+            taskId: task.id,
+            taskStatus: task.status,
+            taskAssignedToId: task.assigned_to_id,
+            currentStep,
+            stepsCount: steps.length
+          });
           
           return (
             <Paper p="md" withBorder>
-              <Text size="sm" fw={500} mb="md">Task Progress</Text>
+              <Group justify="space-between" align="center" mb="md">
+                <Text size="sm" fw={500}>Task Progress</Text>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    console.log('🔍 TEST BUTTON clicked');
+                    const testStep = steps.find(s => s.clickable);
+                    if (testStep) {
+                      console.log('🔍 Found clickable step, calling handleStepClick');
+                      handleStepClick(testStep);
+                    } else {
+                      console.log('🚫 No clickable steps found');
+                    }
+                  }}
+                >
+                  TEST
+                </Button>
+              </Group>
               <Stepper
                 active={currentStep}
                 size="sm"
                 orientation="horizontal"
                 iconSize={46}
+                onStepClick={(stepIndex) => {
+                  console.log('🔍 Stepper onStepClick called with index:', stepIndex);
+                  const step = steps[stepIndex];
+                  if (step && step.clickable) {
+                    console.log('🔍 Step is clickable, calling handleStepClick');
+                    handleStepClick(step);
+                  } else {
+                    console.log('🚫 Step not clickable or not found:', { step: step?.key, clickable: step?.clickable });
+                  }
+                }}
               >
-                {steps.map((step) => {
+                {steps.map((step, index) => {
                   const StepIcon = step.completed ? IconCheck : step.icon;
+                  console.log('🔍 Rendering step:', {
+                    index,
+                    key: step.key,
+                    label: step.label,
+                    clickable: step.clickable,
+                    completed: step.completed,
+                    active: step.active
+                  });
+                  
                   return (
                     <Stepper.Step
                       key={step.key}
                       icon={<StepIcon size={14} />}
                       label={step.label}
+                      allowStepClick={step.clickable}
                       color={
                         step.completed ? 'green' :
                         step.active ? 'blue' : 'gray'
                       }
-                      onClick={() => step.clickable && handleStepClick(step)}
-                      style={{ 
-                        cursor: step.clickable ? 'pointer' : 'default'
-                      }}
                     />
                   );
                 })}
@@ -523,18 +657,25 @@ export function TaskDrawer({
                           Assigned To
                         </Text>
                       </Group>
-                      {task?.assigned_user ? (
-                        <Group gap="sm">
-                          <Avatar size="sm" name={task.assigned_user.username} />
-                          <Text fw={500} size="sm">
-                            {task.assigned_user.username}
+                      {(() => {
+                        // Find the assigned user from fetched users based on formData.assigned_to_id
+                        const assignedUser = formData.assigned_to_id 
+                          ? fetchedUsers.find(user => user.id === formData.assigned_to_id)
+                          : null;
+                        
+                        return assignedUser ? (
+                          <Group gap="sm">
+                            <Avatar size="sm" name={assignedUser.full_name || assignedUser.username} />
+                            <Text fw={500} size="sm">
+                              {assignedUser.full_name || assignedUser.username}
+                            </Text>
+                          </Group>
+                        ) : (
+                          <Text c="dimmed" size="sm" fs="italic">
+                            Unassigned
                           </Text>
-                        </Group>
-                      ) : (
-                        <Text c="dimmed" size="sm" fs="italic">
-                          Unassigned
-                        </Text>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {/* Due Date */}
@@ -545,19 +686,33 @@ export function TaskDrawer({
                           Due Date
                         </Text>
                       </Group>
-                      {formData.due_date ? (
-                        <div>
-                          <Text fw={500} size="sm">
-                            {new Date(formData.due_date).toLocaleDateString()}
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            {new Date(formData.due_date).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </Text>
-                        </div>
-                      ) : (
+                      {formData.due_date ? (() => {
+                        const dueStatus = getDueDateStatus(formData.due_date);
+                        return (
+                          <div>
+                            <Group gap="xs" align="baseline">
+                              <Text fw={500} size="sm">
+                                {new Date(formData.due_date).toLocaleDateString()}
+                              </Text>
+                              {dueStatus && (
+                                <Badge 
+                                  color={dueStatus.color} 
+                                  size="sm"
+                                  variant={dueStatus.status === 'overdue' ? 'filled' : 'light'}
+                                >
+                                  {dueStatus.text}
+                                </Badge>
+                              )}
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              {new Date(formData.due_date).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </Text>
+                          </div>
+                        );
+                      })() : (
                         <Text c="dimmed" size="sm" fs="italic">
                           No due date
                         </Text>
@@ -577,35 +732,6 @@ export function TaskDrawer({
                       </Text>
                     </div>
                   </SimpleGrid>
-
-                  {/* Timeline Section */}
-                  {task && (
-                    <>
-                      <Divider />
-                      <div>
-                        <Group gap="xs" mb="sm">
-                          <IconClock size={18} color="var(--mantine-color-purple-6)" />
-                          <Text size="sm" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.05em' }}>
-                            Timeline
-                          </Text>
-                        </Group>
-                        <Group gap="xl">
-                          <div>
-                            <Text size="xs" c="dimmed" mb={4}>Created</Text>
-                            <Text size="sm" fw={500}>
-                              {new Date(task.created_at).toLocaleDateString()}
-                            </Text>
-                          </div>
-                          <div>
-                            <Text size="xs" c="dimmed" mb={4}>Last Updated</Text>
-                            <Text size="sm" fw={500}>
-                              {new Date(task.updated_at).toLocaleDateString()}
-                            </Text>
-                          </div>
-                        </Group>
-                      </div>
-                    </>
-                  )}
 
                   {/* Tags Section */}
                   {formData.tags && formData.tags.length > 0 && (
@@ -722,7 +848,7 @@ export function TaskDrawer({
                     }))}
                     data={fetchedUsers.map(user => ({
                       value: user.id.toString(),
-                      label: user.username,
+                      label: user.full_name || user.username,
                     }))}
                     disabled={usersLoading}
                     leftSection={<IconUser size={16} />}
