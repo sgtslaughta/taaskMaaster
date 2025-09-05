@@ -43,30 +43,30 @@ import {
   IconMessage,
   IconHistory
 } from '@tabler/icons-react';
-import { Task, TaskStatus, TaskPriority, TaskType, TaskCreateRequest, TaskUpdateRequest } from '../../types/task';
+import { Task as TypesTask, TaskStatus, TaskPriority, TaskType, TaskCreateRequest, TaskUpdateRequest } from '../../types/task';
+import { Task as ServiceTask } from '../../services/taskService';
 import { User } from '../../types/user';
 import { TaskMetadata } from './TaskMetadata';
+import { userService, taskService } from '../../services';
 
 interface TaskDrawerProps {
   /** Whether the drawer is open */
   opened: boolean;
   /** Function to close the drawer */
   onClose: () => void;
-  /** Task to display/edit (null for creating new task) */
-  task?: Task | null;
+  /** Task ID to display/edit (null for creating new task) */
+  taskId?: number | null;
   /** Drawer mode */
   mode: 'view' | 'create' | 'edit';
   /** Function called when task is saved */
   onSave?: (task: TaskCreateRequest | TaskUpdateRequest) => Promise<void>;
   /** Function called when task is deleted */
   onDelete?: (taskId: number) => Promise<void>;
-  /** Available users for assignment */
-  availableUsers?: User[];
   /** Current user for permission checking */
   currentUser?: User | null;
-  /** Loading state */
+  /** Loading state for external operations */
   loading?: boolean;
-  /** Error message */
+  /** Error message for external operations */
   error?: string;
 }
 
@@ -128,11 +128,10 @@ const statusColors = {
 export function TaskDrawer({
   opened,
   onClose,
-  task,
+  taskId,
   mode,
   onSave,
   onDelete,
-  availableUsers = [],
   currentUser,
   loading = false,
   error
@@ -151,6 +150,11 @@ export function TaskDrawer({
 
   const [activeTab, setActiveTab] = useState<string>('details');
   const [isEditMode, setIsEditMode] = useState(mode === 'create' || mode === 'edit');
+  const [fetchedUsers, setFetchedUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [task, setTask] = useState<ServiceTask | null>(null);
+  const [taskLoading, setTaskLoading] = useState(false);
+  const [taskError, setTaskError] = useState<string>('');
 
   // Check if current user has permission to edit this task
   const canEditTask = () => {
@@ -190,13 +194,56 @@ export function TaskDrawer({
         description: task.description,
         status: task.status,
         priority: task.priority,
-        type: task.type,
+        type: (task.category?.name as TaskType) || 'feature',
         assigned_to_id: task.assigned_to_id,
         due_date: task.due_date,
         tags: task.tags?.map(tag => tag.name) || []
       });
     }
   };
+
+  // Fetch task details when taskId or opened state changes
+  useEffect(() => {
+    const fetchTask = async () => {
+      if (!opened || !taskId || mode === 'create') return;
+      
+      try {
+        setTaskLoading(true);
+        setTaskError('');
+        const fetchedTask = await taskService.getTask(taskId);
+        setTask(fetchedTask);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to fetch task details';
+        setTaskError(errorMsg);
+        console.error('Failed to fetch task:', err);
+      } finally {
+        setTaskLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [opened, taskId, mode]);
+
+  // Fetch available users for assignment dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!opened) return; // Only fetch when drawer is opened
+      
+      try {
+        setUsersLoading(true);
+        const users = await userService.getUsersForAssignment({
+          exclude_inactive: true
+        });
+        setFetchedUsers(users);
+      } catch (err) {
+        console.error('Failed to fetch users for assignment:', err);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [opened]);
 
   // Initialize form data when task changes
   useEffect(() => {
@@ -206,7 +253,7 @@ export function TaskDrawer({
         description: task.description,
         status: task.status,
         priority: task.priority,
-        type: task.type,
+        type: (task.category?.name as TaskType) || 'feature',
         assigned_to_id: task.assigned_to_id,
         due_date: task.due_date,
         tags: task.tags?.map(tag => tag.name) || []
@@ -287,10 +334,10 @@ export function TaskDrawer({
       case 'create':
         return 'Create New Task';
       case 'edit':
-        return 'Edit Task';
+        return task?.title ? `Edit: ${task.title}` : 'Edit Task';
       case 'view':
       default:
-        return task?.title || 'Task Details';
+        return task?.title || (taskLoading ? 'Loading...' : 'Task Details');
     }
   };
 
@@ -336,16 +383,22 @@ export function TaskDrawer({
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <Stack gap="md">
-        {error && (
+        {(error || taskError) && (
           <Alert color="red" icon={<IconInfoCircle size={16} />}>
-            {error}
+            {error || taskError}
+          </Alert>
+        )}
+
+        {taskLoading && (
+          <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+            Loading task details...
           </Alert>
         )}
 
         {/* Task Metadata - only show for existing tasks */}
         {task && (
           <Paper p="md" withBorder>
-            <TaskMetadata task={task} />
+            <TaskMetadata task={task as any} />
           </Paper>
         )}
 
@@ -410,7 +463,7 @@ export function TaskDrawer({
             {task && (
               <>
                 <Tabs.Tab value="comments" leftSection={<IconMessage size={16} />}>
-                  Comments ({task.comments?.length || 0})
+                  Comments (0)
                 </Tabs.Tab>
                 <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
                   History
@@ -507,17 +560,17 @@ export function TaskDrawer({
               <Group grow>
                 <Select
                   label="Assigned To"
-                  placeholder="Select user"
+                  placeholder={usersLoading ? "Loading users..." : "Select user"}
                   value={formData.assigned_to_id?.toString()}
                   onChange={(value) => setFormData(prev => ({ 
                     ...prev, 
                     assigned_to_id: value ? parseInt(value) : undefined 
                   }))}
-                  data={availableUsers.map(user => ({
+                  data={fetchedUsers.map(user => ({
                     value: user.id.toString(),
                     label: user.username,
                   }))}
-                  readOnly={!isEditMode || !canEditTask()}
+                  readOnly={!isEditMode || !canEditTask() || usersLoading}
                   leftSection={<IconUser size={16} />}
                   clearable
                 />
@@ -555,10 +608,10 @@ export function TaskDrawer({
                   <Divider />
                   <Group justify="apart">
                     <div>
-                      <Text size="sm" c="dimmed">Created by</Text>
+                      <Text size="sm" c="dimmed">Assigned to</Text>
                       <Group gap="xs">
-                        <Avatar size="sm" name={task.created_by?.username} />
-                        <Text size="sm">{task.created_by?.username}</Text>
+                        <Avatar size="sm" name={task.assigned_user?.username || 'Unassigned'} />
+                        <Text size="sm">{task.assigned_user?.username || 'Unassigned'}</Text>
                       </Group>
                     </div>
                     <div>

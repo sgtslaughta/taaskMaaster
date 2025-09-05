@@ -20,27 +20,27 @@ interface TaskDrawerExampleProps {
 
 export function TaskDrawerExample({ tasks = [] }: TaskDrawerExampleProps) {
   const [drawerOpened, setDrawerOpened] = useState(false);
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<number | null>(null);
   const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
   const handleCreateTask = () => {
-    setCurrentTask(null);
+    setCurrentTaskId(null);
     setDrawerMode('create');
     setDrawerOpened(true);
     setError('');
   };
 
   const handleViewTask = (task: Task) => {
-    setCurrentTask(task);
+    setCurrentTaskId(task.id);
     setDrawerMode('view');
     setDrawerOpened(true);
     setError('');
   };
 
   const handleEditTask = (task: Task) => {
-    setCurrentTask(task);
+    setCurrentTaskId(task.id);
     setDrawerMode('edit');
     setDrawerOpened(true);
     setError('');
@@ -63,13 +63,13 @@ export function TaskDrawerExample({ tasks = [] }: TaskDrawerExampleProps) {
           message: 'Task created successfully!',
           color: 'green'
         });
-      } else if (drawerMode === 'edit' && currentTask) {
+      } else if (drawerMode === 'edit' && currentTaskId) {
         // Convert types if needed for service compatibility
         const updateData = {
           ...taskData,
           status: taskData.status as ServiceTaskStatus
         };
-        await taskService.updateTask(currentTask.id, updateData as any);
+        await taskService.updateTask(currentTaskId, updateData as any);
         notifications.show({
           title: 'Success',
           message: 'Task updated successfully!',
@@ -116,7 +116,7 @@ export function TaskDrawerExample({ tasks = [] }: TaskDrawerExampleProps) {
 
   const handleCloseDrawer = () => {
     setDrawerOpened(false);
-    setCurrentTask(null);
+    setCurrentTaskId(null);
     setError('');
   };
 
@@ -234,12 +234,11 @@ export function TaskDrawerExample({ tasks = [] }: TaskDrawerExampleProps) {
       <TaskDrawer
         opened={drawerOpened}
         onClose={handleCloseDrawer}
-        task={currentTask}
+        taskId={currentTaskId}
         currentUser={currentUser as any}
         mode={drawerMode}
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
-        availableUsers={availableUsers as any}
         loading={loading}
         error={error}
       />

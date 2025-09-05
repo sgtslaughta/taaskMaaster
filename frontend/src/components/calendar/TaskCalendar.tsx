@@ -53,7 +53,7 @@ interface TaskEvent {
 
 const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskClick, onTaskUpdate, className }) => {
   const [currentDate, setCurrentDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [drawerOpened, setDrawerOpened] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view');
   const [dayModalOpened, setDayModalOpened] = useState(false);
@@ -146,7 +146,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
 
   // Handle task click
   const handleTaskClick = (taskEvent: TaskEvent) => {
-    setSelectedTask(taskEvent.task);
+    setSelectedTaskId(taskEvent.task.id);
     setDrawerMode('view');
     setDrawerOpened(true);
     setError('');
@@ -181,14 +181,14 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
           message: 'Task created successfully!',
           color: 'green'
         });
-      } else if (selectedTask) {
-        // If we have a selectedTask, it's an update (regardless of drawerMode)
+      } else if (selectedTaskId) {
+        // If we have a selectedTaskId, it's an update (regardless of drawerMode)
         // Update existing task
         const updateData = {
           ...taskData,
           status: taskData.status as any
         };
-        savedTask = await taskService.updateTask(selectedTask.id, updateData as any);
+        savedTask = await taskService.updateTask(selectedTaskId!, updateData as any);
         notifications.show({
           title: 'Success',
           message: 'Task updated successfully!',
@@ -225,7 +225,13 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
         color: 'green'
       });
       setDrawerOpened(false);
-      onTaskUpdate?.(selectedTask!);
+      // For deletion, we just need to trigger a refresh without fetching the deleted task
+      // The parent component should refresh its task list
+      if (selectedTaskId) {
+        // Create a dummy task object to trigger the refresh
+        const deletedTask = { id: selectedTaskId } as Task;
+        onTaskUpdate?.(deletedTask);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       notifications.show({
@@ -241,7 +247,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
   // Handle drawer close
   const handleDrawerClose = () => {
     setDrawerOpened(false);
-    setSelectedTask(null);
+    setSelectedTaskId(null);
     setError('');
   };
 
@@ -548,7 +554,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
       <TaskDrawer
         opened={drawerOpened}
         onClose={handleDrawerClose}
-        task={selectedTask as any}
+        taskId={selectedTaskId}
         currentUser={currentUser}
         mode={drawerMode}
         onSave={handleTaskSave}
