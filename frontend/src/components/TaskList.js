@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 /**
@@ -27,7 +27,7 @@ const TaskList = () => {
   /**
    * Fetch tasks from the API
    */
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/proxy/tasks/`);
@@ -39,7 +39,7 @@ const TaskList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE_URL]);
 
   /**
    * Create a new task
@@ -96,7 +96,7 @@ const TaskList = () => {
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
 
   if (loading) {
     return (

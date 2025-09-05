@@ -7,8 +7,4 @@
 
 export { Dashboard } from './Dashboard';
 export { MyHub } from './MyHub';
-export { TasksPage } from './TasksPage';
-export { TaskHubPage } from './TaskHubPage';
-export { MyTasksPage } from './MyTasksPage';
-export type { DashboardProps, DashboardStats, ActivityItem } from './Dashboard';
-export type { TasksPageProps } from './TasksPage';
+export type { DashboardProps, DashboardStats, RecentActivity } from './Dashboard';

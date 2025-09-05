@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '../../../contexts/AuthContext';
 import { cn } from '../../../design-system/utils/cn';
 
@@ -14,7 +15,7 @@ import { cn } from '../../../design-system/utils/cn';
  */
 export interface LoginPageProps {
   /** Function called when login is successful */
-  onSubmit?: (data: any) => void;
+  onSubmit?: (data: LoginFormData) => void;
   /** Function called when register link is clicked */
   onRegisterClick?: () => void;
   /** Function called when forgot password link is clicked */
@@ -23,6 +24,16 @@ export interface LoginPageProps {
   onSocialLogin?: (provider: string) => void;
   /** Additional CSS classes */
   className?: string;
+}
+
+/**
+ * @description Login form data interface
+ */
+export interface LoginFormData {
+  /** User's email or username */
+  email: string;
+  /** User's password */
+  password: string;
 }
 
 /**
@@ -44,7 +55,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   className,
 }) => {
   const { login, error, clearError } = useAuth();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginFormData>({
     email: 'admin',
     password: 'admin123',
   });
@@ -98,8 +109,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   /**
    * @description Handle input changes
    */
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof LoginFormData, value: string) => {
+    setFormData((prev: LoginFormData) => ({ ...prev, [field]: value }));
     
     // Clear error when user starts typing
     if (errors[field]) {
@@ -117,9 +128,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         {/* Logo and welcome */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4">
-            <img 
+            <Image 
               src="/favicon-32x32.png" 
               alt="TaaskMaaster Logo" 
+              width={32}
+              height={32}
               className="w-8 h-8"
             />
           </div>
@@ -312,7 +325,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               {/* Register Link */}
               <div className="text-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <button
                     type="button"
                     onClick={onRegisterClick}

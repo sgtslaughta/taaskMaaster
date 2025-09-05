@@ -68,7 +68,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         onLogin={handleLogin}
         onRegister={handleRegister}
         loading={isLoading}
-        error={error}
+        error={error ?? undefined}
       />
     );
   }

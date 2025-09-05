@@ -10,6 +10,7 @@ interface LinksGroupProps {
   links?: { label: string; link: string }[];
   onClick?: () => void;
   active?: boolean;
+  hoverMode?: boolean;
 }
 
 export function LinksGroup({ 
@@ -18,16 +19,30 @@ export function LinksGroup({
   initiallyOpened, 
   links, 
   onClick,
-  active = false
+  active = false,
+  hoverMode = false
 }: LinksGroupProps) {
   const hasLinks = Array.isArray(links);
   const [opened, setOpened] = useState(initiallyOpened || false);
+  const [hovered, setHovered] = useState(false);
   
   const handleClick = () => {
-    if (hasLinks) {
+    if (hasLinks && !hoverMode) {
       setOpened((o) => !o);
     } else if (onClick) {
       onClick();
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (hasLinks && hoverMode) {
+      setHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hasLinks && hoverMode) {
+      setHovered(false);
     }
   };
 
@@ -46,8 +61,14 @@ export function LinksGroup({
     </Text>
   ));
 
+  // Determine if links should be shown
+  const shouldShowLinks = hoverMode ? hovered : opened;
+
   return (
-    <>
+    <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <UnstyledButton 
         onClick={handleClick} 
         className={classes.control}
@@ -69,17 +90,17 @@ export function LinksGroup({
               stroke={1.5}
               size={16}
               style={{ 
-                transform: opened ? 'rotate(-90deg)' : 'none'
+                transform: shouldShowLinks ? 'rotate(-90deg)' : 'none'
               }}
             />
           )}
         </Group>
       </UnstyledButton>
       {hasLinks ? (
-        <Collapse in={opened}>
+        <Collapse in={shouldShowLinks}>
           <div className={classes.links}>{items}</div>
         </Collapse>
       ) : null}
-    </>
+    </div>
   );
 }

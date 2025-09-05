@@ -9,49 +9,47 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Paper,
-  Typography,
-  TextField,
-  IconButton,
+  Text,
+  TextInput,
+  Textarea,
+  ActionIcon,
   Avatar,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  ListItemButton,
+  ScrollArea,
   Badge,
   Divider,
   Chip,
-  InputAdornment,
   Drawer,
-  useTheme,
-  useMediaQuery,
   Skeleton,
   Alert,
-  Tooltip
-} from '@mui/material';
+  Tooltip,
+  Group,
+  Stack,
+  useMantineTheme
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
-  Send as SendIcon,
-  Search as SearchIcon,
-  AttachFile as AttachIcon,
-  EmojiEmotions as EmojiIcon,
-  Close as CloseIcon,
-  Circle as OnlineIcon,
-  Image as ImageIcon,
-  VideoFile as VideoIcon,
-  AudioFile as AudioIcon,
-  Description as FileIcon
-} from '@mui/icons-material';
+  IconSend as SendIcon,
+  IconSearch as SearchIcon,
+  IconPaperclip as AttachIcon,
+  IconMoodSmile as EmojiIcon,
+  IconX as CloseIcon,
+  IconPoint as OnlineIcon,
+  IconPhoto as ImageIcon,
+  IconVideo as VideoIcon,
+  IconMusic as AudioIcon,
+  IconFile as FileIcon
+} from '@tabler/icons-react';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 
 import { DirectMessage, Conversation } from '../../types/messaging';
-import { User } from '../../types/user';
+import { User, OnlineStatus } from '../../types/user';
 import { MediaAttachment } from '../../types/media';
-import { messagingService } from '../../services/messagingService';
+import { messagingService, MessageResponse } from '../../services/messagingService';
 import { mediaService } from '../../services/mediaService';
 import { userService } from '../../services/userService';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { MediaUploader } from '../common/MediaUploader';
-import { ReadReceiptIndicator } from './ReadReceiptIndicator';
+// import MediaUploader from '../common/MediaUploader'; // Removed - common directory deleted
+import ReadReceiptIndicator from './ReadReceiptIndicator';
 
 interface DirectMessagingProps {
   currentUser: User;
@@ -74,9 +72,9 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
   drawerWidth = 300,
   isMobile = false
 }) => {
-  const theme = useTheme();
-  const isMobileScreen = useMediaQuery(theme.breakpoints.down('md'));
-  const { subscribe, unsubscribe, send, isConnected } = useWebSocket();
+  const theme = useMantineTheme();
+  const isMobileScreen = useMediaQuery('(max-width: 768px)');
+  const { subscribe, sendMessage, isConnected } = useWebSocket();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<ConversationWithMessages | null>(null);
@@ -91,18 +89,12 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, []);
-
-  // Load initial data
-  useEffect(() => {
-    loadConversations();
-    loadUsers();
   }, []);
 
   // Periodic message polling for synchronization
@@ -137,17 +129,7 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     }, 30000); // Poll every 30 seconds
 
     return () => clearInterval(pollInterval);
-  }, [activeConversation?.id]);
-
-  // Set initial conversation
-  useEffect(() => {
-    if (initialConversationId && conversations.length > 0) {
-      const conversation = conversations.find(c => c.id === initialConversationId);
-      if (conversation) {
-        handleConversationSelect(conversation);
-      }
-    }
-  }, [initialConversationId, conversations]);
+  }, [activeConversation]);
 
   // WebSocket event subscriptions
   useEffect(() => {
@@ -185,7 +167,7 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     const handleUserStatusUpdate = (data: any) => {
       setUsers(prev => prev.map(user => 
         user.id === data.user_id 
-          ? { ...user, is_online: data.is_online, last_seen: data.last_seen }
+          ? { ...user, online_status: data.is_online ? OnlineStatus.ONLINE : OnlineStatus.OFFLINE, last_seen: data.last_seen }
           : user
       ));
     };
@@ -201,20 +183,20 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
       }
     };
 
-    subscribe('direct_message_received', handleNewMessage);
-    subscribe('user_typing_direct', handleTypingUpdate);
-    subscribe('user_status_changed', handleUserStatusUpdate);
-    subscribe('message_read', handleMessageRead);
+    const unsubscribeNewMessage = subscribe('direct_message_received', handleNewMessage);
+    const unsubscribeTyping = subscribe('user_typing_direct', handleTypingUpdate);
+    const unsubscribeUserStatus = subscribe('user_status_changed', handleUserStatusUpdate);
+    const unsubscribeMessageRead = subscribe('message_read', handleMessageRead);
 
     return () => {
-      unsubscribe('direct_message_received', handleNewMessage);
-      unsubscribe('user_typing_direct', handleTypingUpdate);
-      unsubscribe('user_status_changed', handleUserStatusUpdate);
-      unsubscribe('message_read', handleMessageRead);
+      unsubscribeNewMessage();
+      unsubscribeTyping();
+      unsubscribeUserStatus();
+      unsubscribeMessageRead();
     };
-  }, [activeConversation, currentUser.id, subscribe, unsubscribe, scrollToBottom]);
+  }, [activeConversation, currentUser.id, subscribe, scrollToBottom]);
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const response = await messagingService.getConversations();
       setConversations(response.conversations);
@@ -223,16 +205,16 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const response = await userService.getUsers();
       setUsers(response.users.filter(user => user.id !== currentUser.id));
     } catch (err) {
       console.error('Failed to load users:', err);
     }
-  };
+  }, [currentUser.id]);
 
   const loadConversationMessages = async (conversationId: number) => {
     try {
@@ -243,7 +225,7 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     }
   };
 
-  const handleConversationSelect = async (conversation: Conversation) => {
+  const handleConversationSelect = useCallback(async (conversation: Conversation) => {
     try {
       setActiveConversation({
         ...conversation,
@@ -277,7 +259,23 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     } catch (err) {
       setError('Failed to load conversation');
     }
-  };
+  }, [onConversationChange, scrollToBottom, isMobileScreen]);
+
+  // Set initial conversation
+  useEffect(() => {
+    if (initialConversationId && conversations.length > 0) {
+      const conversation = conversations.find(c => c.id === initialConversationId);
+      if (conversation) {
+        handleConversationSelect(conversation);
+      }
+    }
+  }, [initialConversationId, conversations, handleConversationSelect]);
+
+  // Load initial data
+  useEffect(() => {
+    loadConversations();
+    loadUsers();
+  }, [loadConversations, loadUsers]);
 
   const handleStartNewConversation = async (user: User) => {
     try {
@@ -341,21 +339,23 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
         media_attachments: mediaAttachments.map(media => media.id)
       };
 
-      const sentMessage = await messagingService.sendDirectMessage(messageData);
+      const response = await messagingService.sendDirectMessage(messageData);
       
       // Replace optimistic message with real message from server
       setActiveConversation(prev => prev ? {
         ...prev,
         messages: (prev.messages || []).map(msg => 
-          msg.id === tempId ? sentMessage : msg
+          msg.id === tempId ? response.message as DirectMessage : msg
         )
       } : null);
       
       // Send typing stopped event
-      send({
+      sendMessage({
         type: 'typing_stopped_direct',
-        conversation_id: activeConversation.id,
-        user_id: currentUser.id
+        data: {
+          conversation_id: activeConversation.id,
+          user_id: currentUser.id
+        }
       });
 
     } catch (err) {
@@ -376,10 +376,12 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     
     // Send typing indicator
     if (activeConversation && value.trim()) {
-      send({
+      sendMessage({
         type: 'typing_started_direct',
-        conversation_id: activeConversation.id,
-        user_id: currentUser.id
+        data: {
+          conversation_id: activeConversation.id,
+          user_id: currentUser.id
+        }
       });
 
       // Clear previous timeout
@@ -389,10 +391,12 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
 
       // Set timeout to send typing stopped
       typingTimeoutRef.current = setTimeout(() => {
-        send({
+        sendMessage({
           type: 'typing_stopped_direct',
-          conversation_id: activeConversation.id,
-          user_id: currentUser.id
+          data: {
+            conversation_id: activeConversation.id,
+            user_id: currentUser.id
+          }
         });
       }, 3000);
     }
@@ -425,14 +429,14 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
 
   const filteredUsers = users.filter(user => 
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
+    `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredConversations = conversations.filter(conv => 
     conv.participants.some(p => 
       p.id !== currentUser.id && (
         p.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
       )
     )
   );
@@ -442,311 +446,317 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
     const sender = message.sender;
 
     return (
-      <Box
+      <Group
         key={message.id}
-        sx={{
-          display: 'flex',
-          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-          mb: 1
-        }}
+        justify={isOwnMessage ? 'flex-end' : 'flex-start'}
+        mb="xs"
+        align="flex-start"
       >
         {!isOwnMessage && (
           <Avatar
-            sx={{ width: 32, height: 32, mr: 1 }}
-            src={sender?.avatar}
+            size={32}
+            src={sender?.avatar_url}
+            radius="xl"
           >
-            {sender?.firstName?.[0] || sender?.username[0]}
+            {sender?.first_name?.[0] || sender?.username[0]}
           </Avatar>
         )}
 
         <Paper
-          elevation={1}
-          sx={{
+          p="md"
+          style={{
             maxWidth: '70%',
             minWidth: 120,
-            p: 1.5,
-            bgcolor: isOwnMessage ? theme.palette.primary.main : 'background.paper',
-            color: isOwnMessage ? 'white' : 'text.primary',
+            backgroundColor: isOwnMessage ? theme.colors.primary[6] : theme.colors.gray[1],
+            color: isOwnMessage ? 'white' : theme.colors.dark[7],
             borderRadius: isOwnMessage ? '18px 18px 4px 18px' : '18px 18px 18px 4px'
           }}
         >
-          <Typography 
-            variant="body2"
-            sx={{ 
+          <Text 
+            size="sm"
+            style={{ 
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word'
             }}
           >
             {message.content}
-          </Typography>
+          </Text>
 
           {/* Media Attachments */}
           {message.media_attachments && message.media_attachments.length > 0 && (
-            <Box sx={{ mt: 1 }}>
+            <Group mt="xs" gap="xs">
               {message.media_attachments.map((media, index) => (
                 <Chip
                   key={index}
-                  icon={getMediaIcon(media.mime_type)}
-                  label={media.filename}
-                  size="small"
+                  size="sm"
                   onClick={() => mediaService.downloadMedia(media.id)}
-                  sx={{ 
-                    mr: 0.5, 
-                    mb: 0.5,
-                    bgcolor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'action.hover'
+                  style={{ 
+                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : theme.colors.gray[2],
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  <Group gap="xs">
+                    {getMediaIcon(media.mime_type)}
+                    {media.filename}
+                  </Group>
+                </Chip>
               ))}
-            </Box>
+            </Group>
           )}
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ opacity: isOwnMessage ? 0.8 : 0.6 }}
+          <Group justify="space-between" align="center" mt="xs">
+            <Text 
+              size="xs" 
+              style={{ opacity: isOwnMessage ? 0.8 : 0.6 }}
             >
               {formatMessageTime(message.created_at)}
-            </Typography>
+            </Text>
             
-            {isOwnMessage && (
+            {isOwnMessage && activeConversation && (
               <ReadReceiptIndicator
                 deliveryStatus={{
                   message_id: message.id,
                   status: message.read_at ? 'read' : 'delivered',
                   read_by: message.read_at ? [{
-                    user: otherParticipant!,
+                    user: activeConversation.participants.find(p => p.id !== currentUser.id)!,
                     read_at: message.read_at
-                  }] : undefined
+                  }] : undefined,
+                  updated_at: message.updated_at
                 }}
                 currentUserId={currentUser.id}
               />
             )}
-          </Box>
+          </Group>
         </Paper>
 
         {isOwnMessage && (
           <Avatar
-            sx={{ width: 32, height: 32, ml: 1 }}
-            src={currentUser.avatar}
+            size={32}
+            src={currentUser.avatar_url}
+            radius="xl"
           >
-            {currentUser.firstName?.[0] || currentUser.username[0]}
+            {currentUser.first_name?.[0] || currentUser.username[0]}
           </Avatar>
         )}
-      </Box>
+      </Group>
     );
   };
 
   const renderConversationsList = () => (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Stack h="100%" gap={0}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">Messages</Typography>
+      <Box p="md" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+        <Text fw={600} size="lg">Messages</Text>
         {!isConnected && (
-          <Typography variant="caption" color="error">
+          <Text size="xs" c="red">
             Disconnected - trying to reconnect...
-          </Typography>
+          </Text>
         )}
       </Box>
 
       {/* Search */}
-      <Box sx={{ p: 2 }}>
-        <TextField
-          fullWidth
-          size="small"
+      <Box p="md">
+        <TextInput
           placeholder="Search conversations or users..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            )
-          }}
+          leftSection={<SearchIcon size={16} />}
+          size="sm"
         />
       </Box>
 
       {/* Conversations */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <ScrollArea flex={1}>
         {loading ? (
-          <Box sx={{ p: 1 }}>
+          <Box p="sm">
             {[1, 2, 3].map((item) => (
-              <ListItem key={item}>
-                <ListItemAvatar>
-                  <Skeleton variant="circular" width={40} height={40} />
-                </ListItemAvatar>
-                <ListItemText
-                  primary={<Skeleton width="60%" />}
-                  secondary={<Skeleton width="40%" />}
-                />
-              </ListItem>
+              <Group key={item} p="md" gap="md">
+                <Skeleton circle height={40} />
+                <Stack gap="xs" flex={1}>
+                  <Skeleton height={16} width="60%" />
+                  <Skeleton height={12} width="40%" />
+                </Stack>
+              </Group>
             ))}
           </Box>
         ) : (
-          <List>
+          <Stack gap={0}>
             {/* Existing Conversations */}
             {filteredConversations.map((conversation) => {
               const otherParticipant = conversation.participants.find(p => p.id !== currentUser.id);
               if (!otherParticipant) return null;
 
               return (
-                <ListItemButton
+                <Group
                   key={conversation.id}
+                  p="md"
+                  gap="md"
                   onClick={() => handleConversationSelect(conversation)}
-                  selected={activeConversation?.id === conversation.id}
+                  style={{
+                    cursor: 'pointer',
+                    backgroundColor: activeConversation?.id === conversation.id ? theme.colors.primary[0] : 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeConversation?.id !== conversation.id) {
+                      e.currentTarget.style.backgroundColor = theme.colors.gray[0];
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeConversation?.id !== conversation.id) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }
+                  }}
                 >
-                  <ListItemAvatar>
-                    <Badge
-                      color="success"
-                      variant="dot"
-                      invisible={!otherParticipant.is_online}
+                  <Badge
+                    color={otherParticipant.online_status === OnlineStatus.ONLINE ? "green" : "gray"}
+                    variant="dot"
+                    size="sm"
+                  >
+                    <Avatar src={otherParticipant.avatar_url} radius="xl">
+                      {otherParticipant.first_name?.[0] || otherParticipant.username[0]}
+                    </Avatar>
+                  </Badge>
+                  <Stack gap="xs" flex={1}>
+                    <Text fw={500} size="sm">
+                      {`${otherParticipant.first_name} ${otherParticipant.last_name}`.trim() || otherParticipant.username}
+                    </Text>
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      truncate
+                      style={{ maxWidth: 180 }}
                     >
-                      <Avatar src={otherParticipant.avatar}>
-                        {otherParticipant.firstName?.[0] || otherParticipant.username[0]}
-                      </Avatar>
-                    </Badge>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={`${otherParticipant.firstName} ${otherParticipant.lastName}`.trim() || otherParticipant.username}
-                    secondary={conversation.last_message?.content || 'No messages yet'}
-                    secondaryTypographyProps={{
-                      noWrap: true,
-                      style: { maxWidth: 180 }
-                    }}
-                  />
+                      {conversation.last_message?.content || 'No messages yet'}
+                    </Text>
+                  </Stack>
                   {conversation.unread_count && conversation.unread_count > 0 && (
-                    <Chip
-                      size="small"
-                      label={conversation.unread_count}
-                      color="primary"
-                      sx={{ ml: 1 }}
-                    />
+                    <Badge color="primary" size="sm">
+                      {conversation.unread_count}
+                    </Badge>
                   )}
-                </ListItemButton>
+                </Group>
               );
             })}
 
             {/* Available Users for New Conversations */}
             {searchQuery && (
               <>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" sx={{ px: 2, color: 'textSecondary' }}>
+                <Divider my="sm" />
+                <Text size="xs" c="dimmed" px="md">
                   Start new conversation
-                </Typography>
+                </Text>
                 {filteredUsers.map((user) => (
-                  <ListItemButton
+                  <Group
                     key={user.id}
+                    p="md"
+                    gap="md"
                     onClick={() => handleStartNewConversation(user)}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = theme.colors.gray[0];
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
                   >
-                    <ListItemAvatar>
-                      <Badge
-                        color="success"
-                        variant="dot"
-                        invisible={!user.is_online}
-                      >
-                        <Avatar src={user.avatar}>
-                          {user.firstName?.[0] || user.username[0]}
-                        </Avatar>
-                      </Badge>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={`${user.firstName} ${user.lastName}`.trim() || user.username}
-                      secondary={user.is_online ? 'Online' : `Last seen ${formatDistanceToNow(new Date(user.last_seen || ''), { addSuffix: true })}`}
-                    />
-                  </ListItemButton>
+                    <Badge
+                      color={user.online_status === OnlineStatus.ONLINE ? "green" : "gray"}
+                      variant="dot"
+                      size="sm"
+                    >
+                      <Avatar src={user.avatar_url} radius="xl">
+                        {user.first_name?.[0] || user.username[0]}
+                      </Avatar>
+                    </Badge>
+                    <Stack gap="xs" flex={1}>
+                      <Text fw={500} size="sm">
+                        {`${user.first_name} ${user.last_name}`.trim() || user.username}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {user.online_status === OnlineStatus.ONLINE ? 'Online' : `Last seen ${formatDistanceToNow(new Date(user.last_seen || ''), { addSuffix: true })}`}
+                      </Text>
+                    </Stack>
+                  </Group>
                 ))}
               </>
             )}
-          </List>
+          </Stack>
         )}
-      </Box>
-    </Box>
+      </ScrollArea>
+    </Stack>
   );
 
   const renderChatArea = () => {
     if (!activeConversation) {
       return (
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100%',
-          flexDirection: 'column',
-          gap: 2
-        }}>
-          <Typography variant="h6" color="textSecondary">
+        <Stack
+          align="center" 
+          justify="center" 
+          h="100%"
+          gap="md"
+        >
+          <Text size="lg" c="dimmed" fw={500}>
             Select a conversation to start messaging
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
+          </Text>
+          <Text size="sm" c="dimmed" ta="center">
             Choose from your existing conversations or search for users to start a new chat
-          </Typography>
-        </Box>
+          </Text>
+        </Stack>
       );
     }
 
     const otherParticipant = activeConversation.participants.find(p => p.id !== currentUser.id);
 
     return (
-      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Stack h="100%" gap={0}>
         {/* Chat Header */}
-        <Box sx={{ 
-          p: 2, 
-          borderBottom: 1, 
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2
-        }}>
+        <Group
+          p="md" 
+          style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}
+          gap="md"
+        >
           {isMobileScreen && (
-            <IconButton onClick={() => setDrawerOpen(true)}>
-              <CloseIcon />
-            </IconButton>
+            <ActionIcon onClick={() => setDrawerOpen(true)}>
+              <CloseIcon size={16} />
+            </ActionIcon>
           )}
           
           <Badge
-            color="success"
+            color={otherParticipant?.online_status === OnlineStatus.ONLINE ? "green" : "gray"}
             variant="dot"
-            invisible={!otherParticipant?.is_online}
+            size="sm"
           >
-            <Avatar src={otherParticipant?.avatar}>
-              {otherParticipant?.firstName?.[0] || otherParticipant?.username[0]}
+            <Avatar src={otherParticipant?.avatar_url} radius="xl">
+              {otherParticipant?.first_name?.[0] || otherParticipant?.username[0]}
             </Avatar>
           </Badge>
           
-          <Box>
-            <Typography variant="h6">
-              {`${otherParticipant?.firstName} ${otherParticipant?.lastName}`.trim() || otherParticipant?.username}
-            </Typography>
-            <Typography variant="caption" color="textSecondary">
-              {otherParticipant?.is_online ? 'Online' : `Last seen ${formatDistanceToNow(new Date(otherParticipant?.last_seen || ''), { addSuffix: true })}`}
-            </Typography>
-          </Box>
-        </Box>
+          <Stack gap="xs">
+            <Text fw={600} size="lg">
+              {`${otherParticipant?.first_name} ${otherParticipant?.last_name}`.trim() || otherParticipant?.username}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {otherParticipant?.online_status === OnlineStatus.ONLINE ? 'Online' : `Last seen ${formatDistanceToNow(new Date(otherParticipant?.last_seen || ''), { addSuffix: true })}`}
+            </Text>
+          </Stack>
+        </Group>
 
         {/* Error Alert */}
         {error && (
-          <Alert severity="error" onClose={() => setError(null)} sx={{ m: 1 }}>
+          <Alert title="Error" color="red" onClose={() => setError(null)} m="sm">
             {error}
           </Alert>
         )}
 
         {/* Messages */}
-        <Box sx={{ 
-          flex: 1, 
-          overflow: 'auto', 
-          p: 1,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+        <ScrollArea flex={1} p="sm">
           {activeConversation.isLoading ? (
-            <Box sx={{ p: 2 }}>
+            <Box p="md">
               {[1, 2, 3].map((item) => (
-                <Box key={item} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Skeleton variant="circular" width={32} height={32} />
-                  <Box sx={{ ml: 1, flex: 1 }}>
-                    <Skeleton variant="rectangular" height={60} />
-                  </Box>
-                </Box>
+                <Group key={item} align="flex-start" mb="md">
+                  <Skeleton circle height={32} />
+                  <Skeleton height={60} flex={1} />
+                </Group>
               ))}
             </Box>
           ) : (
@@ -755,114 +765,113 @@ const DirectMessaging: React.FC<DirectMessagingProps> = ({
               
               {/* Typing Indicators */}
               {activeConversation.typingUsers.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', p: 1, opacity: 0.7 }}>
-                  <Avatar sx={{ width: 24, height: 24, mr: 1 }}>
-                    {activeConversation.typingUsers[0].firstName?.[0] || activeConversation.typingUsers[0].username[0]}
+                <Group p="sm" style={{ opacity: 0.7 }}>
+                  <Avatar size={24} radius="xl">
+                    {activeConversation.typingUsers[0].first_name?.[0] || activeConversation.typingUsers[0].username[0]}
                   </Avatar>
-                  <Typography variant="caption">
-                    {activeConversation.typingUsers[0].firstName || activeConversation.typingUsers[0].username} is typing...
-                  </Typography>
-                </Box>
+                  <Text size="xs">
+                    {activeConversation.typingUsers[0].first_name || activeConversation.typingUsers[0].username} is typing...
+                  </Text>
+                </Group>
               )}
               
               <div ref={messagesEndRef} />
             </>
           )}
-        </Box>
+        </ScrollArea>
 
         {/* Input Area */}
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-            <MediaUploader
+        <Box p="md" style={{ borderTop: `1px solid ${theme.colors.gray[3]}` }}>
+          <Group align="flex-end" gap="sm">
+            {/* <MediaUploader
               onFilesSelected={setSelectedMedia}
               maxFiles={5}
               acceptedTypes={['image/*', 'video/*', 'audio/*', '.pdf', '.doc', '.docx']}
-            >
-              <IconButton size="small" color="primary">
-                <AttachIcon />
-              </IconButton>
-            </MediaUploader>
+            >*/}
+              <ActionIcon size="sm" color="primary">
+                <AttachIcon size={16} />
+              </ActionIcon>
+            {/* </MediaUploader> */}
 
-            <TextField
+            <Textarea
               ref={inputRef}
-              multiline
-              maxRows={4}
-              fullWidth
-              size="small"
               placeholder="Type a message..."
               value={newMessage}
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '20px'
-                }
-              }}
+              flex={1}
+              radius="xl"
+              autosize
+              maxRows={4}
             />
 
-            <IconButton
+            <ActionIcon
               color="primary"
               onClick={handleSendMessage}
               disabled={!newMessage.trim() && selectedMedia.length === 0}
             >
-              <SendIcon />
-            </IconButton>
-          </Box>
+              <SendIcon size={16} />
+            </ActionIcon>
+          </Group>
 
           {/* Selected Media Preview */}
           {selectedMedia.length > 0 && (
-            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Group mt="sm" gap="xs">
               {selectedMedia.map((file, index) => (
-                <Chip
-                  key={index}
-                  icon={getMediaIcon(file.type)}
-                  label={file.name}
-                  onDelete={() => setSelectedMedia(prev => prev.filter((_, i) => i !== index))}
-                  size="small"
-                />
+                <Group key={index} gap="xs" style={{ position: 'relative' }}>
+                  <Chip
+                    size="sm"
+                  >
+                    <Group gap="xs">
+                      {getMediaIcon(file.type)}
+                      {file.name}
+                    </Group>
+                  </Chip>
+                  <ActionIcon
+                    size="xs"
+                    color="red"
+                    variant="subtle"
+                    onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== index))}
+                    style={{ position: 'absolute', top: -5, right: -5 }}
+                  >
+                    ×
+                  </ActionIcon>
+                </Group>
               ))}
-            </Box>
+            </Group>
           )}
         </Box>
-      </Box>
+      </Stack>
     );
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex' }}>
+    <Group h="100%" gap={0} align="flex-start">
       {/* Conversations Sidebar */}
       {isMobileScreen ? (
         <Drawer
-          anchor="left"
-          open={drawerOpen}
+          opened={drawerOpen}
           onClose={() => setDrawerOpen(false)}
-          sx={{
-            '& .MuiDrawer-paper': {
-              width: drawerWidth,
-              boxSizing: 'border-box'
-            }
-          }}
+          size={drawerWidth}
+          position="left"
         >
           {renderConversationsList()}
         </Drawer>
       ) : (
         <Paper
-          sx={{
-            width: drawerWidth,
-            borderRight: 1,
-            borderColor: 'divider',
-            height: '100%'
-          }}
+          w={drawerWidth}
+          h="100%"
+          style={{ borderRight: `1px solid ${theme.colors.gray[3]}` }}
         >
           {renderConversationsList()}
         </Paper>
       )}
 
       {/* Chat Area */}
-      <Box sx={{ flex: 1, height: '100%' }}>
+      <Box flex={1} h="100%">
         {renderChatArea()}
       </Box>
-    </Box>
+    </Group>
   );
 };
 

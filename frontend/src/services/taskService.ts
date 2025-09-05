@@ -6,7 +6,7 @@
  */
 
 import { apiGet, apiPost, apiPut, apiDelete } from './api';
-import { TaskTemplate } from '../components/tasks/TemplateCard';
+import { User } from '../types/user';
 
 /**
  * @description Task priority enum
@@ -54,9 +54,11 @@ export interface Task {
   category_id?: number;
   created_by_id: number;
   assigned_to_id?: number;
+  assigned_user?: User;
   parent_task_id?: number;
   created_at: string;
   updated_at: string;
+  submitted_for_approval_at?: string;
   category?: TaskCategory;
   tags?: TaskTag[];
   subtasks?: Task[];
@@ -88,7 +90,26 @@ export interface TaskTag {
   updated_at: string;
 }
 
-// TaskTemplate interface is imported from TemplateCard to avoid duplication
+/**
+ * @description Task template interface
+ */
+export interface TaskTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  category_id?: number;
+  priority: TaskPriority;
+  estimated_hours?: number;
+  points: number;
+  reward_type?: string;
+  reward_value?: number;
+  reward_description?: string;
+  is_public: boolean;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+  category?: TaskCategory;
+}
 
 /**
  * @description Create task request interface
@@ -174,8 +195,6 @@ export interface TaskUpdateRequest {
     status?: TaskStatus;
     priority?: TaskPriority;
     due_date?: string;
-    estimated_hours?: number;
-    actual_hours?: number;
     points?: number;
     reward_type?: string;
     reward_value?: number;
@@ -186,7 +205,7 @@ export interface TaskUpdateRequest {
     category_id?: number;
     assigned_to_id?: number;
     parent_task_id?: number;
-    tags?: string[];
+    tag_names?: string[];
   };
 }
 
@@ -307,10 +326,44 @@ export class TaskService {
    */
   async updateTask(taskId: number, taskData: Partial<Task>): Promise<Task> {
     try {
+      // Convert TaskTag[] to string[] if tags exist
+      const updates = { ...taskData };
+      let convertedTags: string[] | undefined;
+      
+      if (updates.tags && Array.isArray(updates.tags) && updates.tags.length > 0) {
+        // Check if it's TaskTag[] and convert to string[]
+        if (typeof updates.tags[0] === 'object' && 'name' in updates.tags[0]) {
+          convertedTags = (updates.tags as TaskTag[]).map(tag => tag.name);
+        } else {
+          convertedTags = updates.tags as unknown as string[];
+        }
+      }
+
+      // Create a properly typed updates object
+      const typedUpdates: TaskUpdateRequest['updates'] = {
+        title: updates.title,
+        description: updates.description,
+        status: updates.status,
+        priority: updates.priority,
+        due_date: updates.due_date,
+        points: updates.points,
+        reward_type: updates.reward_type,
+        reward_value: updates.reward_value,
+        reward_description: updates.reward_description,
+        is_recurring: updates.is_recurring,
+        recurrence_pattern: updates.recurrence_pattern,
+        template_id: updates.template_id,
+        category_id: updates.category_id,
+        assigned_to_id: updates.assigned_to_id,
+        parent_task_id: updates.parent_task_id,
+        tag_names: convertedTags // Backend expects 'tag_names', not 'tags'
+      };
+
       const request: TaskUpdateRequest = {
         task_id: taskId,
-        updates: taskData
+        updates: typedUpdates
       };
+      
       const response = await apiPost<Task>('/tasks/update', request);
       return response.data;
     } catch (error) {
@@ -596,6 +649,7 @@ export class TaskService {
       throw new Error('Failed to fetch users for assignment.');
     }
   }
+
 }
 
 /**

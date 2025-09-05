@@ -229,7 +229,7 @@ export const NotificationProvider: React.FC<{
   /**
    * @description Handle navigation from notification action URL
    */
-  const handleNotificationNavigation = (actionUrl: string) => {
+  const handleNotificationNavigation = useCallback((actionUrl: string) => {
     if (!onNavigation) {
       // Fallback to direct navigation if no handler provided
       window.location.href = actionUrl;
@@ -241,10 +241,10 @@ export const NotificationProvider: React.FC<{
     if (taskMatch) {
       const taskId = parseInt(taskMatch[1], 10);
       
-      // For task notifications, always route to 'my-tasks' regardless of user role
+      // For task notifications, route to dashboard since my-tasks page was removed
       // Task notifications are always about tasks that are relevant to the current user
       // (either they created them, are assigned to them, or need to take action)
-      const targetPage = 'my-tasks';
+      const targetPage = 'dashboard';
       
       onNavigation(targetPage, taskId);
       return;
@@ -258,7 +258,7 @@ export const NotificationProvider: React.FC<{
     } else {
       onNavigation('dashboard');
     }
-  };
+  }, [onNavigation]);
   
   // WebSocket connection for real-time notifications
   const notificationWS = useWebSocket({
@@ -267,9 +267,309 @@ export const NotificationProvider: React.FC<{
   });
 
   /**
+   * @description Add a new notification
+   */
+  const addNotification = useCallback((notification: NotificationData) => {
+    setNotifications(prev => [notification, ...prev].slice(0, 100)); // Keep max 100 notifications
+    
+    // Call external callback if set
+    if (onNotificationReceived) {
+      onNotificationReceived(notification);
+    }
+  }, [onNotificationReceived]);
+
+  /**
+   * @description Dismiss a toast
+   */
+  const dismissToast = useCallback((toastId: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== toastId));
+  }, []);
+
+  /**
+   * @description Show a toast notification
+   */
+  const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newToast: Toast = { ...toast, id };
+    
+    setToasts(prev => [...prev, newToast]);
+    
+    // Auto-dismiss non-persistent toasts
+    if (!toast.persistent && toast.duration !== 0) {
+      const duration = toast.duration || 5000;
+      setTimeout(() => {
+        dismissToast(id);
+      }, duration);
+    }
+  }, [dismissToast]);
+
+  /**
+   * @description Handle task comment notifications
+   */
+  const handleTaskCommentNotification = useCallback((data: any) => {
+    // Extract the actual data from the notification object
+    const notificationData = data.data || data;
+    
+    const notification: NotificationData = {
+      id: `comment_${notificationData.comment_id}_${Date.now()}`,
+      type: 'task_comment',
+      title: data.title || 'New Comment',
+      message: data.message || `${notificationData.user?.username || 'Someone'} commented on "${notificationData.task_title || 'a task'}"`,
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
+    };
+
+    addNotification(notification);
+    
+    // Show toast for immediate feedback
+    showToast({
+      type: 'info',
+      title: 'New Comment',
+      message: notification.message,
+      duration: 4000,
+      actions: [{
+        label: 'View',
+        onClick: () => {
+          // Navigate to task using SPA navigation
+          console.log('🍞 Toast: View button clicked for:', notification.actionUrl);
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+  /**
+   * @description Handle task assigned notifications
+   */
+  const handleTaskAssignedNotification = useCallback((data: any) => {
+    const notification: NotificationData = {
+      id: `assigned_${data.task_id}_${Date.now()}`,
+      type: 'task_assigned',
+      title: 'Task Assigned',
+      message: `You've been assigned to "${data.task_title || 'a task'}"`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority: 'high',
+      data: data,
+      actionUrl: `/tasks/${data.task_id}`
+    };
+
+    addNotification(notification);
+    
+    showToast({
+      type: 'info',
+      title: 'Task Assigned',
+      message: notification.message,
+      duration: 6000,
+      actions: [{
+        label: 'View Task',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+  /**
+   * @description Handle task completed notifications
+   */
+  const handleTaskCompletedNotification = useCallback((data: any) => {
+    const notificationData = data.data || data;
+    
+    const notification: NotificationData = {
+      id: `completed_${notificationData.task_id}_${Date.now()}`,
+      type: 'task_completed',
+      title: data.title || 'Task Completed',
+      message: data.message || `Task "${notificationData.task_title || 'Unknown'}" has been completed`,
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
+    };
+
+    addNotification(notification);
+    
+    // Show toast for immediate feedback
+    showToast({
+      type: 'success',
+      title: 'Task Completed',
+      message: notification.message,
+      duration: 4000,
+      actions: [{
+        label: 'View Task',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+  /**
+   * @description Handle workflow transition notifications
+   */
+  const handleWorkflowTransitionNotification = useCallback((data: any) => {
+    // Extract the actual data from the notification object
+    const notificationData = data.data || data;
+    
+    const notification: NotificationData = {
+      id: `workflow_${notificationData.task_id}_${Date.now()}`,
+      type: 'workflow_transition',
+      title: data.title || 'Task Status Changed',
+      message: data.message || `"${notificationData.task_title || 'A task'}" moved to ${notificationData.new_status?.replace('_', ' ')}`,
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
+    };
+
+    addNotification(notification);
+  }, [addNotification]);
+
+  /**
+   * @description Handle approval request notifications
+   */
+  const handleApprovalRequestNotification = useCallback((data: any) => {
+    const notification: NotificationData = {
+      id: `approval_${data.task_id}_${Date.now()}`,
+      type: 'approval_request',
+      title: 'Approval Requested',
+      message: `"${data.task_title || 'A task'}" is ready for your approval`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority: 'urgent',
+      data: data,
+      actionUrl: `/tasks/${data.task_id}`
+    };
+
+    addNotification(notification);
+    
+    showToast({
+      type: 'warning',
+      title: 'Approval Needed',
+      message: notification.message,
+      persistent: true,
+      actions: [{
+        label: 'Review',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        },
+        variant: 'primary'
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+  /**
+   * @description Handle message notifications
+   */
+  const handleMessageNotification = useCallback((data: any) => {
+    const notification: NotificationData = {
+      id: `message_${data.message_id}_${Date.now()}`,
+      type: 'message',
+      title: 'New Message',
+      message: `${data.sender?.username || 'Someone'} sent you a message`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      data: data,
+      actionUrl: `/messages/${data.conversation_id}`
+    };
+
+    addNotification(notification);
+    
+    showToast({
+      type: 'info',
+      title: 'New Message',
+      message: notification.message,
+      duration: 4000
+    });
+  }, [addNotification, showToast]);
+
+  /**
+   * @description Handle mention notifications
+   */
+  const handleMentionNotification = useCallback((data: any) => {
+    const notification: NotificationData = {
+      id: `mention_${data.task_id}_${Date.now()}`,
+      type: 'mention',
+      title: 'You were mentioned',
+      message: `${data.user?.username || 'Someone'} mentioned you in "${data.task_title || 'a task'}"`,
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority: 'high',
+      data: data,
+      actionUrl: `/tasks/${data.task_id}`
+    };
+
+    addNotification(notification);
+    
+    showToast({
+      type: 'info',
+      title: 'Mentioned',
+      message: notification.message,
+      duration: 5000,
+      actions: [{
+        label: 'View',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+  /**
+   * @description Handle general notifications (deleted, due soon, overdue, media, system)
+   */
+  const handleGeneralNotification = useCallback((data: any) => {
+    const notificationData = data.data || data;
+    
+    // Map notification types to display types
+    const typeMapping: Record<string, NotificationData['type']> = {
+      'task_deleted': 'task_comment', // Use existing type for now
+      'task_due_soon': 'task_comment',
+      'task_overdue': 'task_comment',
+      'media_attached': 'task_comment',
+      'system_announcement': 'task_comment'
+    };
+    
+    const notification: NotificationData = {
+      id: `general_${data.type}_${Date.now()}`,
+      type: typeMapping[data.type] || 'task_comment',
+      title: data.title || 'Notification',
+      message: data.message || 'You have a new notification',
+      timestamp: data.timestamp || new Date().toISOString(),
+      read: false,
+      priority: data.priority || 'medium',
+      data: notificationData,
+      actionUrl: data.action_url || (notificationData.task_id ? `/tasks/${notificationData.task_id}` : '/dashboard')
+    };
+
+    addNotification(notification);
+    
+    // Show toast for immediate feedback
+    showToast({
+      type: data.type === 'system_announcement' ? 'info' : 'warning',
+      title: notification.title,
+      message: notification.message,
+      duration: 5000,
+      actions: [{
+        label: 'View',
+        onClick: () => {
+          handleNotificationNavigation(notification.actionUrl!);
+        }
+      }]
+    });
+  }, [addNotification, showToast, handleNotificationNavigation]);
+
+
+  /**
    * @description Handle incoming WebSocket messages
    */
-  function handleWebSocketMessage(data: any) {
+  const handleWebSocketMessage = useCallback((data: any) => {
     try {
       // Handle different types of real-time updates
       switch (data.type) {
@@ -311,306 +611,16 @@ export const NotificationProvider: React.FC<{
     } catch (error) {
       console.error('Error handling WebSocket message:', error);
     }
-  }
-
-  /**
-   * @description Handle task comment notifications
-   */
-  function handleTaskCommentNotification(data: any) {
-    // Extract the actual data from the notification object
-    const notificationData = data.data || data;
-    
-    const notification: NotificationData = {
-      id: `comment_${notificationData.comment_id}_${Date.now()}`,
-      type: 'task_comment',
-      title: data.title || 'New Comment',
-      message: data.message || `${notificationData.user?.username || 'Someone'} commented on "${notificationData.task_title || 'a task'}"`,
-      timestamp: data.timestamp || new Date().toISOString(),
-      read: false,
-      priority: 'medium',
-      data: notificationData,
-      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
-    };
-
-    addNotification(notification);
-    
-    // Show toast for immediate feedback
-    showToast({
-      type: 'info',
-      title: 'New Comment',
-      message: notification.message,
-      duration: 4000,
-      actions: [{
-        label: 'View',
-        onClick: () => {
-          // Navigate to task using SPA navigation
-          console.log('🍞 Toast: View button clicked for:', notification.actionUrl);
-          handleNotificationNavigation(notification.actionUrl!);
-        }
-      }]
-    });
-  }
-
-  /**
-   * @description Handle task assigned notifications
-   */
-  function handleTaskAssignedNotification(data: any) {
-    const notification: NotificationData = {
-      id: `assigned_${data.task_id}_${Date.now()}`,
-      type: 'task_assigned',
-      title: 'Task Assigned',
-      message: `You've been assigned to "${data.task_title || 'a task'}"`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      priority: 'high',
-      data: data,
-      actionUrl: `/tasks/${data.task_id}`
-    };
-
-    addNotification(notification);
-    
-    showToast({
-      type: 'info',
-      title: 'Task Assigned',
-      message: notification.message,
-      duration: 6000,
-      actions: [{
-        label: 'View Task',
-        onClick: () => {
-          handleNotificationNavigation(notification.actionUrl!);
-        }
-      }]
-    });
-  }
-
-  /**
-   * @description Handle task completed notifications
-   */
-  function handleTaskCompletedNotification(data: any) {
-    const notificationData = data.data || data;
-    
-    const notification: NotificationData = {
-      id: `completed_${notificationData.task_id}_${Date.now()}`,
-      type: 'task_completed',
-      title: data.title || 'Task Completed',
-      message: data.message || `Task "${notificationData.task_title || 'Unknown'}" has been completed`,
-      timestamp: data.timestamp || new Date().toISOString(),
-      read: false,
-      priority: 'medium',
-      data: notificationData,
-      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
-    };
-
-    addNotification(notification);
-    
-    // Show toast for immediate feedback
-    showToast({
-      type: 'success',
-      title: 'Task Completed',
-      message: notification.message,
-      duration: 4000,
-      actions: [{
-        label: 'View Task',
-        onClick: () => {
-          handleNotificationNavigation(notification.actionUrl!);
-        }
-      }]
-    });
-  }
-
-  /**
-   * @description Handle workflow transition notifications
-   */
-  function handleWorkflowTransitionNotification(data: any) {
-    // Extract the actual data from the notification object
-    const notificationData = data.data || data;
-    
-    const notification: NotificationData = {
-      id: `workflow_${notificationData.task_id}_${Date.now()}`,
-      type: 'workflow_transition',
-      title: data.title || 'Task Status Changed',
-      message: data.message || `"${notificationData.task_title || 'A task'}" moved to ${notificationData.new_status?.replace('_', ' ')}`,
-      timestamp: data.timestamp || new Date().toISOString(),
-      read: false,
-      priority: 'medium',
-      data: notificationData,
-      actionUrl: data.action_url || `/tasks/${notificationData.task_id}`
-    };
-
-    addNotification(notification);
-  }
-
-  /**
-   * @description Handle approval request notifications
-   */
-  function handleApprovalRequestNotification(data: any) {
-    const notification: NotificationData = {
-      id: `approval_${data.task_id}_${Date.now()}`,
-      type: 'approval_request',
-      title: 'Approval Requested',
-      message: `"${data.task_title || 'A task'}" is ready for your approval`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      priority: 'urgent',
-      data: data,
-      actionUrl: `/tasks/${data.task_id}`
-    };
-
-    addNotification(notification);
-    
-    showToast({
-      type: 'warning',
-      title: 'Approval Needed',
-      message: notification.message,
-      persistent: true,
-      actions: [{
-        label: 'Review',
-        onClick: () => {
-          handleNotificationNavigation(notification.actionUrl!);
-        },
-        variant: 'primary'
-      }]
-    });
-  }
-
-  /**
-   * @description Handle message notifications
-   */
-  function handleMessageNotification(data: any) {
-    const notification: NotificationData = {
-      id: `message_${data.message_id}_${Date.now()}`,
-      type: 'message',
-      title: 'New Message',
-      message: `${data.sender?.username || 'Someone'} sent you a message`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      priority: 'medium',
-      data: data,
-      actionUrl: `/messages/${data.conversation_id}`
-    };
-
-    addNotification(notification);
-    
-    showToast({
-      type: 'info',
-      title: 'New Message',
-      message: notification.message,
-      duration: 4000
-    });
-  }
-
-  /**
-   * @description Handle mention notifications
-   */
-  function handleMentionNotification(data: any) {
-    const notification: NotificationData = {
-      id: `mention_${data.task_id}_${Date.now()}`,
-      type: 'mention',
-      title: 'You were mentioned',
-      message: `${data.user?.username || 'Someone'} mentioned you in "${data.task_title || 'a task'}"`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      priority: 'high',
-      data: data,
-      actionUrl: `/tasks/${data.task_id}`
-    };
-
-    addNotification(notification);
-    
-    showToast({
-      type: 'info',
-      title: 'Mentioned',
-      message: notification.message,
-      duration: 5000,
-      actions: [{
-        label: 'View',
-        onClick: () => {
-          handleNotificationNavigation(notification.actionUrl!);
-        }
-      }]
-    });
-  }
-
-  /**
-   * @description Handle general notifications (deleted, due soon, overdue, media, system)
-   */
-  function handleGeneralNotification(data: any) {
-    const notificationData = data.data || data;
-    
-    // Map notification types to display types
-    const typeMapping: Record<string, NotificationData['type']> = {
-      'task_deleted': 'task_comment', // Use existing type for now
-      'task_due_soon': 'task_comment',
-      'task_overdue': 'task_comment',
-      'media_attached': 'task_comment',
-      'system_announcement': 'task_comment'
-    };
-    
-    const notification: NotificationData = {
-      id: `general_${data.type}_${Date.now()}`,
-      type: typeMapping[data.type] || 'task_comment',
-      title: data.title || 'Notification',
-      message: data.message || 'You have a new notification',
-      timestamp: data.timestamp || new Date().toISOString(),
-      read: false,
-      priority: data.priority || 'medium',
-      data: notificationData,
-      actionUrl: data.action_url || (notificationData.task_id ? `/tasks/${notificationData.task_id}` : '/dashboard')
-    };
-
-    addNotification(notification);
-    
-    // Show toast for immediate feedback
-    showToast({
-      type: data.type === 'system_announcement' ? 'info' : 'warning',
-      title: notification.title,
-      message: notification.message,
-      duration: 5000,
-      actions: [{
-        label: 'View',
-        onClick: () => {
-          handleNotificationNavigation(notification.actionUrl!);
-        }
-      }]
-    });
-  }
-
-  /**
-   * @description Add a new notification
-   */
-  const addNotification = useCallback((notification: NotificationData) => {
-    setNotifications(prev => [notification, ...prev].slice(0, 100)); // Keep max 100 notifications
-    
-    // Call external callback if set
-    if (onNotificationReceived) {
-      onNotificationReceived(notification);
-    }
-  }, [onNotificationReceived]);
-
-  /**
-   * @description Show a toast notification
-   */
-  const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newToast: Toast = { ...toast, id };
-    
-    setToasts(prev => [...prev, newToast]);
-    
-    // Auto-dismiss non-persistent toasts
-    if (!toast.persistent && toast.duration !== 0) {
-      const duration = toast.duration || 5000;
-      setTimeout(() => {
-        dismissToast(id);
-      }, duration);
-    }
-  }, []);
-
-  /**
-   * @description Dismiss a toast
-   */
-  const dismissToast = useCallback((toastId: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== toastId));
-  }, []);
+  }, [
+    handleTaskCommentNotification,
+    handleTaskAssignedNotification,
+    handleTaskCompletedNotification,
+    handleWorkflowTransitionNotification,
+    handleApprovalRequestNotification,
+    handleMessageNotification,
+    handleMentionNotification,
+    handleGeneralNotification
+  ]);
 
   /**
    * @description Mark notification as read (handles both real-time and stored)
@@ -742,7 +752,7 @@ export const NotificationProvider: React.FC<{
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [notificationWS.isConnected]);
+  }, [notificationWS, handleWebSocketMessage]);
 
   // Initialize WebSocket connection and load stored notifications when user is authenticated
   useEffect(() => {
@@ -762,14 +772,14 @@ export const NotificationProvider: React.FC<{
     } else {
       
     }
-  }, [refreshStoredNotifications]);
+  }, [refreshStoredNotifications, notificationWS]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       notificationWS.disconnect();
     };
-  }, []);
+  }, [notificationWS]);
 
   const value: NotificationContextValue = {
     notifications,

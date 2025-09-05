@@ -86,7 +86,7 @@ export class HttpInterceptor {
         }
 
         // Add request timestamp for monitoring
-        config.metadata = { startTime: Date.now() };
+        (config as any).metadata = { startTime: Date.now() };
 
         return config;
       },
@@ -104,8 +104,8 @@ export class HttpInterceptor {
     this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
         // Log successful response time
-        if (response.config.metadata?.startTime) {
-          const duration = Date.now() - response.config.metadata.startTime;
+        if ((response.config as any).metadata?.startTime) {
+          const duration = Date.now() - (response.config as any).metadata.startTime;
           if (duration > 5000) { // Log slow requests
             console.warn(`🐌 Slow request: ${response.config.url} took ${duration}ms`);
           }

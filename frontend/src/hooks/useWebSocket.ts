@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLoginState } from '../utils/cookies';
 
 export interface WebSocketMessage {
@@ -51,7 +51,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const subscribersRef = useRef<Map<string, Set<(data: any) => void>>>(new Map());
 
-  const connect = () => {
+  const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -139,9 +139,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       setError('Failed to create WebSocket connection');
       setIsConnecting(false);
     }
-  };
+  }, [url, maxReconnectAttempts, reconnectInterval]);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -155,7 +155,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     setIsConnected(false);
     setIsConnecting(false);
     setError(null);
-  };
+  }, []);
 
   const sendMessage = (message: WebSocketMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -196,14 +196,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     return () => {
       disconnect();
     };
-  }, [url, autoConnect]);
+  }, [url, autoConnect, connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       disconnect();
     };
-  }, []);
+  }, [disconnect]);
 
   return {
     isConnected,

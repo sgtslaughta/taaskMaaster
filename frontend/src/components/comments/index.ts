@@ -22,11 +22,8 @@ export type {
 } from '../../types/comment';
 
 export type {
-  CreateCommentRequest,
-  UpdateCommentRequest,
-  CommentFilters,
-  CommentQueryParams,
-  CommentsResponse,
-  CommentResponse,
-  CommentThreadResponse
+  Comment,
+  CommentCreate,
+  CommentUpdate,
+  CommentListResponse
 } from '../../services/commentService';

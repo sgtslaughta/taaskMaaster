@@ -19,10 +19,10 @@ export interface CustomMultiSelectProps extends MultiSelectProps {
   // Add any custom props here
 }
 
-export const MultiSelect = forwardRef<HTMLInputElement, CustomMultiSelectProps>(
+export const CustomMultiSelect = forwardRef<HTMLInputElement, CustomMultiSelectProps>(
   ({ ...props }, ref) => {
     return <MultiSelect ref={ref} {...props} />;
   }
 );
 
-MultiSelect.displayName = 'MultiSelect';
+CustomMultiSelect.displayName = 'CustomMultiSelect';

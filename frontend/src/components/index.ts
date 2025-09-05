@@ -13,7 +13,6 @@ export * from './layout';
 
 // Page components
 export * from './pages';
-export * from './pages/auth';
 
 // Task components
 export * from './tasks';

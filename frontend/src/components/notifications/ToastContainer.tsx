@@ -10,12 +10,12 @@ import { cn } from '../../design-system/utils/cn';
 import { Button } from '../../design-system/components/Button';
 import { useNotifications, type Toast } from '../../contexts/NotificationContext';
 import {
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-  XCircleIcon,
-  XMarkIcon
-} from '@heroicons/react/24/outline';
+  IconCircleCheck as CheckCircleIcon,
+  IconAlertTriangle as ExclamationTriangleIcon,
+  IconInfoCircle as InformationCircleIcon,
+  IconCircleX as XCircleIcon,
+  IconX as XMarkIcon
+} from '@tabler/icons-react';
 
 interface ToastItemProps {
   toast: Toast;
@@ -184,7 +184,7 @@ export const ToastContainer: React.FC = () => {
       </div>
 
       {/* CSS Animation for progress bar */}
-      <style jsx>{`
+      <style>{`
         @keyframes shrink {
           from {
             width: 100%;

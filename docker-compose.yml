@@ -58,6 +58,7 @@ services:
       dockerfile: Dockerfile
       args:
         - BUILDKIT_INLINE_CACHE=1
+        - NODE_ENV=${NODE_ENV:-development}
     container_name: taaskmaaster-frontend
     ports:
       - "${FRONTEND_PORT:-0.0.0.0:3000}:3000"
@@ -70,15 +71,20 @@ services:
       # WebSocket and HMR configuration
       WATCHPACK_POLLING: true
       CHOKIDAR_USEPOLLING: true
+      # Node.js memory optimization
+      NODE_OPTIONS: "--max-old-space-size=2048 --max-semi-space-size=128"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_next_cache:/app/.next
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - taaskmaaster-network
     restart: unless-stopped
+    # Memory limits to prevent SIGBUS errors
+    mem_limit: 2g
+    memswap_limit: 2g
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -145,6 +151,7 @@ volumes:
   backend_data:
   minio_data:
   redis_data:
+  frontend_next_cache:  # Named volume for Next.js build cache
   # postgres_data:  # Commented out since postgres is disabled
 
 networks:

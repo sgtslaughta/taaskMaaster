@@ -9,19 +9,20 @@ import React from 'react';
 import {
   Box,
   Avatar,
-  AvatarGroup,
   Tooltip,
-  Typography,
+  Text,
   Chip,
-  useTheme
-} from '@mui/material';
+  Group,
+  Stack,
+  useMantineTheme
+} from '@mantine/core';
 import {
-  Done as SentIcon,
-  DoneAll as DeliveredIcon,
-  Visibility as ReadIcon,
-  Error as FailedIcon,
-  Schedule as SendingIcon
-} from '@mui/icons-material';
+  IconCheck as SentIcon,
+  IconChecks as DeliveredIcon,
+  IconEye as ReadIcon,
+  IconExclamationCircle as FailedIcon,
+  IconClock as SendingIcon
+} from '@tabler/icons-react';
 import { format } from 'date-fns';
 
 import { MessageDeliveryStatus } from '../../types/messaging';
@@ -47,22 +48,22 @@ export const ReadReceiptIndicator: React.FC<ReadReceiptIndicatorProps> = ({
   detailed = false,
   size = 'small'
 }) => {
-  const theme = useTheme();
+  const theme = useMantineTheme();
 
   const getStatusIcon = () => {
     const iconSize = size === 'small' ? 16 : 20;
     
     switch (deliveryStatus.status) {
       case 'sending':
-        return <SendingIcon sx={{ fontSize: iconSize, color: 'text.secondary' }} />;
+        return <SendingIcon size={iconSize} style={{ color: theme.colors.gray[6] }} />;
       case 'sent':
-        return <SentIcon sx={{ fontSize: iconSize, color: 'text.secondary' }} />;
+        return <SentIcon size={iconSize} style={{ color: theme.colors.gray[6] }} />;
       case 'delivered':
-        return <DeliveredIcon sx={{ fontSize: iconSize, color: 'text.secondary' }} />;
+        return <DeliveredIcon size={iconSize} style={{ color: theme.colors.gray[6] }} />;
       case 'read':
-        return <ReadIcon sx={{ fontSize: iconSize, color: 'primary.main' }} />;
+        return <ReadIcon size={iconSize} style={{ color: theme.colors.primary[6] }} />;
       case 'failed':
-        return <FailedIcon sx={{ fontSize: iconSize, color: 'error.main' }} />;
+        return <FailedIcon size={iconSize} style={{ color: theme.colors.red[6] }} />;
       default:
         return null;
     }
@@ -90,46 +91,46 @@ export const ReadReceiptIndicator: React.FC<ReadReceiptIndicatorProps> = ({
     
     if (status === 'failed' && failed_recipients?.length) {
       return (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
             Failed to send to:
-          </Typography>
+          </Text>
           {failed_recipients.map(({ user, error }) => (
-            <Typography key={user.id} variant="body2">
+            <Text key={user.id} size="sm">
               {user.username}: {error}
-            </Typography>
+            </Text>
           ))}
-        </Box>
+        </Stack>
       );
     }
 
     if (status === 'read' && read_by?.length) {
       return (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
             Read by:
-          </Typography>
+          </Text>
           {read_by.map(({ user, read_at }) => (
-            <Typography key={user.id} variant="body2">
+            <Text key={user.id} size="sm">
               {user.username} • {format(new Date(read_at), 'MMM d, h:mm a')}
-            </Typography>
+            </Text>
           ))}
-        </Box>
+        </Stack>
       );
     }
 
     if (status === 'delivered' && delivered_to?.length) {
       return (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+        <Stack gap="xs">
+          <Text size="sm" fw={600}>
             Delivered to:
-          </Typography>
+          </Text>
           {delivered_to.map((user) => (
-            <Typography key={user.id} variant="body2">
+            <Text key={user.id} size="sm">
               {user.username}
-            </Typography>
+            </Text>
           ))}
-        </Box>
+        </Stack>
       );
     }
 
@@ -143,91 +144,77 @@ export const ReadReceiptIndicator: React.FC<ReadReceiptIndicatorProps> = ({
 
   if (detailed) {
     return (
-      <Box sx={{ mt: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+      <Stack gap="xs" mt="xs">
+        <Group gap="xs" align="center">
           {getStatusIcon()}
-          <Typography variant="caption" color="text.secondary">
+          <Text size="xs" c="dimmed">
             {getStatusText()}
-          </Typography>
-        </Box>
+          </Text>
+        </Group>
         
         {deliveryStatus.status === 'read' && deliveryStatus.read_by?.length && (
-          <AvatarGroup 
-            max={3} 
-            sx={{ 
-              '& .MuiAvatar-root': { 
-                width: 20, 
-                height: 20, 
-                fontSize: '0.75rem' 
-              } 
-            }}
-          >
-            {deliveryStatus.read_by.map(({ user }) => (
-              <Tooltip key={user.id} title={user.username}>
+          <Group gap="xs">
+            {deliveryStatus.read_by.slice(0, 3).map(({ user }) => (
+              <Tooltip key={user.id} label={user.username}>
                 <Avatar
                   src={user.avatar_url}
-                  alt={user.username}
-                  sx={{ bgcolor: 'primary.main' }}
+                  size={20}
+                  radius="xl"
+                  style={{ fontSize: '0.75rem' }}
                 >
                   {user.username[0]?.toUpperCase()}
                 </Avatar>
               </Tooltip>
             ))}
-          </AvatarGroup>
+            {deliveryStatus.read_by.length > 3 && (
+              <Text size="xs" c="dimmed">
+                +{deliveryStatus.read_by.length - 3} more
+              </Text>
+            )}
+          </Group>
         )}
 
         {deliveryStatus.status === 'failed' && deliveryStatus.failed_recipients?.length && (
-          <Box sx={{ mt: 1 }}>
+          <Box mt="xs">
             <Chip
-              label={`Failed: ${deliveryStatus.failed_recipients.length} recipient(s)`}
-              color="error"
-              size="small"
-              variant="outlined"
-            />
+              color="red"
+              size="xs"
+              variant="outline"
+            >
+              Failed: {deliveryStatus.failed_recipients.length} recipient(s)
+            </Chip>
           </Box>
         )}
-      </Box>
+      </Stack>
     );
   }
 
   // Compact view
   return (
-    <Tooltip title={getTooltipContent()} placement="top">
-      <Box
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.5,
-          ml: 1,
-          cursor: 'help'
-        }}
+    <Tooltip label={getTooltipContent()}>
+      <Group
+        gap="xs"
+        align="center"
+        ml="xs"
+        style={{ cursor: 'help' }}
       >
         {getStatusIcon()}
         {deliveryStatus.status === 'read' && deliveryStatus.read_by?.length && (
-          <AvatarGroup 
-            max={2} 
-            sx={{ 
-              '& .MuiAvatar-root': { 
-                width: 16, 
-                height: 16, 
-                fontSize: '0.6rem',
-                border: 'none'
-              } 
-            }}
-          >
+          <Group gap={2}>
             {deliveryStatus.read_by.slice(0, 2).map(({ user }) => (
               <Avatar
                 key={user.id}
                 src={user.avatar_url}
-                alt={user.username}
-                sx={{ bgcolor: 'primary.main' }}
+                size={16}
+                radius="xl"
+                style={{ fontSize: '0.6rem' }}
               >
                 {user.username[0]?.toUpperCase()}
               </Avatar>
             ))}
-          </AvatarGroup>
+          </Group>
         )}
-      </Box>
+      </Group>
     </Tooltip>
   );
 };

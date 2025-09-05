@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { Button } from '../../design-system/components/Button';
 import { cn } from '../../design-system/utils/cn';
-import { Comment, CommentService } from '../../services/commentService';
+import { Comment, commentService } from '../../services/commentService';
 import { CommentForm } from './CommentForm';
 
 /**
@@ -46,7 +46,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [showFullContent, setShowFullContent] = useState(false);
 
   const isOwner = currentUserId === comment.user_id;
-  const isSystemComment = comment.is_system_comment;
+  const isSystemComment = false; // TODO: Add system comment support
   const maxLevel = 3; // Maximum nesting level for replies
 
   /**
@@ -79,11 +79,9 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const getUserDisplayName = (): string => {
     if (!comment.user) return 'Unknown User';
     
-    const { first_name, last_name, username } = comment.user;
-    if (first_name && last_name) {
-      return `${first_name} ${last_name}`;
-    } else if (first_name) {
-      return first_name;
+    const { full_name, username } = comment.user;
+    if (full_name) {
+      return full_name;
     } else {
       return username;
     }
@@ -163,7 +161,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
 
     setIsDeleting(true);
     try {
-      await CommentService.deleteComment(comment.id);
+      await commentService.deleteComment(comment.id);
       onDelete?.(comment.id);
     } catch (error) {
       console.error('Error deleting comment:', error);

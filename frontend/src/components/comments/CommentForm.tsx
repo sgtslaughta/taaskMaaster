@@ -8,7 +8,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '../../design-system/components/Button';
 import { cn } from '../../design-system/utils/cn';
-import { CommentService, CommentCreateRequest, CommentUpdateRequest } from '../../services/commentService';
+import { commentService, CommentCreate, CommentUpdate } from '../../services/commentService';
 
 /**
  * @description Comment form props interface
@@ -17,7 +17,7 @@ interface CommentFormProps {
   taskId?: number;
   parentCommentId?: number;
   initialContent?: string;
-  initialContentType?: string;
+  initialContentType?: 'text' | 'markdown' | 'html';
   mode: 'create' | 'edit';
   commentId?: number;
   onSubmit?: (comment: any) => void;
@@ -48,7 +48,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
   autoFocus = false,
 }) => {
   const [content, setContent] = useState(initialContent);
-  const [contentType, setContentType] = useState(initialContentType);
+  const [contentType, setContentType] = useState<'text' | 'markdown' | 'html'>(initialContentType || 'markdown');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaAttachments, setMediaAttachments] = useState<number[]>([]);
@@ -82,20 +82,20 @@ export const CommentForm: React.FC<CommentFormProps> = ({
       let result;
 
       if (mode === 'create') {
-        const createData: CommentCreateRequest = {
+        const createData: CommentCreate = {
           task_id: taskId!,
           content: content.trim(),
           content_type: contentType,
           parent_comment_id: parentCommentId,
           media_attachment_ids: mediaAttachments.length > 0 ? mediaAttachments : undefined,
         };
-        result = await CommentService.createComment(createData);
+        result = await commentService.createComment(createData);
       } else {
-        const updateData: CommentUpdateRequest = {
+        const updateData: CommentUpdate = {
           content: content.trim(),
           content_type: contentType,
         };
-        result = await CommentService.updateComment(commentId!, updateData);
+        result = await commentService.updateComment(commentId!, updateData);
       }
 
       onSubmit?.(result);
@@ -118,7 +118,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
    */
   const handleCancel = () => {
     setContent(initialContent);
-    setContentType(initialContentType);
+    setContentType(initialContentType || 'markdown');
     setError(null);
     onCancel?.();
   };
@@ -170,7 +170,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
               type="radio"
               value="markdown"
               checked={contentType === 'markdown'}
-              onChange={(e) => setContentType(e.target.value)}
+              onChange={(e) => setContentType(e.target.value as 'text' | 'markdown' | 'html')}
               className="text-blue-600"
             />
             <span>Markdown</span>
@@ -180,10 +180,20 @@ export const CommentForm: React.FC<CommentFormProps> = ({
               type="radio"
               value="text"
               checked={contentType === 'text'}
-              onChange={(e) => setContentType(e.target.value)}
+              onChange={(e) => setContentType(e.target.value as 'text' | 'markdown' | 'html')}
               className="text-blue-600"
             />
             <span>Plain Text</span>
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="radio"
+              value="html"
+              checked={contentType === 'html'}
+              onChange={(e) => setContentType(e.target.value as 'text' | 'markdown' | 'html')}
+              className="text-blue-600"
+            />
+            <span>HTML</span>
           </label>
         </div>
 

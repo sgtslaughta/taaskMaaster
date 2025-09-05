@@ -5,8 +5,10 @@
  * @version 1.0.0
  */
 
-import { FrontendTask } from './taskService';
-import { type WorkflowStatus } from '../components/workflow/WorkflowStatusBadge';
+import { Task } from './taskService';
+
+// Define WorkflowStatus type since the component doesn't exist yet
+export type WorkflowStatus = 'todo' | 'assigned' | 'in_progress' | 'submitted_for_approval' | 'review' | 'done' | 'cancelled';
 
 export interface WorkflowStats {
   // Status distribution
@@ -72,7 +74,7 @@ export class WorkflowStatsService {
    * @param tasks - Array of tasks to analyze
    * @returns Workflow statistics object
    */
-  calculateWorkflowStats(tasks: FrontendTask[]): WorkflowStats {
+  calculateWorkflowStats(tasks: Task[]): WorkflowStats {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -95,21 +97,21 @@ export class WorkflowStatsService {
     // Time-based metrics
     const overdueTasks = tasks.filter(t => {
       if (t.status === 'done' || t.status === 'cancelled') return false;
-      if (!t.dueDate) return false;
-      return new Date(t.dueDate) < now;
+      if (!t.due_date) return false;
+      return new Date(t.due_date) < now;
     }).length;
 
     const dueTodayTasks = tasks.filter(t => {
       if (t.status === 'done' || t.status === 'cancelled') return false;
-      if (!t.dueDate) return false;
-      const dueDate = new Date(t.dueDate);
+      if (!t.due_date) return false;
+      const dueDate = new Date(t.due_date);
       return dueDate >= today && dueDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
     }).length;
 
     const dueThisWeekTasks = tasks.filter(t => {
       if (t.status === 'done' || t.status === 'cancelled') return false;
-      if (!t.dueDate) return false;
-      const dueDate = new Date(t.dueDate);
+      if (!t.due_date) return false;
+      const dueDate = new Date(t.due_date);
       return dueDate >= today && dueDate <= oneWeekFromNow;
     }).length;
 
@@ -158,7 +160,7 @@ export class WorkflowStatsService {
    * @param tasks - Array of tasks to analyze
    * @returns Status distribution object
    */
-  getStatusDistribution(tasks: FrontendTask[]): Record<WorkflowStatus, number> {
+  getStatusDistribution(tasks: Task[]): Record<WorkflowStatus, number> {
     const distribution: Record<WorkflowStatus, number> = {
       todo: 0,
       assigned: 0,
@@ -184,7 +186,7 @@ export class WorkflowStatsService {
    * @param tasks - Array of tasks to analyze
    * @returns Efficiency metrics
    */
-  getWorkflowEfficiency(tasks: FrontendTask[]): {
+  getWorkflowEfficiency(tasks: Task[]): {
     throughput: number; // Tasks completed per day (last 30 days)
     cycleTime: number; // Average days from start to completion
     leadTime: number; // Average days from creation to completion
@@ -194,7 +196,7 @@ export class WorkflowStatsService {
     const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
     const recentCompletions = completedTasks.filter(t => 
-      new Date(t.updatedAt) >= last30Days
+      new Date(t.updated_at) >= last30Days
     );
     
     const throughput = recentCompletions.length / 30;
@@ -218,12 +220,12 @@ export class WorkflowStatsService {
    * @param completedTasks - Array of completed tasks
    * @returns Average completion time as string
    */
-  private calculateAverageCompletionTime(completedTasks: FrontendTask[]): string {
+  private calculateAverageCompletionTime(completedTasks: Task[]): string {
     if (completedTasks.length === 0) return 'N/A';
     
     const totalDays = completedTasks.reduce((sum, task) => {
-      const created = new Date(task.createdAt);
-      const completed = new Date(task.updatedAt);
+      const created = new Date(task.created_at);
+      const completed = new Date(task.updated_at);
       const days = (completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
       return sum + Math.max(0, days);
     }, 0);
@@ -237,7 +239,7 @@ export class WorkflowStatsService {
    * @param tasks - Array of all tasks
    * @returns Average review time as string
    */
-  private calculateAverageReviewTime(tasks: FrontendTask[]): string {
+  private calculateAverageReviewTime(tasks: Task[]): string {
     // TODO: Calculate from workflow history when available
     return 'N/A';
   }
@@ -248,7 +250,7 @@ export class WorkflowStatsService {
    * @param days - Number of days to include in trend
    * @returns Array of trend data points
    */
-  generateWorkflowTrends(tasks: FrontendTask[], days: number = 30): WorkflowTrendData[] {
+  generateWorkflowTrends(tasks: Task[], days: number = 30): WorkflowTrendData[] {
     const trends: WorkflowTrendData[] = [];
     const now = new Date();
 
@@ -259,17 +261,17 @@ export class WorkflowStatsService {
       // Count tasks that changed status on this date
       const completed = tasks.filter(t => 
         t.status === 'done' && 
-        new Date(t.updatedAt).toDateString() === date.toDateString()
+        new Date(t.updated_at).toDateString() === date.toDateString()
       ).length;
 
       const started = tasks.filter(t => 
         t.status === 'in_progress' && 
-        new Date(t.updatedAt).toDateString() === date.toDateString()
+        new Date(t.updated_at).toDateString() === date.toDateString()
       ).length;
 
       const submitted = tasks.filter(t => 
         t.status === 'submitted_for_approval' && 
-        new Date(t.updatedAt).toDateString() === date.toDateString()
+        new Date(t.updated_at).toDateString() === date.toDateString()
       ).length;
 
       // For approved, we'd need workflow history

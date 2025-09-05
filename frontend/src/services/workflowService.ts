@@ -40,6 +40,13 @@ export interface WorkflowUser {
 }
 
 /**
+ * @description Valid transitions response interface
+ */
+export interface ValidTransitionsResponse {
+  valid_transitions: string[];
+}
+
+/**
  * @description Workflow service class
  */
 export class WorkflowService {
@@ -151,6 +158,59 @@ export class WorkflowService {
       }
       throw new Error('Failed to reject task: Unknown error');
     }
+  }
+
+  /**
+   * @description Get valid transitions for a task
+   * @param taskId - Task ID
+   * @returns Promise with valid transitions
+   */
+  async getValidTransitions(taskId: number): Promise<ValidTransitionsResponse> {
+    try {
+      const response = await api.get<ValidTransitionsResponse>(`/workflow/transitions/${taskId}`);
+      return response.data;
+    } catch (error: any) {
+      // Return default transitions if API fails
+      return {
+        valid_transitions: ['in_progress', 'submitted_for_approval', 'done', 'cancelled']
+      };
+    }
+  }
+
+  /**
+   * @description Get color for a task status
+   * @param status - Task status
+   * @returns Color string
+   */
+  getStatusColor(status: string): string {
+    const statusColors: Record<string, string> = {
+      'todo': 'blue',
+      'assigned': 'blue',
+      'in_progress': 'yellow',
+      'submitted_for_approval': 'purple',
+      'review': 'orange',
+      'done': 'green',
+      'cancelled': 'red'
+    };
+    return statusColors[status] || 'gray';
+  }
+
+  /**
+   * @description Get display name for a task status
+   * @param status - Task status
+   * @returns Display name string
+   */
+  getStatusDisplayName(status: string): string {
+    const statusNames: Record<string, string> = {
+      'todo': 'To Do',
+      'assigned': 'Assigned',
+      'in_progress': 'In Progress',
+      'submitted_for_approval': 'Submitted for Approval',
+      'review': 'Review',
+      'done': 'Done',
+      'cancelled': 'Cancelled'
+    };
+    return statusNames[status] || status;
   }
 }
 

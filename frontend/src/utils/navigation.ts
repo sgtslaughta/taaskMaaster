@@ -100,22 +100,6 @@ export const getNavigationItems = (
       active: activeItemId === 'dashboard',
     },
     {
-      id: 'my-tasks',
-      name: 'My Tasks',
-      icon: UserIcon,
-      href: '/my-tasks',
-      active: activeItemId === 'my-tasks',
-      requiredRoles: ['user', 'organizer', 'admin'], // Available to all authenticated users
-    },
-    {
-      id: 'task-hub',
-      name: 'Task Hub',
-      icon: ClipboardDocumentListIcon,
-      href: '/task-hub',
-      active: activeItemId === 'task-hub',
-      requiredRoles: ['organizer', 'admin'], // Only admins and organizers
-    },
-    {
       id: 'goals',
       name: 'Goals',
       icon: TrophyIcon,
@@ -204,9 +188,6 @@ export const getTaskBadge = (
   if (!taskCounts) return undefined;
 
   switch (itemId) {
-    case 'my-tasks':
-      return taskCounts.myTasks && taskCounts.myTasks > 0 ? taskCounts.myTasks : undefined;
-    // Removed task-hub badge count as requested
     default:
       return undefined;
   }
@@ -240,8 +221,6 @@ export const updateNavigationWithBadges = (
 export const getPageTitle = (itemId: string): string => {
   const titleMap: Record<string, string> = {
     'dashboard': 'Dashboard',
-    'my-tasks': 'My Tasks',
-    'task-hub': 'Task Hub',
     'goals': 'Goals',
     'family': 'Family',
     'achievements': 'Achievements',

@@ -19,10 +19,10 @@ export interface CustomRingProgressProps extends RingProgressProps {
   // Add any custom props here
 }
 
-export const RingProgress = forwardRef<HTMLDivElement, CustomRingProgressProps>(
+export const CustomRingProgress = forwardRef<HTMLDivElement, CustomRingProgressProps>(
   ({ ...props }, ref) => {
     return <RingProgress ref={ref} {...props} />;
   }
 );
 
-RingProgress.displayName = 'RingProgress';
+CustomRingProgress.displayName = 'CustomRingProgress';

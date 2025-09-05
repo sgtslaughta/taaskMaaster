@@ -24,7 +24,6 @@ const navigationData = [
     id: 'tasks',
     initiallyOpened: true,
     links: [
-      { label: 'Task Hub', link: '/task-hub' },
       { label: 'All Tasks', link: '/tasks' },
       { label: 'Templates', link: '/templates' },
     ],
@@ -43,9 +42,10 @@ interface NavbarNestedProps {
     level?: number;
   } | null;
   onLogout?: () => void;
+  hoverMode?: boolean;
 }
 
-export function NavbarNested({ currentPage = 'dashboard', onNavigate, user, onLogout }: NavbarNestedProps) {
+export function NavbarNested({ currentPage = 'dashboard', onNavigate, user, onLogout, hoverMode = false }: NavbarNestedProps) {
   const links = navigationData.map((item) => (
     <LinksGroup
       key={item.label}
@@ -55,6 +55,7 @@ export function NavbarNested({ currentPage = 'dashboard', onNavigate, user, onLo
       links={item.links}
       active={currentPage === item.id}
       onClick={() => onNavigate?.(item.id)}
+      hoverMode={hoverMode}
     />
   ));
 

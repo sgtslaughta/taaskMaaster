@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card,
   Text,
@@ -51,10 +51,9 @@ import {
 } from '@tabler/icons-react';
 import { AppLayout } from '../layout/AppLayout';
 import { gamificationService, goalService, taskService } from '../../services';
-import { workflowStatsService, type WorkflowStats } from '../../services/workflowStatsService';
-import WorkflowStatsCards from '../workflow/WorkflowStatsCards';
 import BlurText from '../ui/BlurText';
 import TaskCalendar from '../calendar/TaskCalendar';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * @description User interface
@@ -72,7 +71,7 @@ interface User {
 /**
  * @description Dashboard statistics interface
  */
-interface DashboardStats {
+export interface DashboardStats {
   totalPoints: number;
   currentLevel: number;
   tasksCompleted: number;
@@ -86,7 +85,7 @@ interface DashboardStats {
 /**
  * @description Recent activity interface
  */
-interface RecentActivity {
+export interface RecentActivity {
   id: string;
   type: 'task_completed' | 'points_earned' | 'achievement_unlocked' | 'goal_reached';
   title: string;
@@ -136,6 +135,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   className,
   isEmbedded = false,
 }) => {
+  // Get authenticated user for permission checking
+  const { user: authUser } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>({
     totalPoints: 0,
@@ -148,7 +149,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     completedGoals: 0,
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [workflowStats, setWorkflowStats] = useState<WorkflowStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any>({
@@ -163,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   /**
    * @description Calculate analytics from task data
    */
-  const calculateAnalytics = (tasks: any[]) => {
+  const calculateAnalytics = useCallback((tasks: any[]) => {
     // Category breakdown
     const categoryMap = new Map();
     const priorityMap = new Map();
@@ -194,7 +194,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }));
 
     const statusFlow = Array.from(statusMap.entries()).map(([name, value]) => ({
-      name: name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      name: name.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
       value,
       percentage: Math.round((value / tasks.length) * 100)
     }));
@@ -227,75 +227,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       timeMetrics,
       trendData: [] // Will be populated with real trend data later
     });
-  };
-
-  /**
-   * @description Load dashboard data
-   */
-  const loadDashboardData = async () => {
-    if (!user?.id) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const userId = parseInt(user.id);
-      
-      // Load gamification stats
-      const gamificationStats = await gamificationService.getDashboardStats(userId);
-      
-      // Load goal stats
-      const goalStats = await goalService.getDashboardGoalStats();
-      
-      // Load task stats (using task service)
-      const taskResponse = await taskService.getTasks();
-      const allTasks = taskResponse.tasks;
-      
-      // Filter to only tasks for current user (created by OR assigned to)
-      const userTasks = allTasks.filter(task => 
-        task.created_by_id === userId || task.assigned_to_id === userId
-      );
-      
-      // Store user tasks for calendar
-      setUserTasks(userTasks);
-      
-      const tasksCompleted = userTasks.filter(t => t.status === 'done').length;
-      const tasksPending = userTasks.filter(t => t.status !== 'done').length;
-
-      // Calculate workflow statistics (use user tasks only)
-      const workflowStatsData = workflowStatsService.calculateWorkflowStats(userTasks);
-      setWorkflowStats(workflowStatsData);
-
-      // Calculate analytics data
-      calculateAnalytics(userTasks);
-
-      // Combine all stats
-      setStats({
-        totalPoints: gamificationStats.totalPoints,
-        currentLevel: gamificationStats.currentLevel,
-        tasksCompleted,
-        tasksPending,
-        streakDays: gamificationStats.streakDays,
-        achievements: gamificationStats.achievements,
-        activeGoals: goalStats.activeGoals,
-        completedGoals: goalStats.completedGoals,
-      });
-
-      // Load recent activity
-      await loadRecentActivity(userId);
-
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, []);
 
   /**
    * @description Load recent activity
    */
-  const loadRecentActivity = async (userId: number) => {
+  const loadRecentActivity = useCallback(async (userId: number) => {
     try {
       const activities: RecentActivity[] = [];
 
@@ -358,14 +295,73 @@ export const Dashboard: React.FC<DashboardProps> = ({
         },
       ]);
     }
-  };
+  }, []);
+
+  /**
+   * @description Load dashboard data
+   */
+  const loadDashboardData = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const userId = parseInt(user.id);
+      
+      // Load gamification stats
+      const gamificationStats = await gamificationService.getDashboardStats(userId);
+      
+      // Load goal stats
+      const goalStats = await goalService.getDashboardGoalStats();
+      
+      // Load task stats (using task service)
+      const taskResponse = await taskService.getTasks();
+      const allTasks = taskResponse.tasks;
+      
+      // Filter to only tasks for current user (created by OR assigned to)
+      const userTasks = allTasks.filter(task => 
+        task.created_by_id === userId || task.assigned_to_id === userId
+      );
+      
+      // Store user tasks for calendar
+      setUserTasks(userTasks);
+      
+      const tasksCompleted = userTasks.filter(t => t.status === 'done').length;
+      const tasksPending = userTasks.filter(t => t.status !== 'done').length;
+
+      // Calculate analytics data
+      calculateAnalytics(userTasks);
+
+      // Combine all stats
+      setStats({
+        totalPoints: gamificationStats.totalPoints,
+        currentLevel: gamificationStats.currentLevel,
+        tasksCompleted,
+        tasksPending,
+        streakDays: gamificationStats.streakDays,
+        achievements: gamificationStats.achievements,
+        activeGoals: goalStats.activeGoals,
+        completedGoals: goalStats.completedGoals,
+      });
+
+      // Load recent activity
+      await loadRecentActivity(userId);
+
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, calculateAnalytics, loadRecentActivity]);
 
   /**
    * @description Load data on component mount
    */
   useEffect(() => {
     loadDashboardData();
-  }, [user?.id]);
+  }, [user?.id, loadDashboardData]);
 
 
   /**
@@ -403,7 +399,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <AppLayout
         currentPage="dashboard"
         onNavigate={(pageId) => onNavigation?.(pageId)}
-        user={user}
+        user={user ? {
+          id: user.id.toString(),
+          username: user.username,
+          email: user.email,
+          role: user.role || 'user',
+          points: undefined,
+          level: undefined
+        } : null}
         onLogout={onLogout}
       >
         {content}
@@ -500,7 +503,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <Box style={{ width: '100%' }}>
         <TaskCalendar 
           tasks={userTasks}
+          currentUser={authUser as any}
           onTaskClick={(task) => console.log('Clicked task:', task.title)}
+          onTaskUpdate={(task) => {
+            // Reload dashboard data when tasks are updated
+            loadDashboardData();
+          }}
         />
       </Box>
 
@@ -569,12 +577,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </Group>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           {analyticsData.timeMetrics.map((metric: any, index: number) => {
-            const IconComponent = {
+            const iconMap: Record<string, any> = {
               'IconClock': IconClock,
               'IconTrendingUp': IconTrendingUp,
               'IconTargetArrow': IconTargetArrow,
               'IconFolderOpen': IconFolderOpen
-            }[metric.icon] || IconClock;
+            };
+            const IconComponent = iconMap[metric.icon] || IconClock;
             
             const TrendIcon = metric.trend === 'up' ? IconArrowUpRight : 
                              metric.trend === 'down' ? IconArrowDownRight : null;
@@ -727,14 +736,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </Grid.Col>
       </Grid>
 
-      {/* Workflow Statistics */}
-      {workflowStats && (
-        <WorkflowStatsCards 
-          stats={workflowStats} 
-          loading={loading}
-        />
-      )}
-
       {/* Quick Actions & Recent Activity */}
       <Grid>
         <Grid.Col span={{ base: 12, md: 8 }}>
@@ -745,7 +746,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 variant="light" 
                 leftSection={<IconCheckbox size={16} />}
                 size="sm"
-                onClick={() => onQuickAction?.('tasks')}
+                onClick={() => onQuickAction?.('new-task')}
               >
                 New Task
               </Button>

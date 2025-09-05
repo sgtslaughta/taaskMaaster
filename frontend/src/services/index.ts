@@ -25,7 +25,6 @@ export * from './listService';
 
 // Workflow and messaging services
 export * from './commentService';
-export * from './workflowService';
 export * from './messagingService';
 export * from './websocketService';
 export * from './notificationService';

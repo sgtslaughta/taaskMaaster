@@ -24,10 +24,17 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Task, TaskStatus, TaskPriority } from '../../services/taskService';
+import { TaskDrawer } from '../tasks/TaskDrawer';
+import { TaskCreateRequest, TaskUpdateRequest } from '../../types/task';
+import { User } from '../../types/user';
+import { taskService } from '../../services';
+import { notifications } from '@mantine/notifications';
 
 interface TaskCalendarProps {
   tasks: Task[];
+  currentUser?: User;
   onTaskClick?: (task: Task) => void;
+  onTaskUpdate?: (task: Task) => void;
   className?: string;
 }
 
@@ -38,15 +45,22 @@ interface TaskEvent {
   isEnd: boolean;
   isMiddle: boolean;
   spanDays: number;
+  dayIndex?: number; // Position within the span
+  weekRow?: number; // Which week row this event is on
+  startCol?: number; // Starting column (0-6)
+  endCol?: number; // Ending column (0-6)
 }
 
-const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, className }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskClick, onTaskUpdate, className }) => {
+  const [currentDate, setCurrentDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [modalOpened, setModalOpened] = useState(false);
+  const [drawerOpened, setDrawerOpened] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view');
   const [dayModalOpened, setDayModalOpened] = useState(false);
   const [selectedDayTasks, setSelectedDayTasks] = useState<TaskEvent[]>([]);
   const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const theme = useMantineTheme();
 
   // Process tasks into calendar events
@@ -99,7 +113,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
     });
     
     return events;
-  }, [tasks, currentDate]); // Add currentDate as dependency
+  }, [tasks, currentDate]);
 
   // Get tasks for a specific date
   const getTasksForDate = (date: Date) => {
@@ -133,7 +147,9 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
   // Handle task click
   const handleTaskClick = (taskEvent: TaskEvent) => {
     setSelectedTask(taskEvent.task);
-    setModalOpened(true);
+    setDrawerMode('view');
+    setDrawerOpened(true);
+    setError('');
     onTaskClick?.(taskEvent.task);
   };
 
@@ -146,15 +162,99 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
     }
   };
 
+  // Handle task save
+  const handleTaskSave = async (taskData: TaskCreateRequest | TaskUpdateRequest) => {
+    try {
+      setLoading(true);
+      setError('');
+      let savedTask;
+
+      if (drawerMode === 'create') {
+        // Create new task
+        const createData = {
+          ...taskData,
+          status: taskData.status as any
+        };
+        savedTask = await taskService.createTask(createData as any);
+        notifications.show({
+          title: 'Success',
+          message: 'Task created successfully!',
+          color: 'green'
+        });
+      } else if (selectedTask) {
+        // If we have a selectedTask, it's an update (regardless of drawerMode)
+        // Update existing task
+        const updateData = {
+          ...taskData,
+          status: taskData.status as any
+        };
+        savedTask = await taskService.updateTask(selectedTask.id, updateData as any);
+        notifications.show({
+          title: 'Success',
+          message: 'Task updated successfully!',
+          color: 'green'
+        });
+      }
+
+      // Trigger cache invalidation by calling onTaskUpdate with the saved task
+      if (savedTask) {
+        onTaskUpdate?.(savedTask);
+      }
+
+      setDrawerOpened(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to save task. Please try again.',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle task delete
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      setLoading(true);
+      await taskService.deleteTask(taskId);
+      notifications.show({
+        title: 'Success',
+        message: 'Task deleted successfully!',
+        color: 'green'
+      });
+      setDrawerOpened(false);
+      onTaskUpdate?.(selectedTask!);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to delete task. Please try again.',
+        color: 'red'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle drawer close
+  const handleDrawerClose = () => {
+    setDrawerOpened(false);
+    setSelectedTask(null);
+    setError('');
+  };
+
   // Navigate months
   const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = dayjs(currentDate).add(direction === 'next' ? 1 : -1, 'month').toDate();
+    const newDate = dayjs(currentDate).add(direction === 'next' ? 1 : -1, 'month').format('YYYY-MM-DD');
     setCurrentDate(newDate);
   };
 
   // Custom day renderer
-  const renderDay = (date: Date) => {
-    const dayTasks = getTasksForDate(date);
+  const renderDay = (date: string) => {
+    const dateObj = dayjs(date).toDate();
+    const dayTasks = getTasksForDate(dateObj);
     const isToday = dayjs(date).format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
     
     return (
@@ -169,7 +269,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
         onClick={(e) => {
           if (dayTasks.length > 0) {
             e.stopPropagation();
-            handleDayClick(date, dayTasks);
+            handleDayClick(dateObj, dayTasks);
           }
         }}
       >
@@ -179,14 +279,13 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
           c={isToday ? 'blue' : 'inherit'}
           mb="xs"
         >
-          {date.getDate()}
+          {dayjs(date).date()}
         </Text>
         
         <div className={classes.taskContainer}>
           {dayTasks.slice(0, 3).map((taskEvent, index) => {
             const task = taskEvent.task;
             const priorityColor = getPriorityColor(task.priority);
-            const statusColor = getStatusColor(task.status);
             const isCompleted = task.status === TaskStatus.DONE;
             
             return (
@@ -201,6 +300,11 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
                     {task.due_date && (
                       <Text size="xs" c="dimmed">
                         Due: {dayjs(task.due_date).format('MMM DD')}
+                      </Text>
+                    )}
+                    {taskEvent.spanDays > 1 && (
+                      <Text size="xs" c="dimmed">
+                        Spans {taskEvent.spanDays} days
                       </Text>
                     )}
                   </div>
@@ -245,7 +349,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
               style={{ cursor: 'pointer', textDecoration: 'underline' }}
               onClick={(e) => {
                 e.stopPropagation();
-                handleDayClick(date, dayTasks);
+                handleDayClick(dateObj, dayTasks);
               }}
             >
               +{dayTasks.length - 3} more
@@ -293,17 +397,11 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
         <Calendar
           key={`calendar-${dayjs(currentDate).format('YYYY-MM')}`} // Force re-render on month change
           date={currentDate} // Control the displayed month
-          value={currentDate}
-          onChange={setCurrentDate}
+          onDateChange={(date: string) => setCurrentDate(date)}
           size="lg"
           renderDay={renderDay}
-          classNames={{
-            calendar: classes.calendar
-          }}
+          classNames={{}}
           styles={{
-            calendar: {
-              width: '100%'
-            },
             month: {
               width: '100%'
             },
@@ -320,7 +418,9 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
               height: '80px',
               padding: '4px',
               minWidth: '120px',
-              width: '14.28%'
+              width: '14.28%',
+              overflow: 'visible',
+              position: 'relative'
             },
             calendarHeader: {
               display: 'none'
@@ -329,72 +429,6 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
         />
       </Box>
 
-      {/* Task Detail Modal */}
-      <Modal
-        opened={modalOpened}
-        onClose={() => setModalOpened(false)}
-        title={
-          <Group gap="sm">
-            <IconFlag color={selectedTask ? getPriorityColor(selectedTask.priority) : 'gray'} size={16} />
-            <Text fw={500}>{selectedTask?.title}</Text>
-          </Group>
-        }
-        size="md"
-      >
-        {selectedTask && (
-          <Stack gap="md">
-            <Group justify="space-between">
-              <Badge color={getStatusColor(selectedTask.status)} variant="light">
-                {selectedTask.status.replace('_', ' ').toUpperCase()}
-              </Badge>
-              <Badge color={getPriorityColor(selectedTask.priority)} variant="outline">
-                {selectedTask.priority.toUpperCase()} PRIORITY
-              </Badge>
-            </Group>
-
-            {selectedTask.description && (
-              <div>
-                <Text size="sm" fw={500} mb="xs">Description</Text>
-                <Text size="sm" c="dimmed">{selectedTask.description}</Text>
-              </div>
-            )}
-
-            <Group>
-              <div>
-                <Text size="xs" c="dimmed" mb="2px">Created</Text>
-                <Group gap="xs">
-                  <IconClock size={14} />
-                  <Text size="sm">{dayjs(selectedTask.created_at).format('MMM DD, YYYY')}</Text>
-                </Group>
-              </div>
-
-              {selectedTask.due_date && (
-                <div>
-                  <Text size="xs" c="dimmed" mb="2px">Due Date</Text>
-                  <Group gap="xs">
-                    <IconCalendar size={14} />
-                    <Text size="sm">{dayjs(selectedTask.due_date).format('MMM DD, YYYY')}</Text>
-                  </Group>
-                </div>
-              )}
-            </Group>
-
-            {selectedTask.points && (
-              <div>
-                <Text size="xs" c="dimmed" mb="2px">Points</Text>
-                <Text size="sm" fw={500}>{selectedTask.points} points</Text>
-              </div>
-            )}
-
-            {selectedTask.estimated_hours && (
-              <div>
-                <Text size="xs" c="dimmed" mb="2px">Estimated Hours</Text>
-                <Text size="sm">{selectedTask.estimated_hours}h</Text>
-              </div>
-            )}
-          </Stack>
-        )}
-      </Modal>
 
       {/* Day Tasks Modal */}
       <Modal
@@ -414,7 +448,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
         }
         size="md"
       >
-        <ScrollArea.Autosize maxHeight={400}>
+        <ScrollArea h={400}>
           <Stack gap="sm">
             {selectedDayTasks.map((taskEvent, index) => {
               const task = taskEvent.task;
@@ -507,8 +541,21 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, onTaskClick, classNa
               );
             })}
           </Stack>
-        </ScrollArea.Autosize>
+        </ScrollArea>
       </Modal>
+
+      {/* Task Drawer */}
+      <TaskDrawer
+        opened={drawerOpened}
+        onClose={handleDrawerClose}
+        task={selectedTask as any}
+        currentUser={currentUser}
+        mode={drawerMode}
+        onSave={handleTaskSave}
+        onDelete={handleTaskDelete}
+        loading={loading}
+        error={error}
+      />
     </Card>
   );
 };

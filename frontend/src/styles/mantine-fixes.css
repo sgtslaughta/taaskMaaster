@@ -1,0 +1,110 @@
+/**
+ * @fileoverview Mantine CSS fixes
+ * @description Overrides to fix Mantine CSS calc() warnings
+ * @author TaaskMaaster Team
+ * @version 1.0.0
+ */
+
+/* Fix Mantine scale variable to prevent calc() warnings */
+:root {
+  --mantine-scale: 1;
+}
+
+/* Override all Mantine calc() expressions with fixed values */
+* {
+  /* This is a more aggressive approach to prevent calc() warnings */
+  --mantine-scale: 1 !important;
+}
+
+/* Ensure all Mantine components use fixed values instead of calc() */
+.mantine-ActionIcon-root,
+.mantine-Button-root,
+.mantine-Input-root,
+.mantine-Select-root,
+.mantine-TextInput-root,
+.mantine-NumberInput-root,
+.mantine-PasswordInput-root,
+.mantine-Textarea-root,
+.mantine-Checkbox-root,
+.mantine-Radio-root,
+.mantine-Switch-root,
+.mantine-Slider-root,
+.mantine-Rating-root,
+.mantine-Modal-root,
+.mantine-Drawer-root,
+.mantine-Popover-root,
+.mantine-Tooltip-root,
+.mantine-Notification-root {
+  /* Force override any calc() expressions */
+  width: auto !important;
+  height: auto !important;
+  min-width: auto !important;
+  min-height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Fix specific ActionIcon calc() issues */
+.mantine-ActionIcon-root {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+/* Fix Icon calc() issues if they occur */
+.mantine-ActionIcon-root svg,
+.mantine-Button-leftSection svg,
+.mantine-Button-rightSection svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Ensure consistent sizing across different icon contexts */
+.tabler-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Additional fixes for Mantine components that use calc() with --mantine-scale */
+.mantine-ActionIcon-root,
+.mantine-Button-root,
+.mantine-Input-root,
+.mantine-Select-root,
+.mantine-TextInput-root,
+.mantine-NumberInput-root,
+.mantine-PasswordInput-root,
+.mantine-Textarea-root,
+.mantine-Checkbox-root,
+.mantine-Radio-root,
+.mantine-Switch-root,
+.mantine-Slider-root,
+.mantine-Rating-root {
+  /* Override any calc() expressions that might cause warnings */
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Fix for specific Mantine components that commonly use calc() */
+.mantine-ActionIcon-root[data-size="xs"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+}
+
+.mantine-ActionIcon-root[data-size="sm"] {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+.mantine-ActionIcon-root[data-size="md"] {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+}
+
+.mantine-ActionIcon-root[data-size="lg"] {
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+.mantine-ActionIcon-root[data-size="xl"] {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+}

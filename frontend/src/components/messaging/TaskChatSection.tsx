@@ -9,51 +9,51 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Paper,
-  Typography,
-  TextField,
-  IconButton,
+  Text,
+  TextInput,
+  Textarea,
+  ActionIcon,
   Avatar,
   Chip,
   Badge,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
   Divider,
   Tooltip,
   Alert,
   Skeleton,
-  Fade,
+  Transition,
   Menu,
-  MenuItem,
-  useTheme
-} from '@mui/material';
+  Group,
+  Stack,
+  ScrollArea,
+  useMantineTheme
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
-  Send as SendIcon,
-  AttachFile as AttachIcon,
-  EmojiEmotions as EmojiIcon,
-  PushPin as PinIcon,
-  MoreVert as MoreIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Reply as ReplyIcon,
-  Image as ImageIcon,
-  VideoFile as VideoIcon,
-  AudioFile as AudioIcon,
-  Description as FileIcon,
-  Group as GroupIcon,
-  Notifications as NotifyIcon
-} from '@mui/icons-material';
+  IconSend as SendIcon,
+  IconPaperclip as AttachIcon,
+  IconMoodSmile as EmojiIcon,
+  IconPin as PinIcon,
+  IconDots as MoreIcon,
+  IconEdit as EditIcon,
+  IconTrash as DeleteIcon,
+  IconCornerDownLeft as ReplyIcon,
+  IconPhoto as ImageIcon,
+  IconVideo as VideoIcon,
+  IconMusic as AudioIcon,
+  IconFile as FileIcon,
+  IconUsers as GroupIcon,
+  IconBell as NotifyIcon
+} from '@tabler/icons-react';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 
 import { TaskChatMessage } from '../../types/messaging';
 import { Task } from '../../types/task';
-import { User } from '../../types/user';
+import { User, OnlineStatus } from '../../types/user';
 import { MediaAttachment } from '../../types/media';
-import { messagingService } from '../../services/messagingService';
+import { messagingService, MessageResponse } from '../../services/messagingService';
 import { mediaService } from '../../services/mediaService';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { MediaUploader } from '../common/MediaUploader';
+// import MediaUploader from '../common/MediaUploader'; // Removed - common directory deleted
 
 interface TaskChatSectionProps {
   task: Task;
@@ -80,8 +80,9 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
   showTypingIndicators = true,
   autoScrollToBottom = true
 }) => {
-  const theme = useTheme();
-  const { subscribe, unsubscribe, send, isConnected } = useWebSocket();
+  const theme = useMantineTheme();
+  const { subscribe, sendMessage, isConnected } = useWebSocket();
+  const [menuOpened, { open: openMenu, close: closeMenu }] = useDisclosure(false);
   
   const [messages, setMessages] = useState<ChatMessageWithActions[]>([]);
   const [participants, setParticipants] = useState<User[]>([]);
@@ -99,19 +100,13 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     if (autoScrollToBottom && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [autoScrollToBottom]);
-
-  // Load chat data on mount
-  useEffect(() => {
-    loadTaskChat();
-    loadParticipants();
-  }, [task.id]);
 
   // Periodic message polling for synchronization
   useEffect(() => {
@@ -186,29 +181,29 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
       }
     };
 
-    subscribe('task_message_created', handleNewMessage);
-    subscribe('task_message_updated', handleMessageUpdated);
-    subscribe('task_message_deleted', handleMessageDeleted);
-    subscribe('user_typing_task', handleTypingUpdate);
-    subscribe('task_participant_joined', handleParticipantJoined);
-    subscribe('task_participant_left', handleParticipantLeft);
+    const unsubscribeNewMessage = subscribe('task_message_created', handleNewMessage);
+    const unsubscribeMessageUpdated = subscribe('task_message_updated', handleMessageUpdated);
+    const unsubscribeMessageDeleted = subscribe('task_message_deleted', handleMessageDeleted);
+    const unsubscribeTyping = subscribe('user_typing_task', handleTypingUpdate);
+    const unsubscribeParticipantJoined = subscribe('task_participant_joined', handleParticipantJoined);
+    const unsubscribeParticipantLeft = subscribe('task_participant_left', handleParticipantLeft);
 
     return () => {
-      unsubscribe('task_message_created', handleNewMessage);
-      unsubscribe('task_message_updated', handleMessageUpdated);
-      unsubscribe('task_message_deleted', handleMessageDeleted);
-      unsubscribe('user_typing_task', handleTypingUpdate);
-      unsubscribe('task_participant_joined', handleParticipantJoined);
-      unsubscribe('task_participant_left', handleParticipantLeft);
+      unsubscribeNewMessage();
+      unsubscribeMessageUpdated();
+      unsubscribeMessageDeleted();
+      unsubscribeTyping();
+      unsubscribeParticipantJoined();
+      unsubscribeParticipantLeft();
     };
-  }, [task.id, currentUser.id, showTypingIndicators, subscribe, unsubscribe, scrollToBottom]);
+  }, [task.id, currentUser.id, showTypingIndicators, subscribe, scrollToBottom]);
 
   // Auto-scroll when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, scrollToBottom]);
 
-  const loadTaskChat = async () => {
+  const loadTaskChat = useCallback(async () => {
     try {
       setLoading(true);
       const response = await messagingService.getTaskChatMessages(task.id, {
@@ -225,16 +220,22 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [task.id]);
 
-  const loadParticipants = async () => {
+  const loadParticipants = useCallback(async () => {
     try {
       const response = await messagingService.getTaskChatParticipants(task.id);
       setParticipants(response.participants);
     } catch (err) {
       console.error('Failed to load participants:', err);
     }
-  };
+  }, [task.id]);
+
+  // Load chat data on mount
+  useEffect(() => {
+    loadTaskChat();
+    loadParticipants();
+  }, [task.id, loadTaskChat, loadParticipants]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() && selectedMedia.length === 0) return;
@@ -256,10 +257,10 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
 
       // Extract mentions from message content
       const mentionRegex = /@(\w+)/g;
-      const mentions = [];
-      let match;
+      const mentions: number[] = [];
+      let match: RegExpExecArray | null;
       while ((match = mentionRegex.exec(messageContent)) !== null) {
-        const mentionedUser = participants.find(p => p.username === match[1]);
+        const mentionedUser = participants.find(p => p.username === match![1]);
         if (mentionedUser) {
           mentions.push(mentionedUser.id);
         }
@@ -273,7 +274,7 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
         sender: currentUser,
         content: messageContent,
         media_attachments: mediaAttachments,
-        reply_to_message_id: replyingTo,
+        reply_to_message_id: replyingTo || undefined,
         mentioned_users: mentions.map(id => participants.find(p => p.id === id)).filter(Boolean) as User[],
         is_pinned: false,
         is_edited: false,
@@ -293,23 +294,25 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
       const messageData = {
         task_id: task.id,
         content: messageContent,
-        reply_to_message_id: replyingTo,
+        reply_to_message_id: replyingTo || undefined,
         media_attachments: mediaAttachments.map(media => media.id),
         mentioned_user_ids: mentions
       };
 
-      const sentMessage = await messagingService.sendTaskChatMessage(messageData);
+      const response = await messagingService.sendTaskChatMessage(messageData);
       
       // Replace optimistic message with real message from server
       setMessages(prev => prev.map(msg => 
-        msg.id === tempId ? sentMessage : msg
+        msg.id === tempId ? response.message as TaskChatMessage : msg
       ));
       
       // Send typing stopped event
-      send({
+      sendMessage({
         type: 'typing_stopped_task',
-        task_id: task.id,
-        user_id: currentUser.id
+        data: {
+          task_id: task.id,
+          user_id: currentUser.id
+        }
       });
 
     } catch (err) {
@@ -336,7 +339,7 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
   const handleDeleteMessage = async (messageId: number) => {
     try {
       await messagingService.deleteTaskChatMessage(messageId);
-      setAnchorEl(null);
+      closeMenu();
       setSelectedMessageId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete message');
@@ -349,7 +352,7 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
       setMessages(prev => prev.map(msg => 
         msg.id === messageId ? { ...msg, isPinned: true } : msg
       ));
-      setAnchorEl(null);
+      closeMenu();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to pin message');
     }
@@ -381,10 +384,12 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     
     // Send typing indicator
     if (showTypingIndicators && value.trim()) {
-      send({
+      sendMessage({
         type: 'typing_started_task',
-        task_id: task.id,
-        user_id: currentUser.id
+        data: {
+          task_id: task.id,
+          user_id: currentUser.id
+        }
       });
 
       // Clear previous timeout
@@ -394,10 +399,12 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
 
       // Set timeout to send typing stopped
       typingTimeoutRef.current = setTimeout(() => {
-        send({
+        sendMessage({
           type: 'typing_stopped_task',
-          task_id: task.id,
-          user_id: currentUser.id
+          data: {
+            task_id: task.id,
+            user_id: currentUser.id
+          }
         });
       }, 3000);
     }
@@ -431,10 +438,10 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
   };
 
   const getMediaIcon = (mediaType: string) => {
-    if (mediaType.startsWith('image/')) return <ImageIcon />;
-    if (mediaType.startsWith('video/')) return <VideoIcon />;
-    if (mediaType.startsWith('audio/')) return <AudioIcon />;
-    return <FileIcon />;
+    if (mediaType.startsWith('image/')) return <ImageIcon size={16} />;
+    if (mediaType.startsWith('video/')) return <VideoIcon size={16} />;
+    if (mediaType.startsWith('audio/')) return <AudioIcon size={16} />;
+    return <FileIcon size={16} />;
   };
 
   const renderMessage = (message: ChatMessageWithActions) => {
@@ -442,46 +449,44 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     const sender = message.sender;
 
     return (
-      <Box
+      <Group
         key={message.id}
-        sx={{
-          display: 'flex',
-          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-          mb: 1,
-          position: 'relative'
-        }}
+        justify={isOwnMessage ? 'flex-end' : 'flex-start'}
+        mb="xs"
+        align="flex-start"
+        style={{ position: 'relative' }}
       >
         {!isOwnMessage && (
           <Avatar
-            sx={{ width: 32, height: 32, mr: 1 }}
-            src={sender?.avatar}
+            size={32}
+            src={sender?.avatar_url}
+            radius="xl"
           >
-            {sender?.firstName?.[0] || sender?.username[0]}
+            {sender?.first_name?.[0] || sender?.username[0]}
           </Avatar>
         )}
 
         <Paper
-          elevation={1}
-          sx={{
+          p="md"
+          style={{
             maxWidth: '70%',
             minWidth: 120,
-            p: 1.5,
-            bgcolor: isOwnMessage ? theme.palette.primary.main : 'background.paper',
-            color: isOwnMessage ? 'white' : 'text.primary',
+            backgroundColor: isOwnMessage ? theme.colors.primary[6] : theme.colors.gray[1],
+            color: isOwnMessage ? 'white' : theme.colors.dark[7],
             borderRadius: isOwnMessage ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
             position: 'relative'
           }}
         >
           {/* Pin indicator */}
           {message.isPinned && (
-            <Tooltip title="Pinned message">
+            <Tooltip label="Pinned message">
               <PinIcon 
-                sx={{ 
+                size={16}
+                style={{ 
                   position: 'absolute',
                   top: -8,
                   right: -8,
-                  fontSize: 16,
-                  color: theme.palette.warning.main
+                  color: theme.colors.yellow[6]
                 }} 
               />
             </Tooltip>
@@ -489,63 +494,102 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
 
           {/* Reply indicator */}
           {message.reply_to_message_id && (
-            <Box sx={{ 
-              mb: 1, 
-              p: 0.5, 
-              bgcolor: isOwnMessage ? 'rgba(255,255,255,0.1)' : 'action.hover',
-              borderRadius: 1,
-              borderLeft: 3,
-              borderColor: 'primary.main'
-            }}>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+            <Box 
+              mb="xs"
+              p="xs"
+              style={{
+                backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.1)' : theme.colors.gray[2],
+                borderRadius: theme.radius.sm,
+                borderLeft: `3px solid ${theme.colors.primary[6]}`
+              }}
+            >
+              <Text size="xs" style={{ opacity: 0.8 }}>
                 Replying to message...
-              </Typography>
+              </Text>
             </Box>
           )}
 
           {/* Message Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontWeight: 600,
-                opacity: isOwnMessage ? 0.9 : 0.7
-              }}
+          <Group justify="space-between" align="center" mb="xs">
+            <Text 
+              size="xs"
+              fw={600}
+              style={{ opacity: isOwnMessage ? 0.9 : 0.7 }}
             >
-              {isOwnMessage ? 'You' : sender?.firstName || sender?.username}
-            </Typography>
+              {isOwnMessage ? 'You' : sender?.first_name || sender?.username}
+            </Text>
             
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography 
-                variant="caption" 
-                sx={{ opacity: isOwnMessage ? 0.8 : 0.6 }}
+            <Group gap="xs" align="center">
+              <Text 
+                size="xs"
+                style={{ opacity: isOwnMessage ? 0.8 : 0.6 }}
               >
                 {formatMessageTime(message.created_at)}
-              </Typography>
+              </Text>
               
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  setAnchorEl(e.currentTarget);
-                  setSelectedMessageId(message.id);
-                }}
-                sx={{ 
-                  color: 'inherit', 
-                  opacity: 0.7,
-                  '&:hover': { opacity: 1 }
-                }}
-              >
-                <MoreIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          </Box>
+              <Menu opened={menuOpened} onClose={closeMenu}>
+                <Menu.Target>
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    style={{ 
+                      color: 'inherit', 
+                      opacity: 0.7
+                    }}
+                    onClick={(e) => {
+                      setAnchorEl(e.currentTarget);
+                      setSelectedMessageId(message.id);
+                      openMenu();
+                    }}
+                  >
+                    <MoreIcon size={16} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item 
+                    leftSection={<ReplyIcon size={16} />}
+                    onClick={() => {
+                      setReplyingTo(message.id);
+                      closeMenu();
+                    }}
+                  >
+                    Reply
+                  </Menu.Item>
+                  <Menu.Item 
+                    leftSection={<PinIcon size={16} />}
+                    onClick={() => handlePinMessage(message.id)}
+                  >
+                    Pin Message
+                  </Menu.Item>
+                  {message.sender_id === currentUser.id && (
+                    <>
+                      <Menu.Item 
+                        leftSection={<EditIcon size={16} />}
+                        onClick={() => {
+                          setEditingMessage(message.id);
+                          closeMenu();
+                        }}
+                      >
+                        Edit
+                      </Menu.Item>
+                      <Menu.Item 
+                        leftSection={<DeleteIcon size={16} />}
+                        color="red"
+                        onClick={() => handleDeleteMessage(message.id)}
+                      >
+                        Delete
+                      </Menu.Item>
+                    </>
+                  )}
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
+          </Group>
 
           {/* Message Content */}
           {editingMessage === message.id ? (
-            <TextField
-              multiline
-              fullWidth
-              size="small"
+            <Textarea
+              autosize
               defaultValue={message.content}
               onBlur={(e) => handleEditMessage(message.id, e.target.value)}
               onKeyPress={(e) => {
@@ -556,9 +600,9 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
               autoFocus
             />
           ) : (
-            <Typography 
-              variant="body2"
-              sx={{ 
+            <Text 
+              size="sm"
+              style={{ 
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word'
               }}
@@ -568,65 +612,67 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
                 part.startsWith('@') ? (
                   <Chip
                     key={index}
-                    label={part}
-                    size="small"
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      height: 20,
-                      bgcolor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'primary.light',
-                      color: isOwnMessage ? 'inherit' : 'primary.contrastText'
+                    size="xs"
+                    style={{ 
+                      backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : theme.colors.primary[1],
+                      color: isOwnMessage ? 'inherit' : theme.colors.primary[7]
                     }}
-                  />
+                  >
+                    {part}
+                  </Chip>
                 ) : part
               )}
-            </Typography>
+            </Text>
           )}
 
           {/* Media Attachments */}
           {message.media_attachments && message.media_attachments.length > 0 && (
-            <Box sx={{ mt: 1 }}>
+            <Group mt="xs" gap="xs">
               {message.media_attachments.map((media, index) => (
                 <Chip
                   key={index}
-                  icon={getMediaIcon(media.mime_type)}
-                  label={media.filename}
-                  size="small"
+                  size="sm"
                   onClick={() => mediaService.downloadMedia(media.id)}
-                  sx={{ 
-                    mr: 0.5, 
-                    mb: 0.5,
-                    bgcolor: isOwnMessage ? 'rgba(255,255,255,0.2)' : 'action.hover'
+                  style={{ 
+                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.2)' : theme.colors.gray[2],
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  <Group gap="xs">
+                    {getMediaIcon(media.mime_type)}
+                    {media.filename}
+                  </Group>
+                </Chip>
               ))}
-            </Box>
+            </Group>
           )}
 
           {/* Reply Button */}
-          <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'flex-end' }}>
-            <IconButton
-              size="small"
+          <Group justify="flex-end" mt="xs">
+            <ActionIcon
+              size="sm"
+              variant="subtle"
               onClick={() => setReplyingTo(message.id)}
-              sx={{ 
+              style={{ 
                 color: 'inherit', 
-                opacity: 0.6,
-                '&:hover': { opacity: 1 }
+                opacity: 0.6
               }}
             >
-              <ReplyIcon fontSize="small" />
-            </IconButton>
-          </Box>
+              <ReplyIcon size={16} />
+            </ActionIcon>
+          </Group>
         </Paper>
 
         {isOwnMessage && (
           <Avatar
-            sx={{ width: 32, height: 32, ml: 1 }}
-            src={currentUser.avatar}
+            size={32}
+            src={currentUser.avatar_url}
+            radius="xl"
           >
-            {currentUser.firstName?.[0] || currentUser.username[0]}
+            {currentUser.first_name?.[0] || currentUser.username[0]}
           </Avatar>
         )}
-      </Box>
+      </Group>
     );
   };
 
@@ -634,34 +680,36 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     if (!showTypingIndicators || typingUsers.length === 0) return null;
 
     return (
-      <Fade in={true}>
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 1, opacity: 0.7 }}>
-          <Avatar sx={{ width: 24, height: 24, mr: 1 }}>
-            {typingUsers[0].firstName?.[0] || typingUsers[0].username[0]}
-          </Avatar>
-          <Typography variant="caption">
-            {typingUsers.length === 1 
-              ? `${typingUsers[0].firstName || typingUsers[0].username} is typing...`
-              : `${typingUsers.length} people are typing...`
-            }
-          </Typography>
-          <Box sx={{ ml: 1, display: 'flex', gap: 0.2 }}>
-            {[0, 1, 2].map(i => (
-              <Box
-                key={i}
-                sx={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: '50%',
-                  bgcolor: 'text.secondary',
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.2}s`
-                }}
-              />
-            ))}
-          </Box>
-        </Box>
-      </Fade>
+      <Transition mounted={true} transition="slide-up" duration={200}>
+        {(styles) => (
+          <Group p="sm" style={{ ...styles, opacity: 0.7 }}>
+            <Avatar size={24} radius="xl">
+              {typingUsers[0].first_name?.[0] || typingUsers[0].username[0]}
+            </Avatar>
+            <Text size="xs">
+              {typingUsers.length === 1 
+                ? `${typingUsers[0].first_name || typingUsers[0].username} is typing...`
+                : `${typingUsers.length} people are typing...`
+              }
+            </Text>
+            <Group gap="xs">
+              {[0, 1, 2].map(i => (
+                <Box
+                  key={i}
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: '50%',
+                    backgroundColor: theme.colors.gray[6],
+                    animation: 'pulse 1.4s ease-in-out infinite',
+                    animationDelay: `${i * 0.2}s`
+                  }}
+                />
+              ))}
+            </Group>
+          </Group>
+        )}
+      </Transition>
     );
   };
 
@@ -669,68 +717,67 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
     if (!showParticipants) return null;
 
     return (
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <GroupIcon fontSize="small" />
-          <Typography variant="subtitle2">
+      <Box p="md" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+        <Group gap="sm" mb="sm">
+          <GroupIcon size={16} />
+          <Text size="sm" fw={500}>
             Participants ({participants.length})
-          </Typography>
+          </Text>
           {!isConnected && (
-            <Chip size="small" label="Offline" color="error" variant="outlined" />
+            <Chip size="xs" color="red" variant="outline">Offline</Chip>
           )}
-        </Box>
+        </Group>
         
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        <Group gap="xs">
           {participants.map((participant) => (
             <Tooltip
               key={participant.id}
-              title={`${participant.firstName} ${participant.lastName}`.trim() || participant.username}
+              label={`${participant.first_name} ${participant.last_name}`.trim() || participant.username}
             >
               <Badge
-                color="success"
+                color={participant.online_status === OnlineStatus.ONLINE ? "green" : "gray"}
                 variant="dot"
-                invisible={!participant.is_online}
+                size="sm"
               >
                 <Avatar
-                  sx={{ width: 32, height: 32 }}
-                  src={participant.avatar}
+                  size={32}
+                  src={participant.avatar_url}
+                  radius="xl"
                 >
-                  {participant.firstName?.[0] || participant.username[0]}
+                  {participant.first_name?.[0] || participant.username[0]}
                 </Avatar>
               </Badge>
             </Tooltip>
           ))}
-        </Box>
+        </Group>
       </Box>
     );
   };
 
   if (loading) {
     return (
-      <Box sx={{ p: 2 }}>
-        <Skeleton variant="rectangular" height={60} sx={{ mb: 2 }} />
+      <Box p="md">
+        <Skeleton height={60} mb="md" />
         {[1, 2, 3].map((item) => (
-          <Box key={item} sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Skeleton variant="circular" width={32} height={32} />
-            <Box sx={{ ml: 1, flex: 1 }}>
-              <Skeleton variant="rectangular" height={60} />
-            </Box>
-          </Box>
+          <Group key={item} align="flex-start" mb="md">
+            <Skeleton circle height={32} />
+            <Skeleton height={60} flex={1} />
+          </Group>
         ))}
       </Box>
     );
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Stack h="100%" gap={0}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">
+      <Box p="md" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+        <Text fw={600} size="lg">
           Task Discussion
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
+        </Text>
+        <Text size="sm" c="dimmed">
           {task.title}
-        </Typography>
+        </Text>
       </Box>
 
       {/* Participants */}
@@ -738,171 +785,149 @@ const TaskChatSection: React.FC<TaskChatSectionProps> = ({
 
       {/* Error Alert */}
       {error && (
-        <Alert severity="error" onClose={() => setError(null)} sx={{ m: 1 }}>
+        <Alert title="Error" color="red" onClose={() => setError(null)} m="sm">
           {error}
         </Alert>
       )}
 
       {/* Messages Container */}
-      <Box 
-        sx={{ 
-          flex: 1,
-          overflowY: 'auto',
-          maxHeight,
-          p: 1
-        }}
+      <ScrollArea 
+        flex={1}
+        style={{ maxHeight }}
+        p="sm"
       >
         {messages.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="textSecondary">
+          <Stack align="center" py="xl">
+            <Text c="dimmed" ta="center">
               No messages yet. Start the discussion!
-            </Typography>
-          </Box>
+            </Text>
+          </Stack>
         ) : (
           messages.map(renderMessage)
         )}
 
         {renderTypingIndicators()}
         <div ref={messagesEndRef} />
-      </Box>
+      </ScrollArea>
 
       {/* Reply Indicator */}
       {replyingTo && (
-        <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
-          <Typography variant="caption" color="textSecondary">
-            Replying to message...
-            <IconButton 
-              size="small" 
+        <Box px="md" py="sm" style={{ backgroundColor: theme.colors.gray[1] }}>
+          <Group justify="space-between">
+            <Text size="xs" c="dimmed">
+              Replying to message...
+            </Text>
+            <ActionIcon 
+              size="sm" 
               onClick={() => setReplyingTo(null)}
-              sx={{ ml: 1 }}
             >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Typography>
+              <DeleteIcon size={16} />
+            </ActionIcon>
+          </Group>
         </Box>
       )}
 
       {/* Mention Suggestions */}
       {showMentions && (
-        <Box sx={{ mx: 2, mb: 1 }}>
-          <Paper elevation={2} sx={{ maxHeight: 150, overflow: 'auto' }}>
-            <List dense>
-              {mentionSuggestions.map((user) => (
-                <ListItem
-                  key={user.id}
-                  button
-                  onClick={() => handleMentionSelect(user)}
-                >
-                  <ListItemAvatar>
-                    <Avatar sx={{ width: 24, height: 24 }} src={user.avatar}>
-                      {user.firstName?.[0] || user.username[0]}
+        <Box mx="md" mb="sm">
+          <Paper shadow="md" style={{ maxHeight: 150 }}>
+            <ScrollArea>
+              <Stack gap={0}>
+                {mentionSuggestions.map((user) => (
+                  <Group
+                    key={user.id}
+                    p="sm"
+                    gap="sm"
+                    onClick={() => handleMentionSelect(user)}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = theme.colors.gray[0];
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Avatar size={24} src={user.avatar_url} radius="xl">
+                      {user.first_name?.[0] || user.username[0]}
                     </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={`@${user.username}`}
-                    secondary={`${user.firstName} ${user.lastName}`.trim()}
-                  />
-                </ListItem>
-              ))}
-            </List>
+                    <Stack gap={0}>
+                      <Text size="sm">@{user.username}</Text>
+                      <Text size="xs" c="dimmed">
+                        {`${user.first_name} ${user.last_name}`.trim()}
+                      </Text>
+                    </Stack>
+                  </Group>
+                ))}
+              </Stack>
+            </ScrollArea>
           </Paper>
         </Box>
       )}
 
       {/* Input Area */}
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+      <Box p="md" style={{ borderTop: `1px solid ${theme.colors.gray[3]}` }}>
+        <Group align="flex-end" gap="sm">
           {allowMediaUpload && (
-            <MediaUploader
+            /* <MediaUploader
               onFilesSelected={setSelectedMedia}
               maxFiles={5}
               acceptedTypes={['image/*', 'video/*', 'audio/*', '.pdf', '.doc', '.docx']}
-            >
-              <IconButton size="small" color="primary">
-                <AttachIcon />
-              </IconButton>
-            </MediaUploader>
+            >*/
+              <ActionIcon size="sm" color="primary">
+                <AttachIcon size={16} />
+              </ActionIcon>
+            /* </MediaUploader> */
           )}
 
-          <TextField
+          <Textarea
             ref={inputRef}
-            multiline
-            maxRows={4}
-            fullWidth
-            size="small"
             placeholder="Type a message... Use @username to mention someone"
             value={newMessage}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyPress={handleKeyPress}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '20px'
-              }
-            }}
+            flex={1}
+            radius="xl"
+            autosize
+            maxRows={4}
           />
 
-          <IconButton
+          <ActionIcon
             color="primary"
             onClick={handleSendMessage}
             disabled={!newMessage.trim() && selectedMedia.length === 0}
           >
-            <SendIcon />
-          </IconButton>
-        </Box>
+            <SendIcon size={16} />
+          </ActionIcon>
+        </Group>
 
         {/* Selected Media Preview */}
         {selectedMedia.length > 0 && (
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Group mt="sm" gap="xs">
             {selectedMedia.map((file, index) => (
-              <Chip
-                key={index}
-                icon={getMediaIcon(file.type)}
-                label={file.name}
-                onDelete={() => setSelectedMedia(prev => prev.filter((_, i) => i !== index))}
-                size="small"
-              />
+              <Group key={index} gap="xs" style={{ position: 'relative' }}>
+                <Chip
+                  size="sm"
+                >
+                  <Group gap="xs">
+                    {getMediaIcon(file.type)}
+                    {file.name}
+                  </Group>
+                </Chip>
+                <ActionIcon
+                  size="xs"
+                  color="red"
+                  variant="subtle"
+                  onClick={() => setSelectedMedia(prev => prev.filter((_, i) => i !== index))}
+                  style={{ position: 'absolute', top: -5, right: -5 }}
+                >
+                  ×
+                </ActionIcon>
+              </Group>
             ))}
-          </Box>
+          </Group>
         )}
       </Box>
-
-      {/* Message Options Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-      >
-        <MenuItem onClick={() => {
-          setReplyingTo(selectedMessageId);
-          setAnchorEl(null);
-        }}>
-          <ReplyIcon sx={{ mr: 1 }} fontSize="small" />
-          Reply
-        </MenuItem>
-        <MenuItem onClick={() => selectedMessageId && handlePinMessage(selectedMessageId)}>
-          <PinIcon sx={{ mr: 1 }} fontSize="small" />
-          Pin Message
-        </MenuItem>
-        {messages.find(m => m.id === selectedMessageId)?.sender_id === currentUser.id && (
-          <>
-            <MenuItem onClick={() => {
-              setEditingMessage(selectedMessageId);
-              setAnchorEl(null);
-            }}>
-              <EditIcon sx={{ mr: 1 }} fontSize="small" />
-              Edit
-            </MenuItem>
-            <MenuItem 
-              onClick={() => selectedMessageId && handleDeleteMessage(selectedMessageId)}
-              sx={{ color: 'error.main' }}
-            >
-              <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
-              Delete
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-    </Box>
+    </Stack>
   );
 };
 

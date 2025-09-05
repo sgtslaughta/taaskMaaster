@@ -91,7 +91,12 @@ const BlurText: React.FC<BlurTextProps> = ({
       {elements.map((segment, index) => {
         const animateKeyframes = buildKeyframes(fromSnapshot, toSnapshots);
 
-        const spanTransition = {
+        const spanTransition: {
+          duration: number;
+          times: number[];
+          delay: number;
+          ease?: (t: number) => number;
+        } = {
           duration: totalDuration,
           times,
           delay: (index * delay) / 1000

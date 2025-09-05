@@ -75,12 +75,12 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
     <div className={classes.wrapper}>
       {/* Animated Dark Veil Background */}
       <DarkVeil 
-        hueShift={0}
-        noiseIntensity={0.02}
+        hueShift={21}
+        noiseIntensity={0}
         scanlineIntensity={0.1}
-        speed={0.3}
-        scanlineFrequency={0.5}
-        warpAmount={0.1}
+        speed={3}
+        scanlineFrequency={5}
+        warpAmount={5}
         resolutionScale={0.8}
       />
       
@@ -152,7 +152,7 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
         </form>
 
         <Text ta="center" mt="xl" size="sm">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Anchor
             href="#"
             fw={500}

@@ -20,7 +20,7 @@ import {
   EllipsisVerticalIcon,
   PencilIcon,
   TrashIcon,
-  ReplyIcon
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { format, formatDistanceToNow } from 'date-fns';
 import { commentService, Comment } from '../../services/commentService';
@@ -149,7 +149,7 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       notificationWS.disconnect();
       messagingWS.disconnect();
     };
-  }, [taskId]);
+  }, [taskId, messagingWS, notificationWS]);
 
   // Periodic comment polling for synchronization
   useEffect(() => {
@@ -229,11 +229,14 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     return () => {
       unsubscribeNewComment();
     };
-  }, [taskId, notificationWS.subscribe]);
+  }, [taskId, notificationWS]);
 
   // Subscribe to typing indicators (messaging WebSocket)
   useEffect(() => {
     if (!messagingWS.subscribe) return;
+
+    // Capture the ref value at the beginning of the effect
+    const timeoutsRef = typingDisplayTimeouts.current;
 
     const unsubscribeTyping = messagingWS.subscribe('typing_indicator', (data: any) => {
       // Check if this typing indicator is for the current task
@@ -242,16 +245,20 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
         if (username && username !== currentUser.username) {
           if (data.is_typing) {
             // Clear any pending removal timeout for this user
-            const existingTimeout = typingDisplayTimeouts.current.get(username);
+            const existingTimeout = timeoutsRef.get(username);
             if (existingTimeout) {
               clearTimeout(existingTimeout);
-              typingDisplayTimeouts.current.delete(username);
+              timeoutsRef.delete(username);
             }
             
-            setTypingUsers(prev => new Set([...prev, username]));
+            setTypingUsers(prev => {
+              const newSet = new Set(prev);
+              newSet.add(username);
+              return newSet;
+            });
           } else {
             // Don't remove immediately - enforce minimum display time of 2 seconds
-            const existingTimeout = typingDisplayTimeouts.current.get(username);
+            const existingTimeout = timeoutsRef.get(username);
             if (!existingTimeout) {
               const timeout = setTimeout(() => {
                 setTypingUsers(prev => {
@@ -259,10 +266,10 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
                   newSet.delete(username);
                   return newSet;
                 });
-                typingDisplayTimeouts.current.delete(username);
+                timeoutsRef.delete(username);
               }, 2000); // Minimum 2 second display time
               
-              typingDisplayTimeouts.current.set(username, timeout);
+              timeoutsRef.set(username, timeout);
             }
           }
         }
@@ -272,10 +279,10 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
     return () => {
       unsubscribeTyping();
       // Clean up any pending typing display timeouts
-      typingDisplayTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      typingDisplayTimeouts.current.clear();
+      timeoutsRef.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.clear();
     };
-  }, [taskId, currentUser.username, messagingWS.subscribe]);
+  }, [taskId, currentUser.username, messagingWS]);
 
   // Send typing indicator with proper debouncing
   const sendTypingIndicator = useCallback((isTyping: boolean) => {
@@ -299,7 +306,8 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
         type: 'typing_indicator',
         context_type: 'task_chat',
         context_id: taskId,
-        is_typing: isTyping
+        is_typing: isTyping,
+        data: { is_typing: isTyping }
       };
       
       messagingWS.sendMessage(message);
@@ -308,7 +316,7 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       
 
     }
-  }, [messagingWS.sendMessage, taskId]);
+  }, [messagingWS, taskId]);
 
 
 
@@ -394,7 +402,7 @@ const SimpleTaskComments: React.FC<SimpleTaskCommentsProps> = ({
       // Send stop typing indicator when component unmounts
       sendTypingIndicator(false);
     };
-  }, [sendTypingIndicator]);
+  }, [sendTypingIndicator, messagingWS]);
 
   const handleSendComment = async () => {
     if (!newComment.trim() || sending) return;

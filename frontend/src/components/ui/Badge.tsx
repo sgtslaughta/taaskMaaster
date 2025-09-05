@@ -23,7 +23,7 @@ export interface CustomIndicatorProps extends IndicatorProps {
   // Add any custom props here
 }
 
-export const Indicator = forwardRef<HTMLDivElement, CustomIndicatorProps>(
+export const CustomIndicator = forwardRef<HTMLDivElement, CustomIndicatorProps>(
   ({ children, ...props }, ref) => {
     return (
       <Indicator ref={ref} {...props}>
@@ -33,4 +33,4 @@ export const Indicator = forwardRef<HTMLDivElement, CustomIndicatorProps>(
   }
 );
 
-Indicator.displayName = 'Indicator';
+CustomIndicator.displayName = 'CustomIndicator';

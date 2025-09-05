@@ -130,6 +130,30 @@ class CommentService {
   }
 
   /**
+   * @description Search task comments
+   */
+  async searchTaskComments(params: {
+    taskId: number;
+    query: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<CommentListResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('query', params.query);
+    if (params.skip) queryParams.append('skip', params.skip.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+
+    const url = `/comments/search/${params.taskId}?${queryParams.toString()}`;
+    
+    const userDataHeader = this.getUserDataHeader();
+    const response = await apiGet<CommentListResponse>(url, {
+      headers: userDataHeader
+    });
+    
+    return response.data;
+  }
+
+  /**
    * @description Get user data header for API requests
    * This matches the backend's expected X-User-Data header format
    */

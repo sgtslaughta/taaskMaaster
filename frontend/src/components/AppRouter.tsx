@@ -7,15 +7,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Dashboard } from './pages/Dashboard';
-import { MyTasksPage } from './pages/MyTasksPage';
-import { TaskHubPage } from './pages/TaskHubPage';
 import { canAccessPage, type NavigationUser } from '../utils/navigation';
 import { ToastContainer } from './notifications/ToastContainer';
 
 /**
  * @description Current page type
  */
-export type CurrentPage = 'dashboard' | 'my-tasks' | 'task-hub' | 'goals' | 'family' | 'achievements' | 'leaderboard' | 'calendar' | 'streaks' | 'learning' | 'settings';
+export type CurrentPage = 'dashboard' | 'goals' | 'family' | 'achievements' | 'leaderboard' | 'calendar' | 'streaks' | 'learning' | 'settings';
 
 /**
  * @description App Router component props
@@ -74,7 +72,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
   // Initialize page only on mount, don't sync with prop changes after that
   useEffect(() => {
     setCurrentPage(initialPage);
-  }, []); // Only run on mount, don't sync with prop changes
+  }, [initialPage]); // Include initialPage in dependencies
 
   // Sync with initialTaskId prop changes (only when initialTaskId actually changes)
   useEffect(() => {
@@ -92,7 +90,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({
     
     // Always update currentTaskId
     setCurrentTaskId(initialTaskId || undefined);
-  }, [initialTaskId, initialPage]); // Added initialPage to dependencies
+  }, [initialTaskId, initialPage, currentPage, notificationTrigger]); // Include all dependencies
 
   /**
    * @description Handle navigation between pages
@@ -162,46 +160,6 @@ export const AppRouter: React.FC<AppRouterProps> = ({
             onLogout={onLogout}
             onNavigation={handleNavigation}
             onNotificationNavigation={handleNotificationNavigation}
-            className={className}
-          />
-        );
-      
-      case 'my-tasks':
-        return (
-          <MyTasksPage
-            user={user}
-            onLogout={onLogout}
-            onNavigation={handleNavigation}
-            onNotificationNavigation={handleNotificationNavigation}
-            initialTaskId={currentTaskId}
-            notificationTrigger={notificationTrigger}
-            className={className}
-          />
-        );
-      
-      case 'task-hub':
-        // Check access again for security
-        if (!canAccessPage(user as NavigationUser | null, 'task-hub')) {
-          // Redirect to dashboard if user doesn't have access
-          setCurrentPage('dashboard');
-          return (
-            <Dashboard
-              user={user}
-              onLogout={onLogout}
-              onNavigation={handleNavigation}
-              onNotificationNavigation={handleNotificationNavigation}
-              className={className}
-            />
-          );
-        }
-        return (
-          <TaskHubPage
-            user={user}
-            onLogout={onLogout}
-            onNavigation={handleNavigation}
-            onNotificationNavigation={handleNotificationNavigation}
-            initialTaskId={currentTaskId}
-            notificationTrigger={notificationTrigger}
             className={className}
           />
         );

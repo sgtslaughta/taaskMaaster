@@ -13,7 +13,14 @@ import React, { useState } from 'react';
  */
 export const Phase2Demo: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'login'>('dashboard');
-  const [user, setUser] = useState({
+  const [user, setUser] = useState<{
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    points: number;
+    level: number;
+  } | null>({
     id: '1',
     username: 'Alex',
     email: 'alex@example.com',
@@ -123,7 +130,7 @@ export const Phase2Demo: React.FC = () => {
                 Welcome back, {user?.username}!
               </h2>
               <p className="text-gray-600">
-                You're doing great! Keep up the good work with your tasks.
+                You&apos;re doing great! Keep up the good work with your tasks.
               </p>
             </div>
 

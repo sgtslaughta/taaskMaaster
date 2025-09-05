@@ -35,13 +35,14 @@ export function AppLayout({
   onLogout
 }: AppLayoutProps) {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false); // Collapsed by default
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <AppShell
       header={{ height: 60 }}
       navbar={{
-        width: desktopOpened ? 300 : 80,
+        width: (desktopOpened || isHovered) ? 300 : 80,
         breakpoint: 'sm',
         collapsed: { mobile: !mobileOpened },
       }}
@@ -87,13 +88,18 @@ export function AppLayout({
       </AppShell.Header>
 
       {/* Sidebar Navigation */}
-      <AppShell.Navbar p={0}>
-        {desktopOpened ? (
+      <AppShell.Navbar 
+        p={0}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {(desktopOpened || isHovered) ? (
           <NavbarNested
             currentPage={currentPage}
             onNavigate={onNavigate}
             user={user}
             onLogout={onLogout}
+            hoverMode={!desktopOpened && isHovered}
           />
         ) : (
           <NavbarMinimal

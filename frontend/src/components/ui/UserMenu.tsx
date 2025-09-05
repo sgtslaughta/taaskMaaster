@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { 
   Menu, 
   Avatar, 
@@ -59,7 +59,7 @@ interface UserMenuProps {
   size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
-export function UserMenu({
+export const UserMenu = forwardRef<HTMLDivElement, UserMenuProps>(({
   user,
   position = 'top-end',
   width = 280,
@@ -70,25 +70,26 @@ export function UserMenu({
   children,
   compact = false,
   size = 'sm'
-}: UserMenuProps) {
+}, ref) => {
   const [appearanceModalOpened, setAppearanceModalOpened] = useState(false);
   return (
-    <Menu
-      withArrow
-      width={width}
-      position={position}
-      offset={5}
-      withinPortal
-      transitionProps={{ transition: 'pop-top-right' }}
-    >
-      <Menu.Target>
-        <UserButton 
-          user={user}
-          size={size}
-          compact={compact}
-          withChevron={!compact}
-        />
-      </Menu.Target>
+    <div ref={ref}>
+      <Menu
+        withArrow
+        width={width}
+        position={position}
+        offset={5}
+        withinPortal
+        transitionProps={{ transition: 'pop-top-right' }}
+      >
+        <Menu.Target>
+          <UserButton 
+            user={user}
+            size={size}
+            compact={compact}
+            withChevron={!compact}
+          />
+        </Menu.Target>
 
       <Menu.Dropdown>
         {/* User Info Header */}
@@ -202,6 +203,9 @@ export function UserMenu({
         opened={appearanceModalOpened}
         onClose={() => setAppearanceModalOpened(false)}
       />
-    </Menu>
+      </Menu>
+    </div>
   );
-}
+});
+
+UserMenu.displayName = 'UserMenu';

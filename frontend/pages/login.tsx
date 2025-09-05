@@ -73,7 +73,7 @@ export default function Login() {
         onLogin={handleLogin}
         onRegister={handleRegister}
         loading={isLoading}
-        error={error}
+        error={error ?? undefined}
       />
     </>
   );

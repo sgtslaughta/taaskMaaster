@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../design-system/components/Button';
 import { cn } from '../../design-system/utils/cn';
-import { Comment, CommentService, CommentListResponse } from '../../services/commentService';
+import { Comment, CommentListResponse, commentService } from '../../services/commentService';
 import { CommentItem } from './CommentItem';
 import { CommentForm } from './CommentForm';
 
@@ -62,11 +62,13 @@ export const CommentList: React.FC<CommentListProps> = ({
       }
       setError(null);
 
-      const response: CommentListResponse = await CommentService.getTaskComments(
+      const response: CommentListResponse = await commentService.getTaskComments(
         taskId,
-        skipCount,
-        limit,
-        includeSystemComments
+        {
+          skip: skipCount,
+          limit: limit,
+          include_system: includeSystemComments
+        }
       );
 
       const newComments = response.comments;

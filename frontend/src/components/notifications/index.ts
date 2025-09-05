@@ -7,6 +7,6 @@
 
 export { NotificationBell } from './NotificationBell';
 export { ToastContainer } from './ToastContainer';
-export { NotificationProvider, useNotifications } from '../contexts/NotificationContext';
 
-export type { NotificationData, Toast } from '../contexts/NotificationContext';
+// Re-export from NotificationContext directly to avoid module resolution issues
+export { NotificationProvider, useNotifications, type NotificationData, type Toast } from '../../contexts/NotificationContext';

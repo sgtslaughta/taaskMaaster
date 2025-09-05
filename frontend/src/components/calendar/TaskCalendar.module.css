@@ -31,7 +31,7 @@
   font-size: 10px;
   padding: 2px 6px;
   margin: 1px 0;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
   white-space: nowrap;
   position: relative;
@@ -40,23 +40,67 @@
 }
 
 .taskBadgeStart {
-  width: calc(100% + 6px); /* Extend to connect with next day */
-  margin-right: -6px;
+  position: relative;
+}
+
+.taskBadgeStart::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -12px;
+  width: 12px;
+  height: 100%;
+  background-color: inherit;
+  z-index: -1;
+  opacity: 0.7;
 }
 
 .taskBadgeMiddle {
-  width: calc(100% + 12px); /* Extend both sides */
-  margin-left: -6px;
-  margin-right: -6px;
+  position: relative;
+}
+
+.taskBadgeMiddle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -12px;
+  width: 12px;
+  height: 100%;
+  background-color: inherit;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+.taskBadgeMiddle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -12px;
+  width: 12px;
+  height: 100%;
+  background-color: inherit;
+  z-index: -1;
+  opacity: 0.7;
 }
 
 .taskBadgeEnd {
-  width: calc(100% + 6px); /* Extend from previous day */
-  margin-left: -6px;
+  position: relative;
+}
+
+.taskBadgeEnd::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -12px;
+  width: 12px;
+  height: 100%;
+  background-color: inherit;
+  z-index: -1;
+  opacity: 0.7;
 }
 
 .taskBadgeSingle {
-  width: 100%; /* Normal width for single-day tasks */
+  width: 100%;
 }
 
 .taskBadgeCompleted {
@@ -67,13 +111,13 @@
 .taskContainer {
   position: absolute;
   top: 20px;
-  left: 0;
-  right: 0;
+  left: 4px;
+  right: 4px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow: visible; /* Allow badges to extend beyond container */
-  z-index: 2; /* Ensure tasks appear above day borders */
+  overflow: visible;
+  z-index: 2;
 }
 
 .moreText {

@@ -6,14 +6,46 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { debounce } from 'lodash';
 
-import { SearchFilters } from '../components/common/SearchFilterPanel';
+// Simple debounce implementation to avoid lodash type issues
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): T & { cancel(): void } => {
+  let timeout: NodeJS.Timeout;
+  const debouncedFunc = ((...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  }) as T & { cancel(): void };
+  
+  debouncedFunc.cancel = () => {
+    clearTimeout(timeout);
+  };
+  
+  return debouncedFunc;
+};
+
+// Temporary SearchFilters interface (replaces disabled SearchFilterPanel)
+interface SearchFilters {
+  query: string;
+  users: User[];
+  dateRange: {
+    start?: Date;
+    end?: Date;
+  };
+  contentTypes: string[];
+  hasAttachments?: boolean;
+  hasReactions?: boolean;
+  isEdited?: boolean;
+  tags: string[];
+  sortBy: 'newest' | 'oldest' | 'relevance';
+  sortOrder: 'asc' | 'desc';
+}
 import { commentService } from '../services/commentService';
 import { messagingService } from '../services/messagingService';
 import { TaskComment } from '../types/comment';
 import { DirectMessage, TaskChatMessage } from '../types/messaging';
-import { User } from '../types/user';
+import { User, UserRole, UserStatus, OnlineStatus } from '../types/user';
 
 export interface SearchResult {
   comments: TaskComment[];
@@ -157,19 +189,59 @@ export const useSearch = (options: UseSearchOptions): UseSearchReturn => {
         };
 
         // Search comments
-        if (scope === 'comments' || scope === 'all') {
+        if ((scope === 'comments' || scope === 'all') && taskId !== undefined) {
           try {
+            const currentTaskId = taskId; // TypeScript type guard
             const commentResults = await commentService.searchTaskComments({
-              ...searchParams,
-              include_mentions: true,
-              include_reactions: true
+              taskId: currentTaskId,
+              query: searchParams.query,
+              skip: searchParams.page ? (searchParams.page * searchParams.per_page) : undefined,
+              limit: searchParams.per_page
+            });
+            
+            // Transform Comment objects to TaskComment objects with default values for missing properties
+            const transformedComments = commentResults.comments.map(comment => {
+              // Transform the user object to match User interface
+              const transformedUser: User = {
+                id: comment.user.id,
+                email: '', // Default empty string
+                username: comment.user.username,
+                first_name: comment.user.full_name?.split(' ')[0] || '',
+                last_name: comment.user.full_name?.split(' ').slice(1).join(' ') || '',
+                full_name: comment.user.full_name || '',
+                role: 'user' as UserRole, // Default to user role
+                status: 'active' as UserStatus, // Default to active status
+                is_active: true, // Default to true
+                is_verified: true, // Default to true
+                avatar_url: comment.user.avatar_url,
+                created_at: comment.created_at, // Use comment creation date as fallback
+                updated_at: comment.updated_at, // Use comment update date as fallback
+                last_login: undefined,
+                profile: undefined,
+                preferences: undefined,
+                online_status: 'offline' as OnlineStatus, // Default to offline
+                last_seen: undefined
+              };
+
+              return {
+                ...comment,
+                user: transformedUser,
+                reply_count: comment.replies?.length || 0,
+                is_system_generated: false, // Default value
+                is_pinned: false, // Default value
+                pinned_at: undefined,
+                pinned_by_user_id: undefined,
+                mentioned_users: [], // Default empty array
+                reactions: [], // Default empty array
+                edited_at: comment.is_edited ? comment.updated_at : undefined
+              } as TaskComment;
             });
             
             newResults.comments = pageNum === 0 ? 
-              commentResults.comments : 
-              [...results.comments, ...commentResults.comments];
+              transformedComments : 
+              [...results.comments, ...transformedComments];
             newResults.totalCount += commentResults.total;
-            newResults.hasMore = newResults.hasMore || commentResults.has_more;
+            newResults.hasMore = newResults.hasMore || (commentResults.comments.length === pageSize);
           } catch (err) {
             console.warn('Comment search failed:', err);
           }
