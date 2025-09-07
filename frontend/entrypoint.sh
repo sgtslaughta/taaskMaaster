@@ -20,9 +20,9 @@ fi
 
 # Check if we should run in development mode
 if [ "$NODE_ENV" = "development" ]; then
-    echo "Starting Next.js in development mode..."
-    # Start Next.js dev server
-    exec npx next dev --turbopack --hostname 0.0.0.0 --port 3000
+    echo "Starting Next.js in development mode with custom server..."
+    # Start custom server with WebSocket proxy support
+    exec npm run dev:custom
 else
     echo "Starting Next.js in production mode..."
     

@@ -40,11 +40,10 @@ class WebSocketManager:
         Connect a user to the notifications channel.
 
         Args:
-            websocket: WebSocket connection
+            websocket: WebSocket connection (already accepted)
             user_id: User ID
             db: Database session
         """
-        await websocket.accept()
         
         # Add to connections pool
         if user_id not in self.notification_connections:
@@ -68,11 +67,10 @@ class WebSocketManager:
         Connect a user to the messaging channel.
 
         Args:
-            websocket: WebSocket connection
+            websocket: WebSocket connection (already accepted)
             user_id: User ID
             db: Database session
         """
-        await websocket.accept()
         
         # Add to connections pool
         if user_id not in self.messaging_connections:

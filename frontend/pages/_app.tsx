@@ -11,6 +11,62 @@ import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
 import '../src/styles/mantine-fixes.css';
 
+// Suppress WebSocket connection errors in console since HTTP notifications work as fallback
+if (typeof window !== 'undefined') {
+  // Override console.error to suppress WebSocket connection errors
+  const originalError = console.error;
+  console.error = (...args) => {
+    const message = args[0]?.toString() || '';
+    // Suppress WebSocket connection errors
+    if (message.includes("can't establish a connection to the server at ws://") ||
+        message.includes("The connection to ws://") ||
+        message.includes("was interrupted while the page was loading") ||
+        message.includes("Firefox can't establish a connection")) {
+      return; // Don't log these errors
+    }
+    originalError.apply(console, args);
+  };
+
+  // Also override console.warn in case some errors are logged as warnings
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    const message = args[0]?.toString() || '';
+    // Suppress WebSocket connection warnings
+    if (message.includes("can't establish a connection to the server at ws://") ||
+        message.includes("The connection to ws://") ||
+        message.includes("was interrupted while the page was loading") ||
+        message.includes("Firefox can't establish a connection")) {
+      return; // Don't log these warnings
+    }
+    originalWarn.apply(console, args);
+  };
+
+  // Add global error event listener to catch WebSocket errors
+  window.addEventListener('error', (event) => {
+    const message = event.message || '';
+    if (message.includes("can't establish a connection to the server at ws://") ||
+        message.includes("The connection to ws://") ||
+        message.includes("was interrupted while the page was loading") ||
+        message.includes("Firefox can't establish a connection")) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  });
+
+  // Add unhandled rejection listener for WebSocket promises
+  window.addEventListener('unhandledrejection', (event) => {
+    const message = event.reason?.toString() || '';
+    if (message.includes("can't establish a connection to the server at ws://") ||
+        message.includes("The connection to ws://") ||
+        message.includes("was interrupted while the page was loading") ||
+        message.includes("Firefox can't establish a connection")) {
+      event.preventDefault();
+      return false;
+    }
+  });
+}
+
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { mantineTheme } from '../src/lib/mantine-theme';

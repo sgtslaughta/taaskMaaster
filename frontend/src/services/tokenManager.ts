@@ -62,6 +62,24 @@ export class TokenManager {
   private refreshRetryCount = 0;
 
   /**
+   * @description Safe localStorage access that handles SSR
+   */
+  private safeLocalStorage = {
+    getItem: (key: string): string | null => {
+      if (typeof window === 'undefined') return null;
+      return localStorage.getItem(key);
+    },
+    setItem: (key: string, value: string): void => {
+      if (typeof window === 'undefined') return;
+      localStorage.setItem(key, value);
+    },
+    removeItem: (key: string): void => {
+      if (typeof window === 'undefined') return;
+      localStorage.removeItem(key);
+    }
+  };
+
+  /**
    * @description Get singleton instance
    */
   public static getInstance(): TokenManager {
@@ -88,8 +106,8 @@ export class TokenManager {
   public setTokens(tokens: TokenPair, userInfo?: any): void {
     try {
       // Store tokens in localStorage (consider moving to secure httpOnly cookies in production)
-      localStorage.setItem('access_token', tokens.access_token);
-      localStorage.setItem('refresh_token', tokens.refresh_token);
+      this.safeLocalStorage.setItem('access_token', tokens.access_token);
+      this.safeLocalStorage.setItem('refresh_token', tokens.refresh_token);
       
       // Store expiration times
       const accessExpiry = this.calculateTokenExpiry(tokens.access_token);
@@ -97,9 +115,9 @@ export class TokenManager {
         ? Date.now() + (tokens.refresh_expires_in * 1000)
         : null;
       
-      localStorage.setItem('access_token_expiry', accessExpiry.getTime().toString());
+      this.safeLocalStorage.setItem('access_token_expiry', accessExpiry.getTime().toString());
       if (refreshExpiry) {
-        localStorage.setItem('refresh_token_expiry', refreshExpiry.toString());
+        this.safeLocalStorage.setItem('refresh_token_expiry', refreshExpiry.toString());
       }
 
       // Update login state if user info provided
@@ -128,14 +146,14 @@ export class TokenManager {
    * @description Get current access token
    */
   public getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
+    return this.safeLocalStorage.getItem('access_token');
   }
 
   /**
    * @description Get current refresh token
    */
   public getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
+    return this.safeLocalStorage.getItem('refresh_token');
   }
 
   /**
@@ -223,10 +241,10 @@ export class TokenManager {
   public clearTokens(): void {
     try {
       // Clear localStorage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('access_token_expiry');
-      localStorage.removeItem('refresh_token_expiry');
+      this.safeLocalStorage.removeItem('access_token');
+      this.safeLocalStorage.removeItem('refresh_token');
+      this.safeLocalStorage.removeItem('access_token_expiry');
+      this.safeLocalStorage.removeItem('refresh_token_expiry');
       
       // Clear login state cookies
       clearLoginState();
@@ -328,7 +346,7 @@ export class TokenManager {
   private getTokenExpiry(token: string): Date {
     try {
       // Try to get from stored expiry first (more reliable)
-      const storedExpiry = localStorage.getItem('access_token_expiry');
+      const storedExpiry = this.safeLocalStorage.getItem('access_token_expiry');
       if (storedExpiry) {
         return new Date(parseInt(storedExpiry));
       }
@@ -344,7 +362,7 @@ export class TokenManager {
    * @description Check if refresh token is expired
    */
   private isRefreshTokenExpired(): boolean {
-    const refreshExpiry = localStorage.getItem('refresh_token_expiry');
+    const refreshExpiry = this.safeLocalStorage.getItem('refresh_token_expiry');
     if (!refreshExpiry) {
       // If no expiry stored, assume it's still valid (depends on your backend)
       return false;

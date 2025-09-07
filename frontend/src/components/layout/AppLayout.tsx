@@ -6,11 +6,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AppShell, Burger, Group, Text } from '@mantine/core';
+import { AppShell, Burger, Group, Text, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconSparkles } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { NavbarNested } from '../navigation/NavbarNested';
 import { NavbarMinimal } from '../navigation/NavbarMinimal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { tokenManager } from '../../services/tokenManager';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -37,6 +41,47 @@ export function AppLayout({
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false); // Collapsed by default
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Get notification refresh function
+  const { refreshStoredNotifications } = useNotifications();
+
+  const handleGenerateDemo = async () => {
+    try {
+      const response = await fetch('/api/proxy/notifications/demo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`,
+          'X-User-Data': JSON.stringify({
+            user_id: user?.id || '1',
+            username: user?.username || 'demo',
+            email: user?.email || 'demo@example.com'
+          })
+        },
+        body: JSON.stringify({ count: 3 })
+      });
+
+      if (response.ok) {
+        // Refresh notifications to show the new ones
+        await refreshStoredNotifications();
+        
+        notifications.show({
+          title: 'Demo Notifications',
+          message: 'Generated 3 demo notifications!',
+          color: 'blue',
+        });
+      } else {
+        throw new Error('Failed to generate demo notifications');
+      }
+    } catch (error) {
+      console.error('Error generating demo notifications:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to generate demo notifications',
+        color: 'red',
+      });
+    }
+  };
 
   return (
     <AppShell
@@ -74,6 +119,19 @@ export function AppLayout({
           </Group>
 
           <Group gap="sm">
+            {/* Demo Button */}
+            {user && (
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconSparkles size={14} />}
+                onClick={handleGenerateDemo}
+                color="yellow"
+              >
+                Demo
+              </Button>
+            )}
+
             {/* Notifications */}
             <NotificationBell />
 

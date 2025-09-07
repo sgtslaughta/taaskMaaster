@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-async def get_user_from_websocket_query(websocket: WebSocket) -> Optional[dict]:
+def get_user_from_websocket_query(websocket: WebSocket) -> Optional[dict]:
     """
     Extract user data from WebSocket query parameters.
     
@@ -33,21 +33,20 @@ async def get_user_from_websocket_query(websocket: WebSocket) -> Optional[dict]:
         # Get user_data from query parameters
         user_data_param = websocket.query_params.get("user_data")
         if not user_data_param:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="user_data query parameter required")
+            logger.warning("WebSocket connection missing user_data query parameter")
             return None
         
         user_data = json.loads(user_data_param)
         if 'user_id' not in user_data:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="user_id required in user_data")
+            logger.warning("WebSocket connection missing user_id in user_data")
             return None
             
         return user_data
     except json.JSONDecodeError:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid JSON in user_data parameter")
+        logger.warning("WebSocket connection has invalid JSON in user_data parameter")
         return None
     except Exception as e:
         logger.error(f"Error parsing WebSocket user data: {e}")
-        await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
         return None
 
 
@@ -73,23 +72,29 @@ async def websocket_notifications_endpoint(
     - `user_mentioned`: User mentioned in a comment
     - `media_attached`: Media attached to task/comment
     """
-    # Authenticate user from query parameters
-    user_data = await get_user_from_websocket_query(websocket)
+    # Authenticate user from query parameters BEFORE accepting connection
+    user_data = get_user_from_websocket_query(websocket)
     if not user_data:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication data")
         return
+    
+    # Accept WebSocket connection only after authentication passes
+    await websocket.accept()
     
     user_id = user_data["user_id"]
     
     try:
-        # Connect user to notifications
-        await websocket_manager.connect_notifications(websocket, user_id, db)
+        # Add user to notifications pool (websocket already accepted)
+        if user_id not in websocket_manager.notification_connections:
+            websocket_manager.notification_connections[user_id] = []
+        websocket_manager.notification_connections[user_id].append(websocket)
         
         logger.info(f"User {user_id} connected to notifications WebSocket")
         
         # Keep connection alive and handle incoming messages
         while True:
             try:
-                # Receive message from client
+                # Receive message from client with timeout
                 data = await websocket.receive_text()
                 message = json.loads(data)
                 
@@ -146,14 +151,18 @@ async def websocket_messaging_endpoint(
     - `message_read`: Message read receipt
     - `user_status_changed`: User online status changed
     """
-    # Authenticate user from query parameters
-    user_data = await get_user_from_websocket_query(websocket)
+    # Authenticate user from query parameters BEFORE accepting connection
+    user_data = get_user_from_websocket_query(websocket)
     if not user_data:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid authentication data")
         return
     
     user_id = user_data["user_id"]
     
     try:
+        # Accept WebSocket connection only after authentication passes
+        await websocket.accept()
+        
         # Connect user to messaging
         await websocket_manager.connect_messaging(websocket, user_id, db)
         

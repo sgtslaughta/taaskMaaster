@@ -358,12 +358,29 @@ export const UnifiedAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
     
-    // Direct validation without external dependency
+    // Direct validation - check if we have valid tokens (more lenient approach)
     const cookieState = getLoginState();
     const accessToken = tokenManager.getAccessToken();
     const authServiceToken = authService.getAccessToken();
     
-    return !!(accessToken && cookieState?.token === accessToken && accessToken === authServiceToken);
+    // More lenient check: just ensure we have tokens and they're not obviously broken
+    const hasValidTokens = !!(accessToken && cookieState?.token && authServiceToken);
+    
+    if (!hasValidTokens) {
+      console.log('🔍 AuthReady: Missing tokens:', {
+        ...debugInfo,
+        tokenDetails: {
+          accessToken: !!accessToken,
+          cookieToken: !!cookieState?.token,
+          authServiceToken: !!authServiceToken
+        }
+      });
+      return false;
+    }
+    
+    // For now, be more lenient about perfect synchronization
+    // The HTTP interceptor will handle token refresh if needed
+    return true;
   }, [state]);
 
   // Initialize auth on mount

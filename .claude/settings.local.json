@@ -20,7 +20,8 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Read(//home/user/Pictures/Screenshots/**)",
-      "WebFetch(domain:v6.mantine.dev)"
+      "WebFetch(domain:v6.mantine.dev)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

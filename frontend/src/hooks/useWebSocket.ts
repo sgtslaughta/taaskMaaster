@@ -49,10 +49,12 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const subscribersRef = useRef<Map<string, Set<(data: any) => void>>>(new Map());
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('🟢 WebSocket already connected, skipping connection attempt');
       return;
     }
 
@@ -62,10 +64,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     try {
       // Get user data for WebSocket authentication
       const loginState = getLoginState();
+      
       if (!loginState || !loginState.userId) {
         setError('User not authenticated');
         setIsConnecting(false);
-        console.warn('WebSocket connection aborted: User not authenticated');
+        console.warn('WebSocket connection aborted: User not authenticated', { loginState });
         return;
       }
 
@@ -78,14 +81,47 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       
       const wsUrl = `${url}?user_data=${encodeURIComponent(JSON.stringify(userData))}`;
       
-      wsRef.current = new WebSocket(wsUrl);
+      // Create WebSocket with error handling to prevent browser console errors
+      try {
+        wsRef.current = new WebSocket(wsUrl);
+      } catch (error) {
+        // If WebSocket creation fails, don't throw - just set error state
+        setError('WebSocket connection failed');
+        setIsConnecting(false);
+        return;
+      }
 
       wsRef.current.onopen = () => {
-  
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
         reconnectAttemptsRef.current = 0;
+        
+        // Send initial heartbeat to keep connection alive
+        try {
+          wsRef.current?.send(JSON.stringify({
+            type: 'heartbeat',
+            timestamp: new Date().toISOString()
+          }));
+          console.log('💓 Sent initial heartbeat');
+        } catch (error) {
+          console.error('Failed to send initial heartbeat:', error);
+        }
+        
+        // Set up periodic heartbeat (every 30 seconds)
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            try {
+              wsRef.current.send(JSON.stringify({
+                type: 'heartbeat',
+                timestamp: new Date().toISOString()
+              }));
+              console.log('💓 Sent periodic heartbeat');
+            } catch (error) {
+              console.error('Failed to send periodic heartbeat:', error);
+            }
+          }
+        }, 30000);
       };
 
       wsRef.current.onmessage = (event) => {
@@ -111,6 +147,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       };
 
       wsRef.current.onclose = (event) => {
+        
+        // Clear heartbeat interval
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+        
         setIsConnected(false);
         setIsConnecting(false);
 
@@ -128,13 +171,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       };
 
       wsRef.current.onerror = (error) => {
-        console.warn('WebSocket connection failed for', url, '- backend may not be running');
         setError(`WebSocket offline: ${url}`);
         setIsConnecting(false);
       };
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
       setError('Failed to create WebSocket connection');
       setIsConnecting(false);
     }
@@ -144,6 +185,11 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
     }
 
     if (wsRef.current) {

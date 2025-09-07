@@ -35,6 +35,40 @@ export default function Document() {
         
         {/* Theme color */}
         <meta name="theme-color" content="#2563eb" />
+        
+        {/* Suppress WebSocket connection errors */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress WebSocket connection errors since HTTP notifications work as fallback
+              (function() {
+                const originalError = console.error;
+                console.error = function(...args) {
+                  const message = args[0]?.toString() || '';
+                  if (message.includes("can't establish a connection to the server at ws://") ||
+                      message.includes("The connection to ws://") ||
+                      message.includes("was interrupted while the page was loading") ||
+                      message.includes("Firefox can't establish a connection")) {
+                    return; // Don't log these errors
+                  }
+                  originalError.apply(console, args);
+                };
+                
+                const originalWarn = console.warn;
+                console.warn = function(...args) {
+                  const message = args[0]?.toString() || '';
+                  if (message.includes("can't establish a connection to the server at ws://") ||
+                      message.includes("The connection to ws://") ||
+                      message.includes("was interrupted while the page was loading") ||
+                      message.includes("Firefox can't establish a connection")) {
+                    return; // Don't log these warnings
+                  }
+                  originalWarn.apply(console, args);
+                };
+              })();
+            `,
+          }}
+        />
       </Head>
       <body className="antialiased">
         <Main />

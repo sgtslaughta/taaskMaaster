@@ -61,16 +61,35 @@ app.prepare()
     });
 
     // WebSocket proxy configuration
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://backend:8000';
+    console.log('[WebSocket Proxy] Backend target:', backendUrl);
+    
     const wsProxy = createProxyMiddleware({
-      target: process.env.BACKEND_INTERNAL_URL || 'http://backend:8000',
+      target: backendUrl,
       changeOrigin: true,
       ws: true, // Enable WebSocket proxying
-      logLevel: 'error', // Reduce log noise
+      logLevel: 'debug', // More verbose logging for debugging
+      secure: false,
+      timeout: 30000,
       onError: (err, req, res) => {
-        console.error('[WebSocket Proxy] Error:', err.message);
+        console.error('[WebSocket Proxy] Error:', err.message, err.stack);
+        if (res && !res.headersSent) {
+          res.status(500).send('WebSocket proxy error');
+        }
       },
       onProxyReqWs: (proxyReq, req, socket, options, head) => {
-        console.log('[WebSocket Proxy] Upgrading connection to:', options.target.href + req.url);
+        console.log('[WebSocket Proxy] Proxying WebSocket upgrade to:', options.target.href + req.url);
+        console.log('[WebSocket Proxy] Request headers:', req.headers);
+        console.log('[WebSocket Proxy] Proxy request headers:', proxyReq.headers);
+      },
+      onOpen: (proxySocket) => {
+        console.log('[WebSocket Proxy] Connection opened successfully to backend');
+      },
+      onClose: (res, socket, head) => {
+        console.log('[WebSocket Proxy] Connection closed from backend');
+      },
+      onProxyRes: (proxyRes, req, res) => {
+        console.log('[WebSocket Proxy] Response from backend:', proxyRes.statusCode);
       },
     });
 
@@ -79,7 +98,35 @@ app.prepare()
       try {
         if (req.url.startsWith('/ws/')) {
           console.log('[WebSocket Proxy] Handling upgrade for:', req.url);
-          wsProxy.upgrade(req, socket, head);
+          
+          // Try direct WebSocket proxy instead of middleware
+          const http = require('http');
+          const backendUrlObj = new URL(backendUrl);
+          const proxyReq = http.request({
+            hostname: backendUrlObj.hostname,
+            port: backendUrlObj.port,
+            path: req.url,
+            method: req.method,
+            headers: req.headers
+          });
+          
+          proxyReq.on('upgrade', (res, proxySocket, proxyHead) => {
+            console.log('[WebSocket Proxy] Backend upgrade response:', res.statusCode);
+            socket.write('HTTP/1.1 101 Switching Protocols\r\n' +
+                        'Upgrade: websocket\r\n' +
+                        'Connection: Upgrade\r\n' +
+                        '\r\n');
+            
+            proxySocket.pipe(socket);
+            socket.pipe(proxySocket);
+          });
+          
+          proxyReq.on('error', (err) => {
+            console.error('[WebSocket Proxy] Backend connection error:', err);
+            socket.destroy();
+          });
+          
+          proxyReq.end();
         } else if (req.url.includes('/_next/webpack-hmr')) {
           // Handle Next.js HMR WebSocket connections
           console.log('[HMR WebSocket] Next.js HMR connection attempt - allowing');

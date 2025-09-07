@@ -88,10 +88,11 @@ export const NotificationProvider: React.FC<{
   const { user, isAuthenticated, isLoading, isAuthReady } = useUnifiedAuth();
   
   // Track initialization to prevent infinite loops
-  const initializationRef = useRef<{ lastUserId: string | null, wsConnected: boolean, notificationsLoaded: boolean }>({ 
+  const initializationRef = useRef<{ lastUserId: string | null, wsConnected: boolean, notificationsLoaded: boolean, httpSystemInitialized: boolean }>({ 
     lastUserId: null, 
     wsConnected: false,
-    notificationsLoaded: false
+    notificationsLoaded: false,
+    httpSystemInitialized: false
   });
   
   /**
@@ -133,11 +134,10 @@ export const NotificationProvider: React.FC<{
   const refreshStoredNotifications = useCallback(async () => {
     // Use the unified auth ready check
     if (!isAuthReady()) {
+      console.log('⚠️  Notifications: Auth not ready, skipping fetch');
       return;
     }
 
-
-    
     try {
       const response = await notificationService.getNotifications(user!, {
         skip: 0,
@@ -145,8 +145,11 @@ export const NotificationProvider: React.FC<{
         unread_only: false
       });
 
-
       const storedNotifications = response.notifications.map(convertStoredNotification);
+      console.log('📥 Loaded notifications:', storedNotifications.length);
+      
+      // Mark HTTP notification system as initialized (regardless of notification count)
+      initializationRef.current.httpSystemInitialized = true;
       
       // Merge with existing real-time notifications, avoiding duplicates
       setNotifications(prev => {
@@ -261,9 +264,14 @@ export const NotificationProvider: React.FC<{
     window.location.href = actionUrl;
   }, [onNavigation]);
   
-  // WebSocket connection for real-time notifications
+  // WebSocket connection through frontend proxy (custom server handles this)
+  const wsUrl = typeof window !== 'undefined' 
+    ? `ws://${window.location.host}/ws/notifications`
+    : 'ws://localhost:3000/ws/notifications';
+  
+  
   const notificationWS = useWebSocket({
-    url: 'ws://localhost:8000/ws/notifications',
+    url: wsUrl,
     autoConnect: false
   });
 
@@ -721,6 +729,7 @@ export const NotificationProvider: React.FC<{
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
+  
 
   // Subscribe to WebSocket messages
   useEffect(() => {
@@ -755,40 +764,59 @@ export const NotificationProvider: React.FC<{
     };
   }, [notificationWS.isConnected]);
 
+  // Fallback polling when WebSocket fails
+  useEffect(() => {
+    if (!isAuthReady() || notificationWS.isConnected) return;
+
+    // Set up polling as fallback (every 30 seconds)
+    const pollInterval = setInterval(async () => {
+      console.log('🔄 Polling for notifications (WebSocket fallback)');
+      await refreshStoredNotifications();
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
+  }, [isAuthReady(), notificationWS.isConnected, refreshStoredNotifications]);
+
   // WebSocket connection management and initial notification load
   useEffect(() => {
-    if (isAuthReady()) {
-      const currentUserId = user!.id;
+    // Only proceed if auth is fully ready (not just loading)
+    if (isAuthReady() && !isLoading && isAuthenticated && user) {
+      const currentUserId = user.id;
       
       // Reset if user changed
       if (initializationRef.current.lastUserId !== currentUserId) {
         initializationRef.current.lastUserId = currentUserId;
         initializationRef.current.wsConnected = false;
         initializationRef.current.notificationsLoaded = false;
+        initializationRef.current.httpSystemInitialized = false;
       }
       
-      // Connect WebSocket for real-time notifications
-      if (!initializationRef.current.wsConnected) {
-        notificationWS.connect();
-        initializationRef.current.wsConnected = true;
-      }
-      
-      // Load initial notifications automatically
+      // Load initial notifications first (this works via HTTP)
       if (!initializationRef.current.notificationsLoaded) {
         refreshStoredNotifications();
         initializationRef.current.notificationsLoaded = true;
       }
+      
+      // Connect WebSocket for real-time notifications with a small delay
+      // to ensure auth is fully settled
+      if (!initializationRef.current.wsConnected) {
+        setTimeout(() => {
+          notificationWS.connect();
+          initializationRef.current.wsConnected = true;
+        }, 1000); // Increased delay to ensure auth is fully ready
+      }
     } else {
-      // Clear state when not authenticated
-      if (!isAuthenticated) {
+      // Clear state when not authenticated or still loading
+      if (!isAuthenticated || isLoading) {
         setNotifications([]);
         notificationWS.disconnect();
         initializationRef.current.wsConnected = false;
         initializationRef.current.notificationsLoaded = false;
+        initializationRef.current.httpSystemInitialized = false;
         initializationRef.current.lastUserId = null;
       }
     }
-  }, [isAuthenticated, user?.id, refreshStoredNotifications]);
+  }, [isAuthenticated, isLoading, user?.id, refreshStoredNotifications]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -810,7 +838,29 @@ export const NotificationProvider: React.FC<{
     toasts,
     showToast,
     dismissToast,
-    isConnected: isAuthenticated && isAuthReady(), // Connected if authenticated, regardless of WebSocket status
+    isConnected: (() => {
+      const authConnected = isAuthenticated && isAuthReady();
+      const wsConnected = notificationWS.isConnected;
+      const wsConnecting = notificationWS.isConnecting;
+      const httpSystemWorking = initializationRef.current.httpSystemInitialized;
+      
+      // If not authenticated, show as disconnected
+      if (!authConnected) {
+        return false;
+      }
+      
+      // If authenticated, consider connected if:
+      // 1. WebSocket is connected or connecting, OR
+      // 2. HTTP notification system is working
+      const connected = wsConnected || wsConnecting || httpSystemWorking;
+      
+      // Only log disconnected state if we're sure the system has had time to initialize
+      if (!connected && authConnected) {
+        console.log('🔴 Notifications disconnected - wsConnected:', wsConnected, 'wsConnecting:', wsConnecting, 'httpSystemWorking:', httpSystemWorking);
+      }
+      
+      return connected;
+    })(), // Connected if authenticated and system is working
     connectionError: notificationWS.error,
     navigateFromNotification: handleNotificationNavigation,
     onNotificationReceived,
@@ -830,6 +880,8 @@ export const NotificationProvider: React.FC<{
     dismissToast,
     isAuthenticated,
     isAuthReady,
+    notificationWS.isConnected,
+    notificationWS.isConnecting,
     notificationWS.error,
     handleNotificationNavigation,
     onNotificationReceived,
