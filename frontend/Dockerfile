@@ -33,6 +33,10 @@ COPY . .
 # Only build in production
 RUN if [ "$NODE_ENV" = "production" ]; then \
       npm run build; \
+      # Ensure prerender-manifest.json exists (Next.js 15.x fix)
+      if [ ! -f ".next/prerender-manifest.json" ]; then \
+        echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development-id","previewModeSigningKey":"development-key","previewModeEncryptionKey":"development-key"}}' > .next/prerender-manifest.json; \
+      fi; \
     else \
       echo "Skipping production build in development"; \
     fi
@@ -51,6 +55,12 @@ RUN chmod +x entrypoint.sh
 
 # Use non-root user
 USER node
+
+# Ensure prerender-manifest.json exists in runtime (Next.js 15.x fix)
+# This must be done after switching to node user to avoid permission issues
+RUN if [ ! -f ".next/prerender-manifest.json" ]; then \
+      echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development-id","previewModeSigningKey":"development-key","previewModeEncryptionKey":"development-key"}}' > .next/prerender-manifest.json; \
+    fi
 
 EXPOSE 3000
 

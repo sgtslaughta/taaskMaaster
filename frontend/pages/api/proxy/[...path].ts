@@ -42,7 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Forward X-User-Data header for notifications API
   if (req.headers['x-user-data']) {
-    headers['X-User-Data'] = req.headers['x-user-data'];
+    const userData = req.headers['x-user-data'];
+    headers['X-User-Data'] = Array.isArray(userData) ? userData[0] : userData;
   }
 
   try {

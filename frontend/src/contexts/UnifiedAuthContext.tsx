@@ -368,7 +368,6 @@ export const UnifiedAuthProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (!hasValidTokens) {
       console.log('🔍 AuthReady: Missing tokens:', {
-        ...debugInfo,
         tokenDetails: {
           accessToken: !!accessToken,
           cookieToken: !!cookieState?.token,

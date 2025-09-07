@@ -13,13 +13,8 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   
-  // Suppress ISR manifest warnings in development
-  experimental: {
-    // Disable ISR in development to prevent manifest warnings
-    isrMemoryCacheSize: 0,
-    // Suppress HMR warnings
-    suppressHydrationWarning: true,
-  },
+  // Skip trailing slash redirect to avoid routing issues
+  skipTrailingSlashRedirect: true,
   
   
   // Environment variables

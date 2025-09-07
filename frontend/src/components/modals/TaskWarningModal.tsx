@@ -328,7 +328,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
         },
       }}
     >
-      <Stack spacing="md">
+      <Stack gap="md">
         {loading ? (
           <Box ta="center" py="xl">
             <Text c="dimmed">Loading task information...</Text>
@@ -360,12 +360,12 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
             </Text>
 
             <Box mx="sm" my="md">
-              <ScrollArea.Autosize maxHeight={450} p="md">
+              <ScrollArea.Autosize mah={450} p="md">
                 <Grid gutter="md">
                 {/* Left Column: Tasks Created by User */}
                 <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Stack spacing="sm">
-                    <Group spacing="xs" mb="xs">
+                  <Stack gap="sm">
+                    <Group gap="xs" mb="xs">
                       <IconUser size={16} />
                       <Text fw={600} size="sm" c={isDarkMode ? "white" : "dark"}>
                         Tasks I Created
@@ -375,7 +375,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                     {/* Created - Overdue */}
                     {taskData.createdTasks.overdue.length > 0 && (
                       <Box>
-                        <Group spacing="xs" mb="xs">
+                        <Group gap="xs" mb="xs">
                           <ThemeIcon color={isDarkMode ? "red.4" : "red.6"} variant="light" size="xs">
                             <IconAlertTriangle size={12} />
                           </ThemeIcon>
@@ -383,7 +383,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                             Overdue ({taskData.createdTasks.overdue.length})
                           </Text>
                         </Group>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                           {taskData.createdTasks.overdue.map((task) => (
                             <Card 
                               key={`created-overdue-${task.id}`}
@@ -398,14 +398,14 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                                 {task.title}
                               </Text>
                               {((task as any).assigned_user || (task as any).assigned_to) && (
-                                <Group spacing="xs" mt="xs">
+                                <Group gap="xs" mt="xs">
                                   <IconUser size={10} />
                                   <Text size="xs" c="dimmed" lineClamp={1}>
                                     Assigned to: {((task as any).assigned_user?.username || (task as any).assigned_to?.username) || 'Unknown'}
                                   </Text>
                                 </Group>
                               )}
-                              <Group spacing="xs" mt="xs">
+                              <Group gap="xs" mt="xs">
                                 <Badge color={getPriorityColor(task.priority)} variant="light" size="xs">
                                   {task.priority}
                                 </Badge>
@@ -422,7 +422,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                     {/* Created - Upcoming */}
                     {taskData.createdTasks.upcoming.length > 0 && (
                       <Box>
-                        <Group spacing="xs" mb="xs">
+                        <Group gap="xs" mb="xs">
                           <ThemeIcon color={isDarkMode ? "yellow.4" : "yellow.6"} variant="light" size="xs">
                             <IconClock size={12} />
                           </ThemeIcon>
@@ -430,7 +430,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                             Upcoming ({taskData.createdTasks.upcoming.length})
                           </Text>
                         </Group>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                           {taskData.createdTasks.upcoming.map((task) => (
                             <Card 
                               key={`created-upcoming-${task.id}`}
@@ -445,14 +445,14 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                                 {task.title}
                               </Text>
                               {((task as any).assigned_user || (task as any).assigned_to) && (
-                                <Group spacing="xs" mt="xs">
+                                <Group gap="xs" mt="xs">
                                   <IconUser size={10} />
                                   <Text size="xs" c="dimmed" lineClamp={1}>
                                     Assigned to: {((task as any).assigned_user?.username || (task as any).assigned_to?.username) || 'Unknown'}
                                   </Text>
                                 </Group>
                               )}
-                              <Group spacing="xs" mt="xs">
+                              <Group gap="xs" mt="xs">
                                 <Badge color={getPriorityColor(task.priority)} variant="light" size="xs">
                                   {task.priority}
                                 </Badge>
@@ -476,8 +476,8 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
 
                 {/* Right Column: Tasks Assigned to User */}
                 <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Stack spacing="sm">
-                    <Group spacing="xs" mb="xs">
+                  <Stack gap="sm">
+                    <Group gap="xs" mb="xs">
                       <IconFlag size={16} />
                       <Text fw={600} size="sm" c={isDarkMode ? "white" : "dark"}>
                         Tasks Assigned to Me
@@ -487,7 +487,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                     {/* Assigned - Overdue */}
                     {taskData.assignedTasks.overdue.length > 0 && (
                       <Box>
-                        <Group spacing="xs" mb="xs">
+                        <Group gap="xs" mb="xs">
                           <ThemeIcon color={isDarkMode ? "red.4" : "red.6"} variant="light" size="xs">
                             <IconAlertTriangle size={12} />
                           </ThemeIcon>
@@ -495,7 +495,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                             Overdue ({taskData.assignedTasks.overdue.length})
                           </Text>
                         </Group>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                           {taskData.assignedTasks.overdue.map((task) => (
                             <Card 
                               key={`assigned-overdue-${task.id}`}
@@ -509,7 +509,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                               <Text fw={500} size="xs" c={isDarkMode ? "white" : "dark"} lineClamp={1}>
                                 {task.title}
                               </Text>
-                              <Group spacing="xs" mt="xs">
+                              <Group gap="xs" mt="xs">
                                 <Badge color={getPriorityColor(task.priority)} variant="light" size="xs">
                                   {task.priority}
                                 </Badge>
@@ -526,7 +526,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                     {/* Assigned - Upcoming */}
                     {taskData.assignedTasks.upcoming.length > 0 && (
                       <Box>
-                        <Group spacing="xs" mb="xs">
+                        <Group gap="xs" mb="xs">
                           <ThemeIcon color={isDarkMode ? "yellow.4" : "yellow.6"} variant="light" size="xs">
                             <IconClock size={12} />
                           </ThemeIcon>
@@ -534,7 +534,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                             Upcoming ({taskData.assignedTasks.upcoming.length})
                           </Text>
                         </Group>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                           {taskData.assignedTasks.upcoming.map((task) => (
                             <Card 
                               key={`assigned-upcoming-${task.id}`}
@@ -548,7 +548,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                               <Text fw={500} size="xs" c={isDarkMode ? "white" : "dark"} lineClamp={1}>
                                 {task.title}
                               </Text>
-                              <Group spacing="xs" mt="xs">
+                              <Group gap="xs" mt="xs">
                                 <Badge color={getPriorityColor(task.priority)} variant="light" size="xs">
                                   {task.priority}
                                 </Badge>
@@ -583,7 +583,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
                 size="sm"
                 c={isDarkMode ? "white" : "dark"}
               />
-              <Group spacing="sm" wrap="wrap">
+              <Group gap="sm" wrap="wrap">
                 <Button
                   variant="light"
                   color="gray"

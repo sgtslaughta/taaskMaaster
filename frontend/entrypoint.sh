@@ -34,6 +34,12 @@ else
         echo "Using existing build..."
     fi
     
+    # Ensure prerender-manifest.json exists (Next.js 15.x fix)
+    if [ ! -f ".next/prerender-manifest.json" ]; then
+        echo "Creating missing prerender-manifest.json..."
+        echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development-id","previewModeSigningKey":"development-key","previewModeEncryptionKey":"development-key"}}' > .next/prerender-manifest.json
+    fi
+    
     # Start the production server
     echo "Starting production server..."
     exec npm run start:next

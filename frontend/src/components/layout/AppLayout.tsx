@@ -41,11 +41,18 @@ export function AppLayout({
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false); // Collapsed by default
   const [isHovered, setIsHovered] = useState(false);
+  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   
   // Get notification functions
   const { refreshStoredNotifications, showTestMantineNotification } = useNotifications();
 
   const handleGenerateDemo = async () => {
+    if (isGeneratingDemo) {
+      console.log('Demo generation already in progress, skipping...');
+      return;
+    }
+
+    setIsGeneratingDemo(true);
     try {
       const response = await fetch('/api/proxy/notifications/demo', {
         method: 'POST',
@@ -62,6 +69,9 @@ export function AppLayout({
       });
 
       if (response.ok) {
+        // Small delay to ensure backend has processed the notifications
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Refresh notifications and show Mantine notifications for new ones
         await refreshStoredNotifications(true);
         
@@ -80,6 +90,8 @@ export function AppLayout({
         message: 'Failed to generate demo notifications',
         color: 'red',
       });
+    } finally {
+      setIsGeneratingDemo(false);
     }
   };
 
@@ -127,8 +139,10 @@ export function AppLayout({
                 leftSection={<IconSparkles size={14} />}
                 onClick={handleGenerateDemo}
                 color="yellow"
+                loading={isGeneratingDemo}
+                disabled={isGeneratingDemo}
               >
-                Demo
+                {isGeneratingDemo ? 'Generating...' : 'Demo'}
               </Button>
             )}
 
