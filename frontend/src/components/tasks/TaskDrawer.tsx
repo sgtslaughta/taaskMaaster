@@ -84,15 +84,6 @@ const getDynamicSteps = (taskStatus: TaskStatus, currentUser?: User | null, assi
   const isAssignedToCurrentUser = currentUser && assignedUserId === Number(currentUser.id);
   const isCreatedByCurrentUser = currentUser && createdById === Number(currentUser.id);
   
-  console.log('🔍 getDynamicSteps debug:', {
-    taskStatus,
-    currentUserId: currentUser?.id,
-    assignedUserId,
-    createdById,
-    isAssignedToCurrentUser,
-    isCreatedByCurrentUser,
-    currentUser: currentUser ? { id: currentUser.id, name: currentUser.full_name || `${currentUser.first_name} ${currentUser.last_name}`.trim() || currentUser.username, role: currentUser.role } : null
-  });
   
   const steps = [
     {
@@ -140,12 +131,6 @@ const getDynamicSteps = (taskStatus: TaskStatus, currentUser?: User | null, assi
     }
   ];
   
-  console.log('🔍 Generated steps:', steps.map(s => ({
-    key: s.key,
-    label: s.label,
-    clickable: s.clickable,
-    nextStatus: s.nextStatus
-  })));
   
   return steps;
 };
@@ -409,26 +394,17 @@ export function TaskDrawer({
 
   // Handle step click to progress task status
   const handleStepClick = async (step: ReturnType<typeof getDynamicSteps>[0]) => {
-    console.log('🔍 handleStepClick called:', {
-      stepKey: step.key,
-      stepClickable: step.clickable,
-      taskExists: !!task,
-      nextStatus: step.nextStatus
-    });
     
     if (!step.clickable || !task) {
-      console.log('🚫 Step click blocked:', { clickable: step.clickable, taskExists: !!task });
       return;
     }
     
     try {
-      console.log('🔍 Updating task status to:', step.nextStatus);
       
       let updatedTask: ServiceTask;
       
       // Use the proper complete endpoint when marking task as done
       if (step.nextStatus === 'done') {
-        console.log('🔍 Using completeTask endpoint for completion');
         updatedTask = await taskService.completeTask(task.id);
       } else {
         // For other status changes, use regular update
@@ -439,7 +415,6 @@ export function TaskDrawer({
         updatedTask = await taskService.updateTask(task.id, updateData);
       }
       
-      console.log('🔍 Task status updated successfully:', updatedTask);
       
       // Update local state
       setFormData({
@@ -450,7 +425,6 @@ export function TaskDrawer({
       
       // Don't call onSave for stepper updates as it may close the drawer
       // The parent will be notified of changes when the drawer is closed
-      console.log('🔍 Task status updated locally, drawer staying open');
     } catch (err) {
       console.error('Failed to update task status:', err);
       // TODO: Show error notification to user
@@ -504,13 +478,6 @@ export function TaskDrawer({
           const steps = getDynamicSteps(task.status, currentUser, task.assigned_to_id, task.created_by_id);
           const currentStep = getCurrentStep(steps);
           
-          console.log('🔍 Stepper render debug:', {
-            taskId: task.id,
-            taskStatus: task.status,
-            taskAssignedToId: task.assigned_to_id,
-            currentStep,
-            stepsCount: steps.length
-          });
           
           return (
             <Paper p="md" withBorder>
@@ -523,26 +490,14 @@ export function TaskDrawer({
                 orientation="horizontal"
                 iconSize={46}
                 onStepClick={(stepIndex) => {
-                  console.log('🔍 Stepper onStepClick called with index:', stepIndex);
                   const step = steps[stepIndex];
                   if (step && step.clickable) {
-                    console.log('🔍 Step is clickable, calling handleStepClick');
                     handleStepClick(step);
-                  } else {
-                    console.log('🚫 Step not clickable or not found:', { step: step?.key, clickable: step?.clickable });
                   }
                 }}
               >
                 {steps.map((step, index) => {
                   const StepIcon = step.completed ? IconCheck : step.icon;
-                  console.log('🔍 Rendering step:', {
-                    index,
-                    key: step.key,
-                    label: step.label,
-                    clickable: step.clickable,
-                    completed: step.completed,
-                    active: step.active
-                  });
                   
                   return (
                     <Stepper.Step

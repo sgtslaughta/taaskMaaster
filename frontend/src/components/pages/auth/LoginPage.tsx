@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../../contexts/UnifiedAuthContext';
 import { cn } from '../../../design-system/utils/cn';
 
 /**
@@ -54,7 +54,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onSocialLogin,
   className,
 }) => {
-  const { login, error, clearError } = useAuth();
+  const { login, error, clearError } = useUnifiedAuth();
   const [formData, setFormData] = useState<LoginFormData>({
     email: 'admin',
     password: 'admin123',

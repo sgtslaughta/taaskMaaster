@@ -93,13 +93,15 @@ export class NotificationService {
    * Create user data header for API requests
    */
   private createUserDataHeader(user: any): Record<string, string> {
-    return {
+    const userDataHeader = {
       'X-User-Data': JSON.stringify({
         user_id: user.id,
         username: user.username,
         role: user.role || 'user'
       })
     };
+    // console.log('📋 Creating X-User-Data header:', userDataHeader); // Debug log - can be removed in production
+    return userDataHeader;
   }
 
   /**

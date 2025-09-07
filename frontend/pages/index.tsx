@@ -4,11 +4,11 @@ import { Container, Title, Text, Button, Stack, Center, Paper, Group, Badge } fr
 import { notifications } from '@mantine/notifications'
 import { MyHub } from '../src/components/pages/MyHub'
 import { AuthGuard } from '../src/components/auth'
-import { useAuth } from '../src/contexts/AuthContext'
+import { useUnifiedAuth } from '../src/contexts/UnifiedAuthContext'
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState('hub')
-  const { user, logout } = useAuth()
+  const { user, logout } = useUnifiedAuth()
 
   const handleNavigation = (pageId: string) => {
     setCurrentPage(pageId)

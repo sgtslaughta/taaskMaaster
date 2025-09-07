@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { LoadingOverlay, Box } from '@mantine/core';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 import { LoginPage } from './LoginPage';
 import { useRouter } from 'next/router';
 import { notifications } from '@mantine/notifications';
@@ -17,7 +17,7 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, isLoading, login, error, clearError } = useAuth();
+  const { isAuthenticated, isLoading, login, error, clearError } = useUnifiedAuth();
   const router = useRouter();
 
   // Clear errors when component mounts

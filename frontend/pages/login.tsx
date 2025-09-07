@@ -9,12 +9,12 @@ import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { LoginPage } from '../src/components/auth';
-import { useAuth } from '../src/contexts/AuthContext';
+import { useUnifiedAuth } from '../src/contexts/UnifiedAuthContext';
 import { notifications } from '@mantine/notifications';
 
 export default function Login() {
   const router = useRouter();
-  const { login, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const { login, isLoading, error, isAuthenticated, clearError } = useUnifiedAuth();
 
   // Redirect if already authenticated
   useEffect(() => {

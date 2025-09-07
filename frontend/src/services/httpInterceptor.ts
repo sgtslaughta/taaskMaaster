@@ -71,18 +71,12 @@ export class HttpInterceptor {
           return config;
         }
 
-        // Ensure we have a valid token before making the request
-        const hasValidToken = await tokenManager.ensureValidToken();
-        
-        if (hasValidToken) {
-          const token = tokenManager.getAccessToken();
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
+        // Get current token - let 401 handling deal with invalid tokens
+        const token = tokenManager.getAccessToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         } else {
-          // If we can't get a valid token, the request will likely fail
-          // But we let it proceed to trigger the 401 handling in response interceptor
-          console.warn('⚠️  Making request without valid token');
+          console.warn('⚠️  No token available for request:', config.url);
         }
 
         // Add request timestamp for monitoring

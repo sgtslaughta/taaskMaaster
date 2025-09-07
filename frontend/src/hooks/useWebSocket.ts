@@ -111,26 +111,25 @@ export const useWebSocket = (options: UseWebSocketOptions = {}): UseWebSocketRet
       };
 
       wsRef.current.onclose = (event) => {
-
         setIsConnected(false);
         setIsConnecting(false);
 
-        // Attempt to reconnect if it wasn't a manual disconnect
+        // Only attempt to reconnect if backend is expected to be available
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          setError(`Connection lost. Reconnecting... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          setError(`WebSocket reconnecting... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          setError('Failed to reconnect. Please refresh the page.');
+          setError('WebSocket offline - notifications will work when backend is available');
         }
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error for', url, ':', error);
-        setError(`WebSocket connection error: ${url}`);
+        console.warn('WebSocket connection failed for', url, '- backend may not be running');
+        setError(`WebSocket offline: ${url}`);
         setIsConnecting(false);
       };
 

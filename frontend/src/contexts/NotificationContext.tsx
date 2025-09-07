@@ -5,10 +5,13 @@
  * @version 1.0.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getLoginState } from '../utils/cookies';
 import { notificationService, Notification as StoredNotification } from '../services/notificationService';
+import { useUnifiedAuth } from './UnifiedAuthContext';
+import { tokenManager } from '../services/tokenManager';
+import { authService } from '../services/authService';
 
 export interface NotificationData {
   id: string;
@@ -81,6 +84,16 @@ export const NotificationProvider: React.FC<{
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [onNotificationReceived, setOnNotificationReceived] = useState<((notification: NotificationData) => void) | undefined>();
   
+  // Get unified authentication state
+  const { user, isAuthenticated, isLoading, isAuthReady } = useUnifiedAuth();
+  
+  // Track initialization to prevent infinite loops
+  const initializationRef = useRef<{ lastUserId: string | null, wsConnected: boolean, notificationsLoaded: boolean }>({ 
+    lastUserId: null, 
+    wsConnected: false,
+    notificationsLoaded: false
+  });
+  
   /**
    * @description Convert stored notification to NotificationData format
    */
@@ -118,26 +131,20 @@ export const NotificationProvider: React.FC<{
    * @description Fetch stored notifications from the backend
    */
   const refreshStoredNotifications = useCallback(async () => {
+    // Use the unified auth ready check
+    if (!isAuthReady()) {
+      return;
+    }
+
+
+    
     try {
-      const loginState = getLoginState();
-      if (!loginState || !loginState.userId) {
-        return;
-      }
-
-      // Convert loginState to user object format expected by notificationService
-      const user = {
-        id: parseInt(loginState.userId),
-        username: loginState.username,
-        email: loginState.email,
-        role: loginState.role || 'user' // Use actual role from login state or default to 'user'
-      };
-
-
-      const response = await notificationService.getNotifications(user, {
+      const response = await notificationService.getNotifications(user!, {
         skip: 0,
-        limit: 100, // Get recent notifications
+        limit: 100,
         unread_only: false
       });
+
 
       const storedNotifications = response.notifications.map(convertStoredNotification);
       
@@ -146,37 +153,28 @@ export const NotificationProvider: React.FC<{
         const realTimeNotifications = prev.filter(n => !n.storedId);
         const combinedNotifications = [...realTimeNotifications, ...storedNotifications];
         
-        // Sort by timestamp (newest first)
         return combinedNotifications.sort((a, b) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
       });
 
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching stored notifications:', error);
+      throw error;
     }
-  }, [convertStoredNotification]);
+  }, [convertStoredNotification, isAuthReady, user]);
 
   /**
    * @description Mark stored notifications as read via API
    */
   const markStoredAsRead = useCallback(async (storedIds: number[]) => {
+    // Don't try to mark as read if not ready or no IDs provided
+    if (!isAuthReady() || storedIds.length === 0) {
+      return;
+    }
+
     try {
-      const loginState = getLoginState();
-      if (!loginState || !loginState.userId || storedIds.length === 0) {
-        return;
-      }
-
-      // Convert loginState to user object format
-      const user = {
-        id: parseInt(loginState.userId),
-        username: loginState.username,
-        email: loginState.email,
-        role: loginState.role || 'user'
-      };
-
-      await notificationService.markNotificationsRead(user, storedIds);
+      await notificationService.markNotificationsRead(user!, storedIds);
       
       // Update local state
       setNotifications(prev => 
@@ -187,31 +185,25 @@ export const NotificationProvider: React.FC<{
         )
       );
 
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking stored notifications as read:', error);
+      if (error?.response?.status !== 401) {
+        console.error('Unexpected error marking notifications as read:', error);
+      }
     }
-  }, []);
+  }, [isAuthReady]);
 
   /**
    * @description Delete stored notifications via API
    */
   const deleteStoredNotifications = useCallback(async (storedIds: number[]) => {
+    // Don't try to delete if not ready or no IDs provided
+    if (!isAuthReady() || storedIds.length === 0) {
+      return;
+    }
+
     try {
-      const loginState = getLoginState();
-      if (!loginState || !loginState.userId || storedIds.length === 0) {
-        return;
-      }
-
-      // Convert loginState to user object format
-      const user = {
-        id: parseInt(loginState.userId),
-        username: loginState.username,
-        email: loginState.email,
-        role: loginState.role || 'user'
-      };
-
-      await notificationService.deleteNotifications(user, storedIds);
+      await notificationService.deleteNotifications(user!, storedIds);
       
       // Remove from local state
       setNotifications(prev => 
@@ -220,44 +212,53 @@ export const NotificationProvider: React.FC<{
         )
       );
 
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting stored notifications:', error);
+      if (error?.response?.status !== 401) {
+        console.error('Unexpected error deleting notifications:', error);
+      }
     }
-  }, []);
+  }, [isAuthReady]);
 
   /**
    * @description Handle navigation from notification action URL
    */
   const handleNotificationNavigation = useCallback((actionUrl: string) => {
-    if (!onNavigation) {
-      // Fallback to direct navigation if no handler provided
-      window.location.href = actionUrl;
-      return;
-    }
-
+    
     // Parse task URLs for SPA navigation
     const taskMatch = actionUrl.match(/\/tasks\/(\d+)/);
     if (taskMatch) {
       const taskId = parseInt(taskMatch[1], 10);
       
-      // For task notifications, route to dashboard since my-tasks page was removed
-      // Task notifications are always about tasks that are relevant to the current user
-      // (either they created them, are assigned to them, or need to take action)
-      const targetPage = 'dashboard';
+      // Try to use global notification handler first (set by Dashboard)
+      const globalHandler = (window as any).__notificationNavHandler;
+      if (globalHandler) {
+        globalHandler('dashboard', taskId);
+        return;
+      }
       
-      onNavigation(targetPage, taskId);
+      // Fallback to onNavigation prop if provided
+      if (onNavigation) {
+        onNavigation('dashboard', taskId);
+        return;
+      }
+    }
+
+    // Handle other URL patterns with onNavigation prop
+    if (onNavigation) {
+      const pathMatch = actionUrl.match(/\/(.+)/);
+      if (pathMatch) {
+        const pageId = pathMatch[1];
+        onNavigation(pageId);
+      } else {
+        onNavigation('dashboard');
+      }
       return;
     }
 
-    // Handle other URL patterns
-    const pathMatch = actionUrl.match(/\/(.+)/);
-    if (pathMatch) {
-      const pageId = pathMatch[1];
-      onNavigation(pageId);
-    } else {
-      onNavigation('dashboard');
-    }
+    // Final fallback to direct navigation
+    console.warn('🔔 No navigation handler available, falling back to window.location');
+    window.location.href = actionUrl;
   }, [onNavigation]);
   
   // WebSocket connection for real-time notifications
@@ -334,7 +335,6 @@ export const NotificationProvider: React.FC<{
         label: 'View',
         onClick: () => {
           // Navigate to task using SPA navigation
-          console.log('🍞 Toast: View button clicked for:', notification.actionUrl);
           handleNotificationNavigation(notification.actionUrl!);
         }
       }]
@@ -571,6 +571,7 @@ export const NotificationProvider: React.FC<{
    */
   const handleWebSocketMessage = useCallback((data: any) => {
     try {
+      
       // Handle different types of real-time updates
       switch (data.type) {
         case 'task_comment':
@@ -752,27 +753,42 @@ export const NotificationProvider: React.FC<{
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [notificationWS, handleWebSocketMessage]);
+  }, [notificationWS.isConnected]);
 
-  // Initialize WebSocket connection and load stored notifications when user is authenticated
+  // WebSocket connection management and initial notification load
   useEffect(() => {
-    const loginState = getLoginState();
-    if (loginState && loginState.userId) {
-
+    if (isAuthReady()) {
+      const currentUserId = user!.id;
       
-      // Load stored notifications first
-      refreshStoredNotifications();
+      // Reset if user changed
+      if (initializationRef.current.lastUserId !== currentUserId) {
+        initializationRef.current.lastUserId = currentUserId;
+        initializationRef.current.wsConnected = false;
+        initializationRef.current.notificationsLoaded = false;
+      }
       
-      // Then connect to WebSocket for real-time updates
-      const timer = setTimeout(() => {
+      // Connect WebSocket for real-time notifications
+      if (!initializationRef.current.wsConnected) {
         notificationWS.connect();
-      }, 1000);
+        initializationRef.current.wsConnected = true;
+      }
       
-      return () => clearTimeout(timer);
+      // Load initial notifications automatically
+      if (!initializationRef.current.notificationsLoaded) {
+        refreshStoredNotifications();
+        initializationRef.current.notificationsLoaded = true;
+      }
     } else {
-      
+      // Clear state when not authenticated
+      if (!isAuthenticated) {
+        setNotifications([]);
+        notificationWS.disconnect();
+        initializationRef.current.wsConnected = false;
+        initializationRef.current.notificationsLoaded = false;
+        initializationRef.current.lastUserId = null;
+      }
     }
-  }, [refreshStoredNotifications, notificationWS]);
+  }, [isAuthenticated, user?.id, refreshStoredNotifications]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -781,7 +797,7 @@ export const NotificationProvider: React.FC<{
     };
   }, [notificationWS]);
 
-  const value: NotificationContextValue = {
+  const value: NotificationContextValue = useMemo(() => ({
     notifications,
     unreadCount,
     markAsRead,
@@ -794,12 +810,31 @@ export const NotificationProvider: React.FC<{
     toasts,
     showToast,
     dismissToast,
-    isConnected: notificationWS.isConnected,
+    isConnected: isAuthenticated && isAuthReady(), // Connected if authenticated, regardless of WebSocket status
     connectionError: notificationWS.error,
     navigateFromNotification: handleNotificationNavigation,
     onNotificationReceived,
     setOnNotificationReceived
-  };
+  }), [
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearNotification,
+    clearAllNotifications,
+    refreshStoredNotifications,
+    markStoredAsRead,
+    deleteStoredNotifications,
+    toasts,
+    showToast,
+    dismissToast,
+    isAuthenticated,
+    isAuthReady,
+    notificationWS.error,
+    handleNotificationNavigation,
+    onNotificationReceived,
+    setOnNotificationReceived
+  ]);
 
   return (
     <NotificationContext.Provider value={value}>

@@ -292,7 +292,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group spacing="sm">
+        <Group gap="sm">
           <ThemeIcon 
             color={isDarkMode ? "orange" : "orange.6"} 
             variant="light" 
@@ -310,7 +310,7 @@ export const TaskWarningModal: React.FC<TaskWarningModalProps> = ({
       closeOnClickOutside={false}
       closeOnEscape={true}
       styles={{
-        modal: {
+        content: {
           backgroundColor: isDarkMode ? mantineTheme.colors.dark[7] : mantineTheme.colors.gray[0],
           backdropFilter: 'none', // Disable backdrop filter for password manager compatibility
           filter: 'none', // Disable filters

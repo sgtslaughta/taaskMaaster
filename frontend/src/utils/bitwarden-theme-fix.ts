@@ -33,12 +33,10 @@ export function initBitwardenThemeFix(): void {
             if (currentSrc && currentSrc.includes('colorScheme=normal')) {
               const newSrc = currentSrc.replace('colorScheme=normal', 'colorScheme=dark');
               iframe.src = newSrc;
-              console.log('Modified Bitwarden iframe URL for dark theme:', newSrc);
             } else if (currentSrc && !currentSrc.includes('colorScheme=')) {
               // If no colorScheme parameter, add dark theme
               const separator = currentSrc.includes('?') ? '&' : '?';
               iframe.src = currentSrc + separator + 'colorScheme=dark';
-              console.log('Added dark theme to Bitwarden iframe URL:', iframe.src);
             }
           }
           
@@ -56,12 +54,10 @@ export function initBitwardenThemeFix(): void {
             if (currentSrc && currentSrc.includes('colorScheme=normal')) {
               const newSrc = currentSrc.replace('colorScheme=normal', 'colorScheme=dark');
               iframeElement.src = newSrc;
-              console.log('Modified Bitwarden iframe URL for dark theme:', newSrc);
             } else if (currentSrc && !currentSrc.includes('colorScheme=')) {
               // If no colorScheme parameter, add dark theme
               const separator = currentSrc.includes('?') ? '&' : '?';
               iframeElement.src = currentSrc + separator + 'colorScheme=dark';
-              console.log('Added dark theme to Bitwarden iframe URL:', iframeElement.src);
             }
           });
         }
@@ -90,12 +86,10 @@ export function initBitwardenThemeFix(): void {
       if (currentSrc && currentSrc.includes('colorScheme=normal')) {
         const newSrc = currentSrc.replace('colorScheme=normal', 'colorScheme=dark');
         iframeElement.src = newSrc;
-        console.log('Modified existing Bitwarden iframe URL for dark theme:', newSrc);
       } else if (currentSrc && !currentSrc.includes('colorScheme=')) {
         // If no colorScheme parameter, add dark theme
         const separator = currentSrc.includes('?') ? '&' : '?';
         iframeElement.src = currentSrc + separator + 'colorScheme=dark';
-        console.log('Added dark theme to existing Bitwarden iframe URL:', iframeElement.src);
       }
     });
   };
@@ -104,7 +98,6 @@ export function initBitwardenThemeFix(): void {
   checkExistingIframes();
   setTimeout(checkExistingIframes, 1000);
   
-  console.log('Bitwarden theme fix initialized');
 }
 
 /**
@@ -125,5 +118,4 @@ export function setBitwardenThemePreference(): void {
   // Also set it on html element
   document.documentElement.style.setProperty('color-scheme', 'dark light');
   
-  console.log('Set color-scheme preference to dark light');
 }

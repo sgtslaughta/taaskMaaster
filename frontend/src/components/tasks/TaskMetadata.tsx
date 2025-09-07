@@ -22,34 +22,18 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
   const [createdByUser, setCreatedByUser] = useState<User | null>(task.created_by ?? null);
   const [userLoading, setUserLoading] = useState(false);
 
-  // Debug task structure
-  useEffect(() => {
-    console.log('🔍 TaskMetadata task structure:', task);
-  }, [task]);
 
   // Fetch user details if not already populated
   useEffect(() => {
-    console.log('🔍 TaskMetadata useEffect RUNNING!');
     const fetchUser = async () => {
-      console.log('🔍 TaskMetadata useEffect conditions:', {
-        hasCreatedBy: !!task.created_by,
-        hasCreatedById: !!task.created_by_id,
-        userLoading,
-        hasCreatedByUser: !!createdByUser,
-        createdByUserValue: createdByUser,
-        shouldFetch: !task.created_by && task.created_by_id && !userLoading && !createdByUser
-      });
       
       if (!task.created_by && task.created_by_id && !userLoading && !createdByUser) {
-        console.log('🔍 TaskMetadata fetching user:', task.created_by_id);
         try {
           setUserLoading(true);
           const userResponse = await userService.getUser(task.created_by_id);
-          console.log('🔍 TaskMetadata user response:', userResponse);
           // API returns user directly, not wrapped in userResponse.user
           const user = userResponse.user || userResponse;
           setCreatedByUser(user);
-          console.log('🔍 TaskMetadata user set:', user);
         } catch (error) {
           console.error('❌ Failed to fetch user for TaskMetadata:', error);
           // Keep createdByUser as null to show fallback
@@ -118,12 +102,6 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
 
   const daysStatus = getDaysStatus();
   
-  console.log('🔍 TaskMetadata render values:', {
-    createdByUser,
-    userLoading,
-    taskCreatedById: task.created_by_id,
-    taskCreatedBy: task.created_by
-  });
 
   const metadata = [
     {

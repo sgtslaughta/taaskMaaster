@@ -62,7 +62,7 @@ import { gamificationService, goalService, taskService } from '../../services';
 import BlurText from '../ui/BlurText';
 import TaskCalendar from '../calendar/TaskCalendar';
 import { TaskDrawer } from '../tasks/TaskDrawer';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUnifiedAuth } from '../../contexts/UnifiedAuthContext';
 
 /**
  * @description User interface
@@ -147,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   isEmbedded = false,
 }) => {
   // Get authenticated user for permission checking
-  const { user: authUser } = useAuth();
+  const { user: authUser } = useUnifiedAuth();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
   const [stats, setStats] = useState<DashboardStats>({
@@ -177,6 +177,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [modalTitle, setModalTitle] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [drawerOpened, setDrawerOpened] = useState(false);
+
+  /**
+   * @description Handle notification navigation to open TaskDrawer
+   */
+  useEffect(() => {
+    const handleNotificationNav = (pageId: string, taskId?: number) => {
+      if (pageId === 'dashboard' && taskId) {
+        setSelectedTaskId(taskId);
+        setDrawerOpened(true);
+      }
+    };
+    
+    // Set up global navigation handler for notifications
+    (window as any).__notificationNavHandler = handleNotificationNav;
+    
+    // Also trigger onNotificationNavigation callback if provided
+    if (onNotificationNavigation) {
+      // Register the callback - this creates a two-way communication
+      // AppRouter can call this directly, or notifications can use the global handler
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      (window as any).__notificationNavHandler = null;
+    };
+  }, [onNotificationNavigation]);
 
   /**
    * @description Calculate weekly activity data from tasks
@@ -653,7 +679,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 animateBy="words"
                 direction="top"
                 className=""
-                onAnimationComplete={() => console.log('Welcome animation complete!')}
+                onAnimationComplete={() => {}}
               />
             </div>
             <div style={{ fontSize: 'var(--mantine-font-size-sm)', color: 'var(--mantine-color-dimmed)' }}>
@@ -896,7 +922,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <TaskCalendar 
           tasks={userTasks}
           currentUser={authUser as any}
-          onTaskClick={(task) => console.log('Clicked task:', task.title)}
+          onTaskClick={(task) => {}}
           onTaskUpdate={(task) => {
             // Reload dashboard data when tasks are updated
             loadDashboardData();

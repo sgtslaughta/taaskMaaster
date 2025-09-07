@@ -14,8 +14,9 @@ import '../src/styles/mantine-fixes.css';
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { mantineTheme } from '../src/lib/mantine-theme';
-import { AuthProvider } from '../src/contexts/AuthContext'
+import { UnifiedAuthProvider } from '../src/contexts/UnifiedAuthContext'
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext'
+import { NotificationProvider } from '../src/contexts/NotificationContext'
 import { initBitwardenThemeFix, setBitwardenThemePreference } from '../src/utils/bitwarden-theme-fix'
 // Suppress HMR ISR manifest warnings in development
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
@@ -53,9 +54,11 @@ function AppContent({ Component, pageProps }: { Component: any; pageProps: any }
   return (
     <MantineProvider theme={dynamicTheme} forceColorScheme={isDarkMode ? 'dark' : 'light'}>
       <Notifications />
-      <AuthProvider>
-        <Component {...pageProps} />
-      </AuthProvider>
+      <UnifiedAuthProvider>
+        <NotificationProvider>
+          <Component {...pageProps} />
+        </NotificationProvider>
+      </UnifiedAuthProvider>
     </MantineProvider>
   );
 }
