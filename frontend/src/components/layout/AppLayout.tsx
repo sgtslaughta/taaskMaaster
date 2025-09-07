@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AppShell, Burger, Group, Text, Button } from '@mantine/core';
+import { AppShell, Burger, Group, Text, Button, Image, useMantineColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -38,6 +38,7 @@ export function AppLayout({
   user, 
   onLogout
 }: AppLayoutProps) {
+  const { colorScheme } = useMantineColorScheme();
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false); // Collapsed by default
   const [isHovered, setIsHovered] = useState(false);
@@ -121,13 +122,22 @@ export function AppLayout({
               visibleFrom="sm"
               size="sm"
             />
-            <Text
-              size="lg"
-              fw={600}
-              c="primary"
-            >
-              TaaskMaaster
-            </Text>
+            <Group gap="sm">
+              <Image
+                src={colorScheme === 'dark' ? '/logo_short_med_dark.png' : '/logo_short_med_light.png'}
+                alt="TaaskMaaster Logo"
+                height={32}
+                width="auto"
+                fit="contain"
+              />
+              <Text
+                size="lg"
+                fw={600}
+                c="primary"
+              >
+                TaaskMaaster
+              </Text>
+            </Group>
           </Group>
 
           <Group gap="sm">

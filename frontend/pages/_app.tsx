@@ -74,6 +74,7 @@ import { UnifiedAuthProvider } from '../src/contexts/UnifiedAuthContext'
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext'
 import { NotificationProvider } from '../src/contexts/NotificationContext'
 import { initBitwardenThemeFix, setBitwardenThemePreference } from '../src/utils/bitwarden-theme-fix'
+import { FaviconManager } from '../src/components/ui/FaviconManager'
 // Suppress HMR ISR manifest warnings in development
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   const originalWarn = console.warn;
@@ -109,6 +110,7 @@ function AppContent({ Component, pageProps }: { Component: any; pageProps: any }
   
   return (
     <MantineProvider theme={dynamicTheme} forceColorScheme={isDarkMode ? 'dark' : 'light'}>
+      <FaviconManager />
       <Notifications />
       <UnifiedAuthProvider>
         <NotificationProvider>

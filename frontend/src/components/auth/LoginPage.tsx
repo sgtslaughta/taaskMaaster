@@ -21,7 +21,8 @@ import {
   ThemeIcon,
   Center,
   BackgroundImage,
-  useMantineColorScheme
+  useMantineColorScheme,
+  Image
 } from '@mantine/core';
 import {
   IconChecklist,
@@ -97,9 +98,13 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
           bg={colorScheme === 'dark' ? 'dark.7' : 'white'}
         >
           <Group justify="center" mb="lg">
-            <ThemeIcon size="xl" variant="light" color="primary">
-              <IconChecklist size={32} stroke={1.5} />
-            </ThemeIcon>
+            <Image
+              src={colorScheme === 'dark' ? '/logo_med_full_dark.png' : '/logo_med_full_light.png'}
+              alt="TaaskMaaster Logo"
+              height={64}
+              width="auto"
+              fit="contain"
+            />
           </Group>
           
           <Title order={2} className={classes.title} ta="center" mt="md" mb="lg">
