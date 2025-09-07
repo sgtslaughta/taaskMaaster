@@ -76,13 +76,29 @@ export function TaskMetadata({ task }: TaskMetadataProps) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) {
-      const daysPast = Math.abs(diffDays);
-      return {
-        label: 'Overdue',
-        value: `${daysPast} day${daysPast !== 1 ? 's' : ''}`,
-        color: 'red',
-        icon: IconAlertTriangle
-      };
+      // For granular overdue display (includes time)
+      if (due < now) {
+        const timeDiff = now.getTime() - due.getTime();
+        const minutesDiff = Math.floor(timeDiff / (1000 * 60));
+        const hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+        const daysDiffExact = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        
+        let overdueValue = '';
+        if (daysDiffExact >= 1) {
+          overdueValue = `${daysDiffExact} day${daysDiffExact !== 1 ? 's' : ''}`;
+        } else if (hoursDiff >= 1) {
+          overdueValue = `${hoursDiff} hour${hoursDiff !== 1 ? 's' : ''}`;
+        } else {
+          overdueValue = `${minutesDiff} minute${minutesDiff !== 1 ? 's' : ''}`;
+        }
+        
+        return {
+          label: 'Overdue',
+          value: overdueValue,
+          color: 'red',
+          icon: IconAlertTriangle
+        };
+      }
     } else if (diffDays === 0) {
       return {
         label: 'Due Today',

@@ -6,7 +6,7 @@ import {
   Text,
   Stack,
   Badge,
-  Tooltip,
+  HoverCard,
   Modal,
   Box,
   ScrollArea,
@@ -130,6 +130,18 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
       case TaskPriority.LOW: return 'green';
       default: return 'gray';
     }
+  };
+
+  // Get random consistent color based on task ID for better visual distinction
+  const getTaskColor = (taskId: number) => {
+    const colors = [
+      'blue', 'grape', 'violet', 'indigo', 'cyan', 'teal', 'green', 
+      'lime', 'yellow', 'orange', 'red', 'pink', 'gray', 'dark'
+    ];
+    
+    // Use task ID to generate consistent but seemingly random color
+    const colorIndex = taskId % colors.length;
+    return colors[colorIndex];
   };
 
   // Get status color
@@ -273,11 +285,46 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
     setCurrentDate(newDate);
   };
 
+  // Calculate maximum tasks that can fit without overlapping
+  const calculateMaxTasksPerDay = () => {
+    // Calendar day height is 80px
+    // Date text takes ~20px
+    // Each task badge is ~16px (xs size) + 2px gap
+    // Need some padding at bottom
+    const dayHeight = 80;
+    const dateHeight = 20;
+    const taskHeight = 16;
+    const taskGap = 2;
+    const bottomPadding = 8;
+    
+    const availableHeight = dayHeight - dateHeight - bottomPadding;
+    return Math.floor(availableHeight / (taskHeight + taskGap));
+  };
+
+  const maxTasksPerDay = calculateMaxTasksPerDay(); // Should be around 3
+
   // Custom day renderer
   const renderDay = (date: string) => {
     const dateObj = dayjs(date).toDate();
     const dayTasks = getTasksForDate(dateObj);
     const isToday = dayjs(date).format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+    
+    // Sort tasks: incomplete tasks first, then completed tasks at the bottom
+    const sortedDayTasks = dayTasks.sort((a, b) => {
+      const aCompleted = a.task.status === TaskStatus.DONE;
+      const bCompleted = b.task.status === TaskStatus.DONE;
+      
+      // If completion status is different, show incomplete first
+      if (aCompleted !== bCompleted) {
+        return aCompleted ? 1 : -1;
+      }
+      
+      // If both have same completion status, maintain original order
+      return 0;
+    });
+    
+    const tasksToShow = sortedDayTasks.slice(0, maxTasksPerDay);
+    const hasMoreTasks = sortedDayTasks.length > maxTasksPerDay;
     
     return (
       <Box 
@@ -305,67 +352,94 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
         </Text>
         
         <div className={classes.taskContainer}>
-          {dayTasks.slice(0, 3).map((taskEvent, index) => {
+          {tasksToShow.map((taskEvent, index) => {
             const task = taskEvent.task;
-            const priorityColor = getPriorityColor(task.priority);
+            const taskColor = getTaskColor(task.id);
+            const statusColor = getStatusColor(task.status);
             const isCompleted = task.status === TaskStatus.DONE;
             
             return (
-              <Tooltip
-                key={`${task.id}-${index}`}
-                label={
-                  <div>
-                    <Text size="sm" fw={500}>{task.title}</Text>
-                    <Text size="xs" c="dimmed">
-                      Priority: {task.priority} | Status: {task.status}
-                    </Text>
-                    {task.due_date && (
-                      <Text size="xs" c="dimmed">
-                        Due: {dayjs(task.due_date).format('MMM DD')}
-                      </Text>
-                    )}
+              <HoverCard key={`${task.id}-${index}`} width={320} shadow="md" openDelay={200} closeDelay={100}>
+                <HoverCard.Target>
+                  <Badge
+                    size="xs"
+                    color={taskColor}
+                    variant="filled"
+                    className={`${classes.taskBadge} ${
+                      isCompleted ? classes.taskBadgeCompleted : ''
+                    } ${
+                      taskEvent.spanDays > 1 ? classes.taskBadgeSpanning : ''
+                    }`}
+                    style={{
+                      borderRadius: taskEvent.isStart && taskEvent.isEnd ? '4px' : 
+                                 taskEvent.isStart ? '4px 0 0 4px' :
+                                 taskEvent.isEnd ? '0 4px 4px 0' : '0px',
+                      zIndex: 1,
+                      opacity: taskEvent.isMiddle ? 0.8 : 1,
+                      '--show-left-connection': !taskEvent.isStart && taskEvent.spanDays > 1 ? 'block' : 'none',
+                      '--show-right-connection': !taskEvent.isEnd && taskEvent.spanDays > 1 ? 'block' : 'none'
+                    } as React.CSSProperties}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTaskClick(taskEvent);
+                    }}
+                  >
+                    {taskEvent.isStart || taskEvent.spanDays === 1 ? 
+                      task.title.substring(0, 12) + (task.title.length > 12 ? '...' : '') : 
+                      '···'
+                    }
+                  </Badge>
+                </HoverCard.Target>
+                <HoverCard.Dropdown>
+                  <Stack gap="xs">
+                    <Text fw={500} size="sm">{task.title}</Text>
+                    <Group gap="xs">
+                      <Badge size="xs" color={getPriorityColor(task.priority)} variant="outline">
+                        {task.priority}
+                      </Badge>
+                      <Badge size="xs" color={statusColor} variant="light">
+                        {task.status.replace('_', ' ')}
+                      </Badge>
+                    </Group>
+                    
                     {taskEvent.spanDays > 1 && (
                       <Text size="xs" c="dimmed">
-                        Spans {taskEvent.spanDays} days
+                        📅 Spans {taskEvent.spanDays} days
+                        {taskEvent.isStart && ' (starts today)'}
+                        {taskEvent.isEnd && ' (ends today)'}
+                        {taskEvent.isMiddle && ` (day ${dayjs(date).diff(dayjs(task.created_at), 'day') + 1} of ${taskEvent.spanDays})`}
                       </Text>
                     )}
-                  </div>
-                }
-                withArrow
-              >
-                <Badge
-                  size="xs"
-                  color={priorityColor}
-                  variant="filled"
-                  className={`${classes.taskBadge} ${
-                    isCompleted ? classes.taskBadgeCompleted : ''
-                  } ${
-                    taskEvent.isStart && taskEvent.isEnd ? classes.taskBadgeSingle :
-                    taskEvent.isStart ? classes.taskBadgeStart :
-                    taskEvent.isEnd ? classes.taskBadgeEnd :
-                    classes.taskBadgeMiddle
-                  }`}
-                  style={{
-                    borderRadius: taskEvent.isStart && taskEvent.isEnd ? '4px' : 
-                               taskEvent.isStart ? '4px 0 0 4px' :
-                               taskEvent.isEnd ? '0 4px 4px 0' : '0',
-                    zIndex: 1 // Ensure badges appear above day borders
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTaskClick(taskEvent);
-                  }}
-                >
-                  {taskEvent.isStart || taskEvent.spanDays === 1 ? 
-                    task.title.substring(0, 12) + (task.title.length > 12 ? '...' : '') : 
-                    '···'
-                  }
-                </Badge>
-              </Tooltip>
+                    
+                    {task.description && (
+                      <Text size="xs" c="dimmed" lineClamp={3}>
+                        {task.description}
+                      </Text>
+                    )}
+                    
+                    <Group gap="md" mt="xs">
+                      {task.due_date && (
+                        <Group gap="xs">
+                          <IconClock size={12} />
+                          <Text size="xs" c="dimmed">
+                            Due {dayjs(task.due_date).format('MMM DD')}
+                          </Text>
+                        </Group>
+                      )}
+                      
+                      {task.points && (
+                        <Badge variant="outline" size="xs">
+                          {task.points}pt
+                        </Badge>
+                      )}
+                    </Group>
+                  </Stack>
+                </HoverCard.Dropdown>
+              </HoverCard>
             );
           })}
           
-          {dayTasks.length > 3 && (
+          {hasMoreTasks && (
             <div 
               className={classes.moreText}
               style={{ cursor: 'pointer', textDecoration: 'underline' }}
@@ -374,7 +448,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
                 handleDayClick(dateObj, dayTasks);
               }}
             >
-              +{dayTasks.length - 3} more
+              +{dayTasks.length - maxTasksPerDay} more
             </div>
           )}
         </div>
@@ -425,16 +499,19 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
           classNames={{}}
           styles={{
             month: {
-              width: '100%'
+              width: '100%',
+              overflow: 'visible'
             },
             monthThead: {
               width: '100%'
             },
             monthRow: {
-              width: '100%'
+              width: '100%',
+              overflow: 'visible'
             },
             monthTbody: {
-              width: '100%'
+              width: '100%',
+              overflow: 'visible'
             },
             day: {
               height: '80px',
@@ -474,7 +551,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
           <Stack gap="sm">
             {selectedDayTasks.map((taskEvent, index) => {
               const task = taskEvent.task;
-              const priorityColor = getPriorityColor(task.priority);
+              const taskColor = getTaskColor(task.id);
               const statusColor = getStatusColor(task.status);
               const isCompleted = task.status === TaskStatus.DONE;
 
@@ -495,7 +572,20 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
                       <Group gap="sm">
                         <Badge
                           size="sm"
-                          color={priorityColor}
+                          color={taskColor}
+                          variant="filled"
+                          style={{
+                            opacity: isCompleted ? 0.6 : 1,
+                            minWidth: '12px',
+                            height: '12px',
+                            padding: '0',
+                            borderRadius: '50%'
+                          }}
+                          title={`Task color: ${taskColor}`}
+                        />
+                        <Badge
+                          size="sm"
+                          color={getPriorityColor(task.priority)}
                           variant="filled"
                           style={{
                             opacity: isCompleted ? 0.6 : 1,

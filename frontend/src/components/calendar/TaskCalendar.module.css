@@ -39,73 +39,47 @@
   width: 100%;
 }
 
-.taskBadgeStart {
-  position: relative;
-}
-
-.taskBadgeStart::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -12px;
-  width: 12px;
-  height: 100%;
-  background-color: inherit;
-  z-index: -1;
-  opacity: 0.7;
-}
-
-.taskBadgeMiddle {
-  position: relative;
-}
-
-.taskBadgeMiddle::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -12px;
-  width: 12px;
-  height: 100%;
-  background-color: inherit;
-  z-index: -1;
-  opacity: 0.7;
-}
-
-.taskBadgeMiddle::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -12px;
-  width: 12px;
-  height: 100%;
-  background-color: inherit;
-  z-index: -1;
-  opacity: 0.7;
-}
-
-.taskBadgeEnd {
-  position: relative;
-}
-
-.taskBadgeEnd::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -12px;
-  width: 12px;
-  height: 100%;
-  background-color: inherit;
-  z-index: -1;
-  opacity: 0.7;
-}
-
-.taskBadgeSingle {
-  width: 100%;
-}
 
 .taskBadgeCompleted {
   opacity: 0.6;
   text-decoration: line-through;
+}
+
+.taskBadgeSpanning {
+  pointer-events: auto;
+  overflow: visible;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* Visual connection for spanning tasks - connecting lines */
+.taskBadgeSpanning::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  width: 20px;
+  height: 2px;
+  background-color: inherit;
+  opacity: 0.4;
+  transform: translateY(-50%);
+  display: var(--show-left-connection, none);
+  z-index: -1;
+}
+
+.taskBadgeSpanning::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 20px;
+  height: 2px;
+  background-color: inherit;
+  opacity: 0.4;
+  transform: translateY(-50%);
+  display: var(--show-right-connection, none);
+  z-index: -1;
 }
 
 .taskContainer {
@@ -118,6 +92,17 @@
   gap: 2px;
   overflow: visible;
   z-index: 2;
+}
+
+.dayCell {
+  overflow: visible !important;
+}
+
+.taskRow {
+  position: relative;
+  width: 100%;
+  height: 16px;
+  overflow: visible;
 }
 
 .moreText {

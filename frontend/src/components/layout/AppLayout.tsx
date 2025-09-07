@@ -42,7 +42,7 @@ export function AppLayout({
     <AppShell
       header={{ height: 60 }}
       navbar={{
-        width: (desktopOpened || isHovered) ? 300 : 80,
+        width: (desktopOpened || isHovered) ? 255 : 80,
         breakpoint: 'sm',
         collapsed: { mobile: !mobileOpened },
       }}
@@ -92,6 +92,7 @@ export function AppLayout({
         p={0}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        style={{ transition: 'width 0.15s ease-in-out' }}
       >
         {(desktopOpened || isHovered) ? (
           <NavbarNested

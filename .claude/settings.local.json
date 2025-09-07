@@ -18,7 +18,9 @@
       "Bash(docker logs:*)",
       "Bash(docker restart:*)",
       "Bash(npm run build:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Read(//home/user/Pictures/Screenshots/**)",
+      "WebFetch(domain:v6.mantine.dev)"
     ],
     "deny": [],
     "ask": []

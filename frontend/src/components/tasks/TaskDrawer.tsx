@@ -91,7 +91,7 @@ const getDynamicSteps = (taskStatus: TaskStatus, currentUser?: User | null, assi
     createdById,
     isAssignedToCurrentUser,
     isCreatedByCurrentUser,
-    currentUser: currentUser ? { id: currentUser.id, name: currentUser.name, role: currentUser.role } : null
+    currentUser: currentUser ? { id: currentUser.id, name: currentUser.full_name || `${currentUser.first_name} ${currentUser.last_name}`.trim() || currentUser.username, role: currentUser.role } : null
   });
   
   const steps = [
@@ -182,12 +182,28 @@ const getDueDateStatus = (dueDate: string | undefined) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   if (diffDays < 0) {
-    const daysPast = Math.abs(diffDays);
-    return {
-      status: 'overdue',
-      text: daysPast === 1 ? '1 day overdue' : `${daysPast} days overdue`,
-      color: 'red'
-    };
+    // For granular overdue display (includes time)
+    if (due < now) {
+      const timeDiff = now.getTime() - due.getTime();
+      const minutesDiff = Math.floor(timeDiff / (1000 * 60));
+      const hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+      const daysDiffExact = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      let overdueText = '';
+      if (daysDiffExact >= 1) {
+        overdueText = `${daysDiffExact} day${daysDiffExact !== 1 ? 's' : ''} overdue`;
+      } else if (hoursDiff >= 1) {
+        overdueText = `${hoursDiff} hour${hoursDiff !== 1 ? 's' : ''} overdue`;
+      } else {
+        overdueText = `${minutesDiff} minute${minutesDiff !== 1 ? 's' : ''} overdue`;
+      }
+      
+      return {
+        status: 'overdue',
+        text: overdueText,
+        color: 'red'
+      };
+    }
   } else if (diffDays === 0) {
     return {
       status: 'due-today',
@@ -406,20 +422,30 @@ export function TaskDrawer({
     }
     
     try {
-      // Update task status directly via taskService
       console.log('🔍 Updating task status to:', step.nextStatus);
       
-      const updateData = {
-        ...formData,
-        status: step.nextStatus
-      };
+      let updatedTask: ServiceTask;
       
-      // Update task in database directly
-      const updatedTask = await taskService.updateTask(task.id, updateData);
+      // Use the proper complete endpoint when marking task as done
+      if (step.nextStatus === 'done') {
+        console.log('🔍 Using completeTask endpoint for completion');
+        updatedTask = await taskService.completeTask(task.id);
+      } else {
+        // For other status changes, use regular update
+        const updateData = {
+          ...formData,
+          status: step.nextStatus
+        } as any;
+        updatedTask = await taskService.updateTask(task.id, updateData);
+      }
+      
       console.log('🔍 Task status updated successfully:', updatedTask);
       
       // Update local state
-      setFormData(updateData);
+      setFormData({
+        ...formData,
+        status: step.nextStatus
+      });
       setTask(updatedTask);
       
       // Don't call onSave for stepper updates as it may close the drawer
@@ -490,22 +516,6 @@ export function TaskDrawer({
             <Paper p="md" withBorder>
               <Group justify="space-between" align="center" mb="md">
                 <Text size="sm" fw={500}>Task Progress</Text>
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => {
-                    console.log('🔍 TEST BUTTON clicked');
-                    const testStep = steps.find(s => s.clickable);
-                    if (testStep) {
-                      console.log('🔍 Found clickable step, calling handleStepClick');
-                      handleStepClick(testStep);
-                    } else {
-                      console.log('🚫 No clickable steps found');
-                    }
-                  }}
-                >
-                  TEST
-                </Button>
               </Group>
               <Stepper
                 active={currentStep}
@@ -539,7 +549,7 @@ export function TaskDrawer({
                       key={step.key}
                       icon={<StepIcon size={14} />}
                       label={step.label}
-                      allowStepClick={step.clickable}
+                      allowStepClick={step.clickable || false}
                       color={
                         step.completed ? 'green' :
                         step.active ? 'blue' : 'gray'
