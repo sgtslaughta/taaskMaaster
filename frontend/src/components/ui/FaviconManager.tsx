@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '@/contexts';
 
 /**
  * @description FaviconManager component that updates favicon based on theme
@@ -16,11 +16,11 @@ export const FaviconManager: React.FC = () => {
   const { isDarkMode } = useTheme();
 
   /**
-   * @description Update favicon based on current theme
+   * @description Update favicon based on current theme (inverted for better contrast)
    */
   useEffect(() => {
     const updateFavicon = () => {
-      const faviconPath = isDarkMode ? '/favicon_dark.ico' : '/favicon_light.ico';
+      const faviconPath = isDarkMode ? '/favicon_light.ico' : '/favicon_dark.ico';
       
       // Find existing favicon link elements
       const existingFavicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;

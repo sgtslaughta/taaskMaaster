@@ -21,7 +21,6 @@ import {
   ThemeIcon,
   Center,
   BackgroundImage,
-  useMantineColorScheme,
   Image
 } from '@mantine/core';
 import {
@@ -29,6 +28,7 @@ import {
   IconAlertCircle
 } from '@tabler/icons-react';
 import DarkVeil from '../ui/DarkVeil';
+import { useTheme } from '@/contexts';
 import classes from './LoginPage.module.css';
 
 interface LoginPageProps {
@@ -43,7 +43,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, onRegister, loading = false, error }: LoginPageProps) {
-  const { colorScheme } = useMantineColorScheme();
+  const { isDarkMode } = useTheme();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -95,21 +95,18 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
           radius="md" 
           p="xl" 
           withBorder 
-          bg={colorScheme === 'dark' ? 'dark.7' : 'white'}
+          bg={isDarkMode ? 'dark.7' : 'white'}
+          opacity={0.9}
         >
-          <Group justify="center" mb="lg">
+          <Group justify="center" mb="xl">
             <Image
-              src={colorScheme === 'dark' ? '/logo_med_full_dark.png' : '/logo_med_full_light.png'}
+              src={isDarkMode ? '/logo_large_full_light.png' : '/logo_large_full_dark.png'}
               alt="TaaskMaaster Logo"
-              height={64}
+              height={160}
               width="auto"
               fit="contain"
             />
           </Group>
-          
-          <Title order={2} className={classes.title} ta="center" mt="md" mb="lg">
-            Welcome back to TaaskMaaster!
-          </Title>
 
           {error && (
             <Alert 

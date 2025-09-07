@@ -10,11 +10,11 @@ import { AppShell, Burger, Group, Text, Button, Image, useMantineColorScheme } f
 import { useDisclosure } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { NavbarNested } from '../navigation/NavbarNested';
-import { NavbarMinimal } from '../navigation/NavbarMinimal';
+import { NavbarNested } from '@/components';
+import { NavbarMinimal } from '@/components';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { tokenManager } from '../../services/tokenManager';
-import { useNotifications } from '../../contexts/NotificationContext';
+import { tokenManager } from '@/services/tokenManager';
+import { useNotifications } from '@/contexts';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -109,7 +109,7 @@ export function AppLayout({
       {/* Header */}
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Group>
+          <Group gap="sm" align="center">
             <Burger
               opened={mobileOpened}
               onClick={toggleMobile}
@@ -122,21 +122,15 @@ export function AppLayout({
               visibleFrom="sm"
               size="sm"
             />
-            <Group gap="sm">
+            <Group align="center" style={{ height: '100%' }}>
               <Image
-                src={colorScheme === 'dark' ? '/logo_short_med_dark.png' : '/logo_short_med_light.png'}
+                src={colorScheme === 'dark' ? '/logo_banner_large_light.png' : '/logo_banner_large_dark.png'}
                 alt="TaaskMaaster Logo"
-                height={32}
+                height={48}
                 width="auto"
                 fit="contain"
+                style={{ display: 'block' }}
               />
-              <Text
-                size="lg"
-                fw={600}
-                c="primary"
-              >
-                TaaskMaaster
-              </Text>
             </Group>
           </Group>
 

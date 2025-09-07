@@ -33,7 +33,6 @@ COPY . .
 # Only build in production
 RUN if [ "$NODE_ENV" = "production" ]; then \
       npm run build; \
-      # Ensure prerender-manifest.json exists (Next.js 15.x fix)
       if [ ! -f ".next/prerender-manifest.json" ]; then \
         echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development-id","previewModeSigningKey":"development-key","previewModeEncryptionKey":"development-key"}}' > .next/prerender-manifest.json; \
       fi; \
@@ -53,14 +52,17 @@ COPY --from=build /app /app
 # Make entrypoint executable
 RUN chmod +x entrypoint.sh
 
-# Use non-root user
-USER node
-
 # Ensure prerender-manifest.json exists in runtime (Next.js 15.x fix)
-# This must be done after switching to node user to avoid permission issues
+# This must be done before switching to node user to avoid permission issues
 RUN if [ ! -f ".next/prerender-manifest.json" ]; then \
       echo '{"version":3,"routes":{},"dynamicRoutes":{},"notFoundRoutes":[],"preview":{"previewModeId":"development-id","previewModeSigningKey":"development-key","previewModeEncryptionKey":"development-key"}}' > .next/prerender-manifest.json; \
     fi
+
+# Fix ownership of specific directories that need write access
+RUN chown -R node:node /app/.next /app/node_modules /app/entrypoint.sh
+
+# Use non-root user
+USER node
 
 EXPOSE 3000
 

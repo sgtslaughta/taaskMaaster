@@ -27,10 +27,10 @@ export default function Document() {
         <meta name="description" content="A comprehensive task management system designed to help parents encourage children to complete household tasks through gamification and rewards." />
         
         {/* Favicon - Managed dynamically by FaviconManager component */}
-        <link rel="icon" href="/favicon_light.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon_light.ico" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon_light.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/favicon_light.ico" />
+        <link rel="icon" href="/favicon_dark.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon_dark.ico" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon_dark.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/favicon_dark.ico" />
         
         {/* Theme color */}
         <meta name="theme-color" content="#2563eb" />
