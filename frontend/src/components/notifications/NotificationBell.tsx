@@ -16,14 +16,22 @@ import {
   Center,
   Tooltip,
   Group,
-  ScrollArea
+  ScrollArea,
+  Paper,
+  Badge,
+  Box,
+  Divider
 } from '@mantine/core';
 import { 
   IconBell,
   IconRefresh,
   IconCheck,
   IconTrash,
-  IconBellOff
+  IconBellOff,
+  IconMessage,
+  IconUser,
+  IconClipboard,
+  IconAlertTriangle
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -117,6 +125,32 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
     }
   };
 
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'task_comment': return <IconMessage size={16} />;
+      case 'task_assigned': return <IconUser size={16} />;
+      case 'task_completed': return <IconCheck size={16} />;
+      case 'workflow_transition': return <IconClipboard size={16} />;
+      case 'approval_request': return <IconAlertTriangle size={16} />;
+      case 'message': return <IconMessage size={16} />;
+      case 'mention': return <IconBell size={16} />;
+      default: return <IconBell size={16} />;
+    }
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'task_comment': return 'blue';
+      case 'task_assigned': return 'green';
+      case 'task_completed': return 'teal';
+      case 'workflow_transition': return 'yellow';
+      case 'approval_request': return 'orange';
+      case 'message': return 'blue';
+      case 'mention': return 'grape';
+      default: return 'gray';
+    }
+  };
+
   return (
     <Menu position="bottom-end" width={400} shadow="lg" onOpen={handleMenuOpen}>
       <Menu.Target>
@@ -128,9 +162,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
             disabled={unreadCount === 0}
             color="red"
           >
-            <div className={className} style={{ padding: 8, cursor: 'pointer', color: isConnected ? 'gray' : 'red' }}>
+            <ActionIcon
+              variant="subtle"
+              color={isConnected ? 'gray' : 'red'}
+              size="lg"
+              className={className}
+            >
               {isConnected ? <IconBell size={20} /> : <IconBellOff size={20} />}
-            </div>
+            </ActionIcon>
           </Indicator>
         </Tooltip>
       </Menu.Target>
@@ -196,94 +235,85 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ className })
           </Center>
         ) : (
           <ScrollArea.Autosize mah={400} mx="-xs" px="xs">
-            {notificationList.map((notification) => (
-              <Menu.Item
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                style={{
-                  backgroundColor: !notification.read 
-                    ? 'light-dark(var(--mantine-color-blue-0), var(--mantine-color-dark-8))' 
-                    : 'transparent',
-                  padding: '12px',
-                  whiteSpace: 'normal',
-                  height: 'auto',
-                  cursor: 'pointer'
-                }}
-              >
-                <Group align="flex-start" gap="sm" wrap="nowrap">
-                  <div 
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: !notification.read 
-                        ? `var(--mantine-color-${getPriorityColor(notification.priority)}-6)`
-                        : 'transparent',
-                      flexShrink: 0,
-                      marginTop: 6
-                    }}
-                  />
-                  <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" fw={notification.read ? 500 : 600} lineClamp={2}>
-                      {notification.title}
-                    </Text>
-                    <Text size="xs" c="dimmed" lineClamp={3}>
-                      {notification.message}
-                    </Text>
-                    <Group justify="space-between" align="center">
-                      <Text size="xs" c="dimmed">
-                        {formatTimestamp(notification.timestamp)}
-                      </Text>
-                      {!notification.read && (
-                        <Text size="xs" c="blue" fw={600}>
-                          NEW
-                        </Text>
-                      )}
-                    </Group>
-                  </Stack>
-                  <Group gap={4}>
-                    {!notification.read && (
-                      <div
-                        style={{ 
-                          padding: 4, 
-                          cursor: 'pointer', 
-                          color: 'var(--mantine-color-green-6)',
-                          borderRadius: 4,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markAsRead(notification.id);
-                        }}
-                        title="Mark as read"
-                      >
-                        <IconCheck size={12} />
-                      </div>
-                    )}
-                    <div
-                      style={{ 
-                        padding: 4, 
-                        cursor: 'pointer', 
-                        color: 'var(--mantine-color-red-6)',
-                        borderRadius: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+            <Stack gap={4}>
+              {notificationList.map((notification) => (
+                <Paper
+                  key={notification.id}
+                  p="md"
+                  radius="sm"
+                  withBorder
+                  bg={!notification.read ? 'var(--mantine-color-blue-light)' : undefined}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <Group align="flex-start" gap="sm" wrap="nowrap">
+                    {/* Notification Icon */}
+                    <Box
+                      style={{
+                        color: `var(--mantine-color-${getNotificationColor(notification.type)}-6)`,
+                        flexShrink: 0
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearNotification(notification.id);
-                      }}
-                      title="Delete notification"
                     >
-                      <IconTrash size={12} />
-                    </div>
+                      {getNotificationIcon(notification.type)}
+                    </Box>
+                    
+                    {/* Notification Content */}
+                    <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                      <Group justify="space-between" align="flex-start" gap="xs">
+                        <Text size="sm" fw={notification.read ? 400 : 600} lineClamp={2} style={{ flex: 1 }}>
+                          {notification.title}
+                        </Text>
+                        {!notification.read && (
+                          <Badge size="xs" color="blue" variant="filled">
+                            NEW
+                          </Badge>
+                        )}
+                      </Group>
+                      
+                      <Text size="xs" c="dimmed" lineClamp={3}>
+                        {notification.message}
+                      </Text>
+                      
+                      <Group justify="space-between" align="center">
+                        <Text size="xs" c="dimmed">
+                          {formatTimestamp(notification.timestamp)}
+                        </Text>
+                        
+                        <Group gap={4}>
+                          {!notification.read && (
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              color="green"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(notification.id);
+                              }}
+                              title="Mark as read"
+                            >
+                              <IconCheck size={12} />
+                            </ActionIcon>
+                          )}
+                          
+                          <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearNotification(notification.id);
+                            }}
+                            title="Delete notification"
+                          >
+                            <IconTrash size={12} />
+                          </ActionIcon>
+                        </Group>
+                      </Group>
+                    </Stack>
                   </Group>
-                </Group>
-              </Menu.Item>
-            ))}
+                </Paper>
+              ))}
+            </Stack>
           </ScrollArea.Autosize>
         )}
       </Menu.Dropdown>

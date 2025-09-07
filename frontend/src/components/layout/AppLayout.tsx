@@ -42,8 +42,8 @@ export function AppLayout({
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false); // Collapsed by default
   const [isHovered, setIsHovered] = useState(false);
   
-  // Get notification refresh function
-  const { refreshStoredNotifications } = useNotifications();
+  // Get notification functions
+  const { refreshStoredNotifications, showTestMantineNotification } = useNotifications();
 
   const handleGenerateDemo = async () => {
     try {
@@ -62,8 +62,8 @@ export function AppLayout({
       });
 
       if (response.ok) {
-        // Refresh notifications to show the new ones
-        await refreshStoredNotifications();
+        // Refresh notifications and show Mantine notifications for new ones
+        await refreshStoredNotifications(true);
         
         notifications.show({
           title: 'Demo Notifications',

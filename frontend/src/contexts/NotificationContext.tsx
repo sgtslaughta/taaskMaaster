@@ -6,6 +6,8 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { notifications as mantineNotifications } from '@mantine/notifications';
+import { IconCheck, IconX, IconAlertTriangle, IconInfoCircle, IconMessage, IconBell, IconUser, IconClipboard } from '@tabler/icons-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getLoginState } from '../utils/cookies';
 import { notificationService, Notification as StoredNotification } from '../services/notificationService';
@@ -50,7 +52,7 @@ interface NotificationContextValue {
   clearAllNotifications: () => void;
   
   // Stored notifications management
-  refreshStoredNotifications: () => Promise<void>;
+  refreshStoredNotifications: (showMantineForNew?: boolean) => Promise<void>;
   markStoredAsRead: (storedIds: number[]) => Promise<void>;
   deleteStoredNotifications: (storedIds: number[]) => Promise<void>;
   
@@ -69,6 +71,9 @@ interface NotificationContextValue {
   // Real-time updates
   onNotificationReceived?: (notification: NotificationData) => void;
   setOnNotificationReceived: (callback: (notification: NotificationData) => void) => void;
+  
+  // Testing/Demo
+  showTestMantineNotification: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -95,6 +100,85 @@ export const NotificationProvider: React.FC<{
     httpSystemInitialized: false
   });
   
+  /**
+   * @description Handle navigation from notification action URL
+   */
+  const handleNotificationNavigation = useCallback((actionUrl: string) => {
+    
+    // Parse task URLs for SPA navigation
+    const taskMatch = actionUrl.match(/\/tasks\/(\d+)/);
+    if (taskMatch) {
+      const taskId = parseInt(taskMatch[1], 10);
+      
+      // Try to use global notification handler first (set by Dashboard)
+      const globalHandler = (window as any).__notificationNavHandler;
+      if (globalHandler) {
+        globalHandler('dashboard', taskId);
+        return;
+      }
+      
+      // Fallback to onNavigation prop if provided
+      if (onNavigation) {
+        onNavigation('dashboard', taskId);
+        return;
+      }
+    }
+
+    // Handle other URL patterns with onNavigation prop
+    if (onNavigation) {
+      const pathMatch = actionUrl.match(/\/(.+)/);
+      if (pathMatch) {
+        const pageId = pathMatch[1];
+        onNavigation(pageId);
+      } else {
+        onNavigation('dashboard');
+      }
+      return;
+    }
+
+    // Final fallback to direct navigation
+    console.warn('🔔 No navigation handler available, falling back to window.location');
+    window.location.href = actionUrl;
+  }, [onNavigation]);
+
+  /**
+   * @description Show a Mantine notification with proper styling and positioning
+   */
+  const showMantineNotification = useCallback((notification: NotificationData) => {
+    // Map notification types to appropriate icons and colors
+    const getNotificationConfig = (type: NotificationData['type']) => {
+      switch (type) {
+        case 'task_comment':
+          return { icon: <IconMessage size={20} />, color: 'blue' };
+        case 'task_assigned':
+          return { icon: <IconUser size={20} />, color: 'green' };
+        case 'task_completed':
+          return { icon: <IconCheck size={20} />, color: 'teal' };
+        case 'workflow_transition':
+          return { icon: <IconClipboard size={20} />, color: 'yellow' };
+        case 'approval_request':
+          return { icon: <IconAlertTriangle size={20} />, color: 'orange' };
+        case 'message':
+          return { icon: <IconMessage size={20} />, color: 'blue' };
+        case 'mention':
+          return { icon: <IconBell size={20} />, color: 'grape' };
+        default:
+          return { icon: <IconInfoCircle size={20} />, color: 'blue' };
+      }
+    };
+
+    const config = getNotificationConfig(notification.type);
+    
+    // Show the Mantine notification exactly like AppLayout does
+    mantineNotifications.show({
+      title: notification.title,
+      message: notification.message,
+      color: config.color,
+      icon: config.icon,
+      autoClose: 10000, // 10 seconds as requested
+    });
+  }, [handleNotificationNavigation]);
+
   /**
    * @description Convert stored notification to NotificationData format
    */
@@ -131,7 +215,7 @@ export const NotificationProvider: React.FC<{
   /**
    * @description Fetch stored notifications from the backend
    */
-  const refreshStoredNotifications = useCallback(async () => {
+  const refreshStoredNotifications = useCallback(async (showMantineForNew: boolean = false) => {
     // Use the unified auth ready check
     if (!isAuthReady()) {
       console.log('⚠️  Notifications: Auth not ready, skipping fetch');
@@ -154,6 +238,20 @@ export const NotificationProvider: React.FC<{
       // Merge with existing real-time notifications, avoiding duplicates
       setNotifications(prev => {
         const realTimeNotifications = prev.filter(n => !n.storedId);
+        
+        // If showMantineForNew is true, show Mantine notifications for new unread stored notifications
+        if (showMantineForNew) {
+          const existingStoredIds = prev.filter(n => n.storedId).map(n => n.storedId);
+          const newStoredNotifications = storedNotifications.filter(n => 
+            n.storedId && !existingStoredIds.includes(n.storedId) && !n.read
+          );
+          
+          // Show Mantine notifications for new stored notifications
+          newStoredNotifications.forEach(notification => {
+            showMantineNotification(notification);
+          });
+        }
+        
         const combinedNotifications = [...realTimeNotifications, ...storedNotifications];
         
         return combinedNotifications.sort((a, b) => 
@@ -165,7 +263,7 @@ export const NotificationProvider: React.FC<{
       console.error('Error fetching stored notifications:', error);
       throw error;
     }
-  }, [convertStoredNotification, isAuthReady, user]);
+  }, [convertStoredNotification, isAuthReady, user, showMantineNotification]);
 
   /**
    * @description Mark stored notifications as read via API
@@ -223,47 +321,6 @@ export const NotificationProvider: React.FC<{
     }
   }, [isAuthReady]);
 
-  /**
-   * @description Handle navigation from notification action URL
-   */
-  const handleNotificationNavigation = useCallback((actionUrl: string) => {
-    
-    // Parse task URLs for SPA navigation
-    const taskMatch = actionUrl.match(/\/tasks\/(\d+)/);
-    if (taskMatch) {
-      const taskId = parseInt(taskMatch[1], 10);
-      
-      // Try to use global notification handler first (set by Dashboard)
-      const globalHandler = (window as any).__notificationNavHandler;
-      if (globalHandler) {
-        globalHandler('dashboard', taskId);
-        return;
-      }
-      
-      // Fallback to onNavigation prop if provided
-      if (onNavigation) {
-        onNavigation('dashboard', taskId);
-        return;
-      }
-    }
-
-    // Handle other URL patterns with onNavigation prop
-    if (onNavigation) {
-      const pathMatch = actionUrl.match(/\/(.+)/);
-      if (pathMatch) {
-        const pageId = pathMatch[1];
-        onNavigation(pageId);
-      } else {
-        onNavigation('dashboard');
-      }
-      return;
-    }
-
-    // Final fallback to direct navigation
-    console.warn('🔔 No navigation handler available, falling back to window.location');
-    window.location.href = actionUrl;
-  }, [onNavigation]);
-  
   // WebSocket connection through frontend proxy (custom server handles this)
   const wsUrl = typeof window !== 'undefined' 
     ? `ws://${window.location.host}/ws/notifications`
@@ -333,6 +390,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     // Show toast for immediate feedback
     showToast({
       type: 'info',
@@ -347,7 +407,7 @@ export const NotificationProvider: React.FC<{
         }
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
   /**
    * @description Handle task assigned notifications
@@ -367,6 +427,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     showToast({
       type: 'info',
       title: 'Task Assigned',
@@ -379,7 +442,7 @@ export const NotificationProvider: React.FC<{
         }
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
   /**
    * @description Handle task completed notifications
@@ -401,6 +464,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     // Show toast for immediate feedback
     showToast({
       type: 'success',
@@ -414,7 +480,7 @@ export const NotificationProvider: React.FC<{
         }
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
   /**
    * @description Handle workflow transition notifications
@@ -436,7 +502,10 @@ export const NotificationProvider: React.FC<{
     };
 
     addNotification(notification);
-  }, [addNotification]);
+    
+    // Show Mantine notification
+    showMantineNotification(notification);
+  }, [addNotification, showMantineNotification]);
 
   /**
    * @description Handle approval request notifications
@@ -456,6 +525,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     showToast({
       type: 'warning',
       title: 'Approval Needed',
@@ -469,7 +541,7 @@ export const NotificationProvider: React.FC<{
         variant: 'primary'
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
   /**
    * @description Handle message notifications
@@ -489,13 +561,16 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     showToast({
       type: 'info',
       title: 'New Message',
       message: notification.message,
       duration: 4000
     });
-  }, [addNotification, showToast]);
+  }, [addNotification, showToast, showMantineNotification]);
 
   /**
    * @description Handle mention notifications
@@ -515,6 +590,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     showToast({
       type: 'info',
       title: 'Mentioned',
@@ -527,7 +605,7 @@ export const NotificationProvider: React.FC<{
         }
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
   /**
    * @description Handle general notifications (deleted, due soon, overdue, media, system)
@@ -558,6 +636,9 @@ export const NotificationProvider: React.FC<{
 
     addNotification(notification);
     
+    // Show Mantine notification
+    showMantineNotification(notification);
+    
     // Show toast for immediate feedback
     showToast({
       type: data.type === 'system_announcement' ? 'info' : 'warning',
@@ -571,7 +652,7 @@ export const NotificationProvider: React.FC<{
         }
       }]
     });
-  }, [addNotification, showToast, handleNotificationNavigation]);
+  }, [addNotification, showToast, showMantineNotification, handleNotificationNavigation]);
 
 
   /**
@@ -727,6 +808,25 @@ export const NotificationProvider: React.FC<{
     setNotifications([]);
   }, [notifications, deleteStoredNotifications]);
 
+  /**
+   * @description Test function to show a Mantine notification directly
+   */
+  const showTestMantineNotification = useCallback(() => {
+    const testNotification: NotificationData = {
+      id: `test_${Date.now()}`,
+      type: 'task_comment',
+      title: '🧪 Test Mantine Notification',
+      message: 'This is a test notification to verify Mantine notifications are working correctly!',
+      timestamp: new Date().toISOString(),
+      read: false,
+      priority: 'medium',
+      actionUrl: '/dashboard'
+    };
+    
+    console.log('🧪 Showing test Mantine notification:', testNotification);
+    showMantineNotification(testNotification);
+  }, [showMantineNotification]);
+
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
   
@@ -864,7 +964,8 @@ export const NotificationProvider: React.FC<{
     connectionError: notificationWS.error,
     navigateFromNotification: handleNotificationNavigation,
     onNotificationReceived,
-    setOnNotificationReceived
+    setOnNotificationReceived,
+    showTestMantineNotification
   }), [
     notifications,
     unreadCount,
@@ -885,7 +986,8 @@ export const NotificationProvider: React.FC<{
     notificationWS.error,
     handleNotificationNavigation,
     onNotificationReceived,
-    setOnNotificationReceived
+    setOnNotificationReceived,
+    showTestMantineNotification
   ]);
 
   return (
