@@ -13,6 +13,14 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   
+  // Suppress ISR manifest warnings in development
+  experimental: {
+    // Disable ISR in development to prevent manifest warnings
+    isrMemoryCacheSize: 0,
+    // Suppress HMR warnings
+    suppressHydrationWarning: true,
+  },
+  
   
   // Environment variables
   env: {
@@ -42,6 +50,15 @@ const nextConfig = {
       // Suppress specific HMR warnings
       config.infrastructureLogging = {
         level: 'error',
+      };
+      
+      // Suppress ISR manifest warnings in webpack
+      config.stats = {
+        ...config.stats,
+        warningsFilter: [
+          /Invalid message.*isrManifest/,
+          /handleStaticIndicator/,
+        ],
       };
     }
     return config;

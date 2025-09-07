@@ -189,16 +189,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const weeklyData = [];
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
-    // Debug: Log some task data to see what we're working with
-    console.log('Weekly data calculation - Total tasks:', tasks.length);
-    console.log('Sample tasks:', tasks.slice(0, 3).map(t => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      created_at: t.created_at,
-      completed_at: t.completed_at,
-      points: t.points
-    })));
+    // Debug logging removed - no longer needed
     
     for (let i = 0; i < 7; i++) {
       const currentDay = new Date(weekStart);
@@ -220,15 +211,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       // Calculate points for completed tasks on this day
       const dayPoints = completedTasks.reduce((sum, task) => sum + (task.points || 0), 0);
       
-      // Debug: Log data for today
-      if (currentDay.toDateString() === today.toDateString()) {
-        console.log(`Today (${dayNames[i]}):`, {
-          assigned: assignedTasks.length,
-          completed: completedTasks.length,
-          points: dayPoints,
-          completedTasks: completedTasks.map(t => ({ id: t.id, title: t.title, completed_at: t.completed_at }))
-        });
-      }
+      // Debug logging removed - no longer needed
       
       weeklyData.push({
         day: dayNames[i],
@@ -763,13 +746,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               maxWidth: '240px'
             },
             controls: {
-              '&[data-position="left"]': {
+              '&[dataPosition="left"]': {
                 left: 'calc(50% - 60px)',
                 top: 'calc(100% + 24px)',
                 transform: 'translateX(-50%)',
                 position: 'absolute'
               },
-              '&[data-position="right"]': {
+              '&[dataPosition="right"]': {
                 right: 'calc(50% - 60px)',
                 top: 'calc(100% + 24px)',
                 transform: 'translateX(50%)',

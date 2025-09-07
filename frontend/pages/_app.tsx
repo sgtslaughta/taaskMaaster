@@ -5,6 +5,7 @@
  * @version 1.0.0
  */
 
+import React from 'react';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
@@ -15,23 +16,26 @@ import { Notifications } from '@mantine/notifications';
 import { mantineTheme } from '../src/lib/mantine-theme';
 import { AuthProvider } from '../src/contexts/AuthContext'
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext'
-import { initConsoleFiltering } from '../src/utils/console-filter'
-import { initBrowserConsoleFiltering } from '../src/utils/browser-console-filter'
-import { initMantineWarningSuppression } from '../src/utils/mantine-warning-suppressor'
-
-// Initialize console filtering in development
-if (typeof window !== 'undefined') {
-  // Run immediately to catch early warnings
-  initConsoleFiltering();
-  initBrowserConsoleFiltering();
-  initMantineWarningSuppression();
-  
-  // Also run on DOM ready to catch any warnings that appear during page load
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      initMantineWarningSuppression();
-    });
-  }
+import { initBitwardenThemeFix, setBitwardenThemePreference } from '../src/utils/bitwarden-theme-fix'
+// Suppress HMR ISR manifest warnings in development
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = function(...args) {
+    const message = args.join(' ');
+    
+    // Filter out ISR manifest warnings
+    if (message.includes('Invalid message: {"action":"isrManifest"')) {
+      return;
+    }
+    
+    // Filter out handleStaticIndicator warnings
+    if (message.includes('handleStaticIndicator')) {
+      return;
+    }
+    
+    // Call original warn for other messages
+    originalWarn.apply(console, args);
+  };
 }
 
 /**
@@ -39,6 +43,12 @@ if (typeof window !== 'undefined') {
  */
 function AppContent({ Component, pageProps }: { Component: any; pageProps: any }) {
   const { mantineTheme: dynamicTheme, isDarkMode } = useTheme();
+  
+  // Initialize Bitwarden theme fix
+  React.useEffect(() => {
+    setBitwardenThemePreference();
+    initBitwardenThemeFix();
+  }, []);
   
   return (
     <MantineProvider theme={dynamicTheme} forceColorScheme={isDarkMode ? 'dark' : 'light'}>

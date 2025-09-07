@@ -65,7 +65,7 @@
   opacity: 0.4;
   transform: translateY(-50%);
   display: var(--show-left-connection, none);
-  z-index: -1;
+  z-index: 5;
 }
 
 .taskBadgeSpanning::after {
@@ -79,7 +79,7 @@
   opacity: 0.4;
   transform: translateY(-50%);
   display: var(--show-right-connection, none);
-  z-index: -1;
+  z-index: 5;
 }
 
 .taskContainer {
@@ -91,7 +91,7 @@
   flex-direction: column;
   gap: 2px;
   overflow: visible;
-  z-index: 2;
+  z-index: 20;
 }
 
 .dayCell {

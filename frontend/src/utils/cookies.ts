@@ -42,6 +42,7 @@ export interface UserSettings {
     timezone: string;
     dateFormat: string;
     timeFormat: '12h' | '24h';
+    showTaskWarnings?: boolean;
   };
 }
 
@@ -66,6 +67,7 @@ export const defaultSettings: UserSettings = {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     dateFormat: 'MM/DD/YYYY',
     timeFormat: '12h',
+    showTaskWarnings: true,
   },
 };
 

@@ -18,7 +18,10 @@ import {
   Stack,
   Alert,
   Group,
-  ThemeIcon
+  ThemeIcon,
+  Center,
+  BackgroundImage,
+  useMantineColorScheme
 } from '@mantine/core';
 import {
   IconChecklist,
@@ -39,6 +42,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, onRegister, loading = false, error }: LoginPageProps) {
+  const { colorScheme } = useMantineColorScheme();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -84,55 +88,69 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
         resolutionScale={0.8}
       />
       
-      <Paper className={classes.form}>
-        <Group justify="center" mb="xl">
-          <ThemeIcon size="xl" variant="light" color="primary">
-            <IconChecklist size={32} stroke={1.5} />
-          </ThemeIcon>
-        </Group>
-        
-        <Title order={2} className={classes.title}>
-          Welcome to TaaskMaaster!
-        </Title>
+      <Center style={{ height: '100vh', position: 'relative', zIndex: 2 }}>
+        <Paper 
+          className={classes.form} 
+          radius="md" 
+          p="xl" 
+          withBorder 
+          bg={colorScheme === 'dark' ? 'dark.7' : 'white'}
+        >
+          <Group justify="center" mb="lg">
+            <ThemeIcon size="xl" variant="light" color="primary">
+              <IconChecklist size={32} stroke={1.5} />
+            </ThemeIcon>
+          </Group>
+          
+          <Title order={2} className={classes.title} ta="center" mt="md" mb="lg">
+            Welcome back to TaaskMaaster!
+          </Title>
 
-        {error && (
-          <Alert 
-            icon={<IconAlertCircle size={16} />} 
-            color="red" 
-            mb="md"
-          >
-            {error}
-          </Alert>
-        )}
+          {error && (
+            <Alert 
+              icon={<IconAlertCircle size={16} />} 
+              color="red" 
+              mb="md"
+            >
+              {error}
+            </Alert>
+          )}
 
-        <form onSubmit={handleSubmit}>
-          <Stack gap="md">
+          <form onSubmit={handleSubmit} autoComplete="on">
             <TextInput
               label="Username or Email"
               placeholder="username or your@email.com"
               size="md"
-              radius="md"
               value={identifier}
               onChange={(e) => setIdentifier(e.currentTarget.value)}
               error={validationErrors.identifier}
               disabled={loading}
               required
+              autoComplete="username"
+              name="username"
+              id="username"
+              data-1p-ignore
             />
             
             <PasswordInput
               label="Password"
               placeholder="Your password"
+              mt="md"
               size="md"
-              radius="md"
               value={password}
               onChange={(e) => setPassword(e.currentTarget.value)}
               error={validationErrors.password}
               disabled={loading}
               required
+              autoComplete="current-password"
+              name="password"
+              id="password"
+              data-1p-ignore
             />
             
             <Checkbox
               label="Keep me logged in"
+              mt="xl"
               size="md"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.currentTarget.checked)}
@@ -142,44 +160,44 @@ export function LoginPage({ onLogin, onRegister, loading = false, error }: Login
             <Button
               type="submit"
               fullWidth
+              mt="xl"
               size="md"
-              radius="md"
               loading={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-          </Stack>
-        </form>
+          </form>
 
-        <Text ta="center" mt="xl" size="sm">
-          Don&apos;t have an account?{' '}
-          <Anchor
-            href="#"
-            fw={500}
-            onClick={(event) => {
-              event.preventDefault();
-              onRegister?.();
-            }}
-          >
-            Create Account
-          </Anchor>
-        </Text>
+          <Text ta="center" mt="md" size="sm">
+            Don&apos;t have an account?{' '}
+            <Anchor
+              href="#"
+              fw={700}
+              onClick={(event) => {
+                event.preventDefault();
+                onRegister?.();
+              }}
+            >
+              Register
+            </Anchor>
+          </Text>
 
-        <Text ta="center" mt="md" size="xs" c="dimmed">
-          Forgot your password?{' '}
-          <Anchor
-            href="#"
-            size="xs"
-            onClick={(event) => {
-              event.preventDefault();
-              // Handle forgot password
-              console.log('Forgot password clicked');
-            }}
-          >
-            Reset it here
-          </Anchor>
-        </Text>
-      </Paper>
+          <Text ta="center" mt="xs" size="xs" c="dimmed">
+            Forgot your password?{' '}
+            <Anchor
+              href="#"
+              size="xs"
+              onClick={(event) => {
+                event.preventDefault();
+                // Handle forgot password
+                console.log('Forgot password clicked');
+              }}
+            >
+              Reset it here
+            </Anchor>
+          </Text>
+        </Paper>
+      </Center>
     </div>
   );
 }

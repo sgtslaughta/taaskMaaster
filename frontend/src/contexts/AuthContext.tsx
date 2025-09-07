@@ -12,8 +12,10 @@ import {
   saveLoginState, 
   getLoginState, 
   clearLoginState,
-  saveUserSettings 
+  saveUserSettings,
+  getUserSettings 
 } from '../utils/cookies';
+import { TaskWarningModal } from '../components/modals/TaskWarningModal';
 
 /**
  * @description User interface
@@ -61,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showTaskWarningModal, setShowTaskWarningModal] = useState(false);
 
   /**
    * @description Initialize auth state from cookies
@@ -202,6 +205,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(userData);
 
+      // Show task warning modal after successful login (if enabled)
+      const settings = getUserSettings();
+      if (settings.preferences?.showTaskWarnings !== false) {
+        setShowTaskWarningModal(true);
+      }
+
     } catch (error: any) {
       console.error('AuthContext: Login failed with error:', error);
       const errorMessage = error.message || 'Login failed';
@@ -256,6 +265,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearError,
     }}>
       {children}
+      
+      {/* Task Warning Modal */}
+      {user && (
+        <TaskWarningModal
+          opened={showTaskWarningModal}
+          onClose={() => setShowTaskWarningModal(false)}
+          userId={user.id}
+        />
+      )}
     </AuthContext.Provider>
   );
 };

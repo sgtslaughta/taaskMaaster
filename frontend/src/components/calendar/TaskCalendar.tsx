@@ -374,7 +374,7 @@ const TaskCalendar: React.FC<TaskCalendarProps> = ({ tasks, currentUser, onTaskC
                       borderRadius: taskEvent.isStart && taskEvent.isEnd ? '4px' : 
                                  taskEvent.isStart ? '4px 0 0 4px' :
                                  taskEvent.isEnd ? '0 4px 4px 0' : '0px',
-                      zIndex: 1,
+                      zIndex: 10,
                       opacity: taskEvent.isMiddle ? 0.8 : 1,
                       '--show-left-connection': !taskEvent.isStart && taskEvent.spanDays > 1 ? 'block' : 'none',
                       '--show-right-connection': !taskEvent.isEnd && taskEvent.spanDays > 1 ? 'block' : 'none'
